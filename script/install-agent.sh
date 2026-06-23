@@ -68,13 +68,20 @@ detect_linux_init() {
 }
 
 download() {
+    echo "Downloading nodekeep-agent package:"
+    echo "  Target: ${release_os}_${release_arch}"
+    echo "  URL: $1"
+    echo "  Save as: $2"
     if command -v curl >/dev/null 2>&1; then
+        echo "  Downloader: curl"
         curl -fL "$1" -o "$2"
     elif command -v wget >/dev/null 2>&1; then
+        echo "  Downloader: wget"
         wget -O "$2" "$1"
     else
         die "curl or wget is required to download nodekeep-agent."
     fi
+    echo "Download complete."
 }
 
 root_file_exists() {
@@ -185,6 +192,23 @@ archive="/tmp/nodekeep-agent_${release_os}_${release_arch}.tar.gz"
 url="https://github.com/${REPO}/releases/latest/download/nodekeep-agent_${release_os}_${release_arch}.tar.gz"
 bin_path="${install_dir}/nodekeep-agent"
 
+echo "nodekeep-agent installer"
+echo "  OS: ${release_os}"
+echo "  Arch: ${release_arch}"
+if [[ "${release_os}" == "linux" ]]; then
+    echo "  Init: ${INIT}"
+fi
+echo "  Install directory: ${install_dir}"
+echo "  Binary path: ${bin_path}"
+echo "  Service file: ${service_file}"
+echo "  Dashboard server: ${DASHBOARD_SERVER}"
+if [[ "${INSECURE}" == "true" ]]; then
+    echo "  Connection: insecure h2c"
+else
+    echo "  Connection: TLS"
+fi
+echo
+
 run_as_root mkdir -p "${install_dir}"
 
 download "${url}" "${archive}"
@@ -192,7 +216,9 @@ download "${url}" "${archive}"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}" "${archive}"' EXIT
 
+echo "Extracting package: ${archive}"
 tar xf "${archive}" -C "${tmp_dir}"
+echo "Package extracted to: ${tmp_dir}"
 
 agent_flags="-s ${DASHBOARD_SERVER} -p ${CLIENT_SECRET}"
 if [[ "${INSECURE}" == "true" ]]; then
@@ -204,6 +230,7 @@ run_as_root mkdir -p "${backup_dir}"
 run_as_root rm -f "${backup_dir}/nodekeep-agent.bak" "${backup_dir}/service.bak"
 
 stop_existing_service() {
+    echo "Stopping existing nodekeep-agent service if present..."
     case "${release_os}" in
     linux)
         case "${INIT}" in
@@ -227,6 +254,7 @@ backup_current_install() {
 }
 
 install_new_binary() {
+    echo "Installing binary to: ${bin_path}"
     run_as_root install -m 0755 "${tmp_dir}/nodekeep-agent" "${bin_path}"
 }
 
@@ -257,6 +285,7 @@ rollback_install() {
 }
 
 start_service() {
+    echo "Starting nodekeep-agent service..."
     case "${release_os}" in
     linux)
         case "${INIT}" in
@@ -280,6 +309,7 @@ start_service() {
 }
 
 check_service() {
+    echo "Checking nodekeep-agent service status..."
     case "${release_os}" in
     linux)
         case "${INIT}" in
@@ -298,6 +328,7 @@ check_service() {
 }
 
 activate_install() {
+    echo "Activating nodekeep-agent installation..."
     backup_current_install
     stop_existing_service
     install_new_binary
@@ -437,22 +468,89 @@ EOF
     run_as_root install -m 0644 "${service_tmp}" "${service_file}"
 }
 
+print_success_instructions() {
+    echo
+    echo "nodekeep-agent installed successfully."
+    echo "Binary: ${bin_path}"
+    echo "Service file: ${service_file}"
+    echo
+    case "${release_os}" in
+    linux)
+        case "${INIT}" in
+        systemd)
+            cat <<EOF
+Service status:
+  sudo systemctl status nodekeep-agent
+
+View logs:
+  sudo journalctl -fu nodekeep-agent.service
+
+Stop temporarily:
+  sudo systemctl stop nodekeep-agent
+
+Disable auto start:
+  sudo systemctl disable nodekeep-agent
+
+Uninstall:
+  sudo systemctl disable --now nodekeep-agent
+  sudo rm -f /etc/systemd/system/nodekeep-agent.service
+  sudo systemctl daemon-reload
+  sudo rm -rf ${install_dir}
+EOF
+            ;;
+        openrc)
+            cat <<EOF
+Service status:
+  sudo rc-service nodekeep-agent status
+
+View logs:
+  tail -f /var/log/nodekeep-agent.log /var/log/nodekeep-agent.err.log
+
+Stop temporarily:
+  sudo rc-service nodekeep-agent stop
+
+Disable auto start:
+  sudo rc-update del nodekeep-agent default
+
+Uninstall:
+  sudo rc-service nodekeep-agent stop
+  sudo rc-update del nodekeep-agent default
+  sudo rm -f /etc/init.d/nodekeep-agent
+  sudo rm -rf ${install_dir}
+EOF
+            ;;
+        esac
+        ;;
+    darwin)
+        cat <<EOF
+Service status:
+  sudo launchctl print system/com.nodekeep.agent
+
+View logs:
+  tail -f /var/log/nodekeep-agent.log /var/log/nodekeep-agent.err.log
+
+Stop temporarily:
+  sudo launchctl bootout system ${service_file}
+
+Disable auto start:
+  sudo launchctl disable system/com.nodekeep.agent
+
+Uninstall:
+  sudo launchctl bootout system ${service_file}
+  sudo rm -f ${service_file}
+  sudo rm -rf ${install_dir}
+EOF
+        ;;
+    esac
+}
+
 case "${release_os}" in
 linux)
     activate_install
-    echo "nodekeep-agent installed."
-    if [[ "${INIT}" == "systemd" ]]; then
-        echo "Service: nodekeep-agent.service"
-        echo "Logs: journalctl -fu nodekeep-agent.service"
-    else
-        echo "Service: nodekeep-agent"
-        echo "Logs: tail -f /var/log/nodekeep-agent.log /var/log/nodekeep-agent.err.log"
-    fi
+    print_success_instructions
     ;;
 darwin)
     activate_install
-    echo "nodekeep-agent installed."
-    echo "Service: com.nodekeep.agent"
-    echo "Logs: tail -f /var/log/nodekeep-agent.log /var/log/nodekeep-agent.err.log"
+    print_success_instructions
     ;;
 esac
