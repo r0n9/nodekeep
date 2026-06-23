@@ -8,16 +8,8 @@ builds:
     goos:
       - linux
     goarch:
-      - arm
       - arm64
-      - 386
       - amd64
-      - mips
-      - mips64
-      - s390x
-      - riscv64
-    gomips:
-      - softfloat
     main: ./cmd/agent
     binary: nodekeep-agent
   - id: nodekeep-agent-darwin
@@ -36,9 +28,7 @@ builds:
     goos:
       - windows
     goarch:
-      - arm64
       - amd64
-      - 386
     main: ./cmd/agent
     binary: nodekeep-agent
 checksum:
