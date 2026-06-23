@@ -2,13 +2,11 @@ before:
   hooks:
     - go mod tidy -v
 builds:
-  - id: probe-agent
+  - id: nodekeep-agent-linux
     env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
-      - darwin
     goarch:
       - arm
       - arm64
@@ -16,16 +14,39 @@ builds:
       - amd64
       - mips
       - mips64
+      - s390x
+      - riscv64
     gomips:
       - softfloat
     main: ./cmd/agent
-    binary: probe-agent
+    binary: nodekeep-agent
+  - id: nodekeep-agent-darwin
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+    main: ./cmd/agent
+    binary: nodekeep-agent
+  - id: nodekeep-agent-windows
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - arm64
+      - amd64
+      - 386
+    main: ./cmd/agent
+    binary: nodekeep-agent
 checksum:
   name_template: "checksums.txt"
 snapshot:
   name_template: "{{.ProjectName}}"
 archives:
-  - name_template: "probe-agent_{{ .Os }}_{{ .Arch }}"
+  - name_template: "nodekeep-agent_{{ .Os }}_{{ .Arch }}"
 changelog:
   sort: asc
   filters:

@@ -10,8 +10,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/XOS/Probe/pkg/utils"
 	"github.com/go-ping/ping"
+	"github.com/r0n9/nodekeep/pkg/utils"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
@@ -71,11 +71,11 @@ func httpWithSSLInfo() {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	httpClient := &http.Client{Transport: transCfg, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; NGBot/2.1; +https://server.nange.cn/)")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; nodekeep/2.1; +https://github.com/r0n9/nodekeep)")
 		return http.ErrUseLastResponse
 	}}
 	resp, err := httpClient.Get("http://mail.nai.ba")
-	resp.Header.Set("User-Agent", "Mozilla/5.0 (compatible; NGBot/2.1; +https://server.nange.cn/)")
+	resp.Header.Set("User-Agent", "Mozilla/5.0 (compatible; nodekeep/2.1; +https://github.com/r0n9/nodekeep)")
 	fmt.Println(err, resp.StatusCode)
 	// SSL 证书信息获取
 	// c := cert.NewCert("expired-ecc-dv.ssl.com")

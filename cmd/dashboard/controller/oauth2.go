@@ -13,10 +13,10 @@ import (
 	GitHubAPI "github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/pkg/mygin"
-	"github.com/XOS/Probe/pkg/utils"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/mygin"
+	"github.com/r0n9/nodekeep/pkg/utils"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 type oauth2controller struct {

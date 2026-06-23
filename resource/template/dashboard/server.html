@@ -33,6 +33,12 @@
                     <td style="word-break: break-word;">{{$server.Note}}</td>
                     <td>
                         <div class="ui mini icon buttons">
+                            <button class="ui button" data-tooltip="复制 Agent 安装命令" data-position="top center"
+                                data-secret="{{$server.Secret}}" data-dashboard-port="{{$.Conf.HTTPPort}}"
+                                data-agent-install-host="{{$.Conf.Agent.InstallHost}}" data-agent-tls="{{$.Conf.Agent.TLS}}"
+                                onclick="copyAgentInstallCommand(this)">
+                                <i class="copy outline icon"></i>
+                            </button>
                             <button class="ui button" onclick="addOrEditServer({{$server.Marshal}})">
                                 <i class="edit icon"></i>
                             </button>

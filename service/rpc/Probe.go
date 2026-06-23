@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/XOS/Probe/model"
-	pb "github.com/XOS/Probe/proto"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/model"
+	pb "github.com/r0n9/nodekeep/proto"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 type ProbeHandler struct {
@@ -96,14 +96,14 @@ func (s *ProbeHandler) RequestTask(h *pb.Host, stream pb.ProbeService_RequestTas
 	if clientID, err = s.Auth.Check(stream.Context()); err != nil {
 		return err
 	}
-	closeCh := make(chan error)
-	dao.ServerLock.RLock()
-	dao.ServerList[clientID].TaskStream = stream
-	dao.ServerList[clientID].TaskClose = closeCh
-	dao.ServerLock.RUnlock()
+	closeCh := make(chan error, 1)
+	dao.AttachTaskStream(clientID, stream, closeCh)
+	defer dao.DetachTaskStream(clientID, stream)
 	select {
 	case err = <-closeCh:
 		return err
+	case <-stream.Context().Done():
+		return stream.Context().Err()
 	}
 }
 
@@ -114,10 +114,7 @@ func (s *ProbeHandler) ReportSystemState(c context.Context, r *pb.State) (*pb.Re
 		return nil, err
 	}
 	state := model.PB2State(r)
-	dao.ServerLock.RLock()
-	defer dao.ServerLock.RUnlock()
-	dao.ServerList[clientID].LastActive = time.Now()
-	dao.ServerList[clientID].State = &state
+	dao.UpdateServerState(clientID, state, time.Now())
 	return &pb.Receipt{Proced: true}, nil
 }
 
@@ -128,17 +125,11 @@ func (s *ProbeHandler) ReportSystemInfo(c context.Context, r *pb.Host) (*pb.Rece
 		return nil, err
 	}
 	host := model.PB2Host(r)
-	dao.ServerLock.RLock()
-	defer dao.ServerLock.RUnlock()
-	if dao.Conf.EnableIPChangeNotification &&
-		dao.ServerList[clientID].Host != nil &&
-		dao.ServerList[clientID].Host.IP != "" &&
-		host.IP != "" &&
-		dao.ServerList[clientID].Host.IP != host.IP {
+	name, oldIP, newIP, changed := dao.UpdateServerHost(clientID, host, dao.Conf.EnableIPChangeNotification)
+	if changed {
 		dao.SendNotification(fmt.Sprintf(
 			"IP变更提醒 服务器：%s ，旧IP：%s，新IP：%s。",
-			dao.ServerList[clientID].Name, dao.ServerList[clientID].Host.IP, host.IP), true)
+			name, oldIP, newIP), true)
 	}
-	dao.ServerList[clientID].Host = &host
 	return &pb.Receipt{Proced: true}, nil
 }

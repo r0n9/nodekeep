@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+.DS_Store
+
+data
+dist
+tmp
+*.db
+*.log
+
+AGENTS.md
+README.md
+script/*
+!script/config.yaml

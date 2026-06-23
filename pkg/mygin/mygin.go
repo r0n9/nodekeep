@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 var adminPage = map[string]bool{

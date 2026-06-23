@@ -12,8 +12,8 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
 
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 var netInSpeed, netOutSpeed, netInTransfer, netOutTransfer, lastUpdate uint64

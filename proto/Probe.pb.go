@@ -25,7 +25,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-const defaultUserAgent = "Mozilla/5.0 (compatible; NGBot/2.1; +https://server.nange.cn/)"
+const defaultUserAgent = "Mozilla/5.0 (compatible; nodekeep/2.1; +https://github.com/r0n9/nodekeep)"
 
 // This is a compile-time assertion that a sufficiently up-to-date version
 // of the legacy proto package is being used.

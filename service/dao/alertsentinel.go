@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XOS/Probe/model"
+	"github.com/r0n9/nodekeep/model"
 )
 
 // 报警规则
@@ -83,15 +83,14 @@ func OnDeleteAlert(id uint64) {
 func checkStatus() {
 	alertsLock.RLock()
 	defer alertsLock.RUnlock()
-	ServerLock.RLock()
-	defer ServerLock.RUnlock()
 
+	servers := ServerSnapshot()
 	for _, alert := range alerts {
 		// 跳过未启用
 		if alert.Enable == nil || !*alert.Enable {
 			continue
 		}
-		for _, server := range ServerList {
+		for _, server := range servers {
 			// 监测点
 			alertsStore[alert.ID][server.ID] = append(alertsStore[alert.
 				ID][server.ID], alert.Snapshot(server))

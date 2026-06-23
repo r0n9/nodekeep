@@ -3,14 +3,14 @@
 #========================================================
 #   System Required: CentOS 7+ / Debian 8+ / Ubuntu 16+ /
 #     Arch 未测试
-#   Description: 楠格探针安装脚本
-#   Github: https://github.com/XOS/Probe
+#   Description: nodekeep安装脚本
+#   Github: https://github.com/r0n9/nodekeep
 #========================================================
 
-BASE_PATH="/opt/probe"
+BASE_PATH="/opt/nodekeep"
 DASHBOARD_PATH="${BASE_PATH}/dashboard"
 AGENT_PATH="${BASE_PATH}/agent"
-AGENT_SERVICE="/etc/systemd/system/probe-agent.service"
+AGENT_SERVICE="/etc/systemd/system/nodekeep-agent.service"
 VERSION="v2.0.1"
 
 red='\033[0;31m'
@@ -89,7 +89,7 @@ install_dashboard() {
 
     echo -e "> 安装面板"
 
-    # 楠格监测文件夹
+    # nodekeep文件夹
     mkdir -p $DASHBOARD_PATH
     chmod 777 -R $DASHBOARD_PATH
 
@@ -130,19 +130,19 @@ install_agent() {
 
     echo -e "> 安装监测Agent"
 
-    # 楠格监测文件夹
+    # nodekeep文件夹
     mkdir -p $AGENT_PATH
     chmod 777 -R $AGENT_PATH
 
     echo -e "正在下载监测端"
-    wget -O probe-agent_linux_${os_arch}.tar.gz https://${GITHUB_URL}/XOS/Probe/releases/latest/download/probe-agent_linux_${os_arch}.tar.gz >/dev/null 2>&1
+    wget -O nodekeep-agent_linux_${os_arch}.tar.gz https://${GITHUB_URL}/r0n9/nodekeep/releases/latest/download/nodekeep-agent_linux_${os_arch}.tar.gz >/dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${red}Release 下载失败，请检查本机能否连接 ${GITHUB_URL}${plain}"
         return 0
     fi
-    tar xf probe-agent_linux_${os_arch}.tar.gz &&
-        mv probe-agent $AGENT_PATH &&
-        rm -rf probe-agent_linux_${os_arch}.tar.gz README.md
+    tar xf nodekeep-agent_linux_${os_arch}.tar.gz &&
+        mv nodekeep-agent $AGENT_PATH &&
+        rm -rf nodekeep-agent_linux_${os_arch}.tar.gz README.md
 
     modify_agent_config 0
 
@@ -154,35 +154,45 @@ install_agent() {
 modify_agent_config() {
     echo -e "> 修改Agent配置"
 
-    wget -O $AGENT_SERVICE https://${GITHUB_RAW_URL}/XOS/Probe/master/script/probe-agent.service >/dev/null 2>&1
+    wget -O $AGENT_SERVICE https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/nodekeep-agent.service >/dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${red}文件下载失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
         return 0
     fi
 
     echo "请先在管理面板上添加Agent，记录下密钥" &&
-        read -p "请输入一个解析到面板所在IP的域名（不可套CDN）: " grpc_host &&
-        read -p "请输入面板RPC端口: (5555)" grpc_port &&
+        read -p "请输入一个解析到面板所在IP的域名（不可套CDN）: " dashboard_host &&
+        read -p "Agent 是否通过 HTTPS 反代连接面板？(y/N): " dashboard_tls &&
+        read -p "请输入面板访问端口: " dashboard_port &&
         read -p "请输入Agent 密钥: " client_secret
-    if [[ -z "${grpc_host}" || -z "${client_secret}" ]]; then
+    if [[ -z "${dashboard_host}" || -z "${client_secret}" ]]; then
         echo -e "${red}所有选项都不能为空${plain}"
         before_show_menu
         return 1
     fi
 
-    if [[ -z "${grpc_port}" ]]; then
-        grpc_port=5555
+    if [[ -z "${dashboard_port}" ]]; then
+        if [[ "${dashboard_tls}" =~ ^[Yy]$ ]]; then
+            dashboard_port=443
+        else
+            dashboard_port=8008
+        fi
+    fi
+    insecure_flag="-d"
+    if [[ "${dashboard_tls}" =~ ^[Yy]$ ]]; then
+        insecure_flag=""
     fi
 
-    sed -i "s/grpc_host/${grpc_host}/" ${AGENT_SERVICE}
-    sed -i "s/grpc_port/${grpc_port}/" ${AGENT_SERVICE}
+    sed -i "s/insecure_flag/${insecure_flag}/" ${AGENT_SERVICE}
+    sed -i "s/dashboard_host/${dashboard_host}/" ${AGENT_SERVICE}
+    sed -i "s/dashboard_port/${dashboard_port}/" ${AGENT_SERVICE}
     sed -i "s/client_secret/${client_secret}/" ${AGENT_SERVICE}
 
     echo -e "Agent配置 ${green}修改成功，请稍等重启生效${plain}"
 
     systemctl daemon-reload
-    systemctl enable probe-agent
-    systemctl restart probe-agent
+    systemctl enable nodekeep-agent
+    systemctl restart nodekeep-agent
 
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -193,7 +203,7 @@ modify_dashboard_config() {
     echo -e "> 修改面板配置"
 
     echo -e "正在下载 Docker 脚本"
-    wget -O ${DASHBOARD_PATH}/docker-compose.yaml https://${GITHUB_RAW_URL}/XOS/Probe/master/script/docker-compose.yaml >/dev/null 2>&1
+    wget -O ${DASHBOARD_PATH}/docker-compose.yaml https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/docker-compose.yaml >/dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${red}下载脚本失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
         return 0
@@ -201,45 +211,57 @@ modify_dashboard_config() {
 
     mkdir -p $DASHBOARD_PATH/data
 
-    wget -O ${DASHBOARD_PATH}/data/config.yaml https://${GITHUB_RAW_URL}/XOS/Probe/master/script/config.yaml >/dev/null 2>&1
+    wget -O ${DASHBOARD_PATH}/data/config.yaml https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/config.yaml >/dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${red}下载脚本失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
         return 0
     fi
 
-    echo "关于 GitHub Oauth2 应用：在 https://github.com/settings/developers 创建，无需审核，Callback 填 http(s)://域名或IP/oauth2/callback" &&
+    echo "本地管理员账号用于首次部署登录，请登录后尽快在设置页修改密码。" &&
+        read -p "请输入本地管理员用户名: (admin)" local_admin_username &&
+        read -p "请输入本地管理员密码: " local_admin_password &&
+        echo "OAuth2 为可选登录方式，可留空跳过。" &&
+        echo "关于 GitHub Oauth2 应用：在 https://github.com/settings/developers 创建，无需审核，Callback 填 http(s)://域名或IP/oauth2/callback" &&
         echo "关于 Gitee Oauth2 应用：在 https://gitee.com/oauth/applications 创建，无需审核，Callback 填 http(s)://域名或IP/oauth2/callback" &&
         read -p "请输入 OAuth2 提供商(gitee/github，默认 github): " oauth2_type &&
         read -p "请输入 Oauth2 应用的 Client ID: " github_oauth_client_id &&
         read -p "请输入 Oauth2 应用的 Client Secret: " github_oauth_client_secret &&
         read -p "请输入 GitHub/Gitee 登录名作为管理员，多个以逗号隔开: " admin_logins &&
         read -p "请输入站点标题: " site_title &&
-        read -p "请输入站点访问端口: (8008)" site_port &&
-        read -p "请输入用于 Agent 接入的 RPC 端口: (5555)" grpc_port
+        read -p "请输入站点访问和 Agent 接入端口: (8008)" site_port &&
+        read -p "请输入 Agent 安装命令中的面板连接地址（例如 example.com:443）: " agent_install_host &&
+        read -p "Agent 是否使用 TLS 连接？(y/N): " agent_tls_input
 
-    if [[ -z "${admin_logins}" || -z "${github_oauth_client_id}" || -z "${github_oauth_client_secret}" || -z "${site_title}" ]]; then
+    if [[ -z "${local_admin_password}" || -z "${site_title}" || -z "${agent_install_host}" ]]; then
         echo -e "${red}所有选项都不能为空${plain}"
         before_show_menu
         return 1
     fi
 
+    if [[ -z "${local_admin_username}" ]]; then
+        local_admin_username=admin
+    fi
     if [[ -z "${site_port}" ]]; then
         site_port=8008
-    fi
-    if [[ -z "${grpc_port}" ]]; then
-        grpc_port=5555
     fi
     if [[ -z "${oauth2_type}" ]]; then
         oauth2_type=github
     fi
+    agent_tls=false
+    if [[ "${agent_tls_input}" =~ ^[Yy]$ ]]; then
+        agent_tls=true
+    fi
 
+    sed -i "s/local_admin_username/${local_admin_username}/" ${DASHBOARD_PATH}/data/config.yaml
+    sed -i "s/local_admin_password/${local_admin_password}/" ${DASHBOARD_PATH}/data/config.yaml
+    sed -i "s/agent_install_host/${agent_install_host}/" ${DASHBOARD_PATH}/data/config.yaml
+    sed -i "s/agent_tls/${agent_tls}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/oauth2_type/${oauth2_type}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/admin_logins/${admin_logins}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/github_oauth_client_id/${github_oauth_client_id}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/github_oauth_client_secret/${github_oauth_client_secret}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/site_title/${site_title}/" ${DASHBOARD_PATH}/data/config.yaml
     sed -i "s/site_port/${site_port}/" ${DASHBOARD_PATH}/docker-compose.yaml
-    sed -i "s/grpc_port/${grpc_port}/" ${DASHBOARD_PATH}/docker-compose.yaml
 
     echo -e "面板配置 ${green}修改成功，请稍等重启生效${plain}"
 
@@ -258,7 +280,7 @@ restart_and_update() {
     docker-compose down
     docker-compose up -d
     if [[ $? == 0 ]]; then
-        echo -e "${green}楠格监测 重启成功${plain}"
+        echo -e "${green}nodekeep 重启成功${plain}"
         echo -e "默认管理面板地址：${yellow}域名:站点访问端口${plain}"
     else
         echo -e "${red}重启失败，可能是因为启动时间超过了两秒，请稍后查看日志信息${plain}"
@@ -274,7 +296,7 @@ start_dashboard() {
 
     cd $DASHBOARD_PATH && docker-compose up -d
     if [[ $? == 0 ]]; then
-        echo -e "${green}楠格监测 启动成功${plain}"
+        echo -e "${green}nodekeep 启动成功${plain}"
     else
         echo -e "${red}启动失败，请稍后查看日志信息${plain}"
     fi
@@ -289,7 +311,7 @@ stop_dashboard() {
 
     cd $DASHBOARD_PATH && docker-compose down
     if [[ $? == 0 ]]; then
-        echo -e "${green}楠格监测 停止成功${plain}"
+        echo -e "${green}nodekeep 停止成功${plain}"
     else
         echo -e "${red}停止失败，请稍后查看日志信息${plain}"
     fi
@@ -325,7 +347,7 @@ uninstall_dashboard() {
 show_agent_log() {
     echo -e "> 获取Agent日志"
 
-    journalctl -xf -u probe-agent.service
+    journalctl -xf -u nodekeep-agent.service
 
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -335,8 +357,8 @@ show_agent_log() {
 uninstall_agent() {
     echo -e "> 卸载Agent"
 
-    systemctl disable probe-agent.service
-    systemctl stop probe-agent.service
+    systemctl disable nodekeep-agent.service
+    systemctl stop nodekeep-agent.service
     rm -rf $AGENT_SERVICE
     systemctl daemon-reload
 
@@ -351,7 +373,7 @@ uninstall_agent() {
 restart_agent() {
     echo -e "> 重启Agent"
 
-    systemctl restart probe-agent.service
+    systemctl restart nodekeep-agent.service
 
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -365,29 +387,29 @@ clean_all() {
 }
 
 show_usage() {
-    echo "楠格监测 管理脚本使用方法: "
+    echo "nodekeep 管理脚本使用方法: "
     echo "--------------------------------------------------------"
-    echo "./nbdomain.sh                            - 显示管理菜单"
-    echo "./nbdomain.sh install_dashboard          - 安装面板端"
-    echo "./nbdomain.sh modify_dashboard_config    - 修改面板配置"
-    echo "./nbdomain.sh start_dashboard            - 启动面板"
-    echo "./nbdomain.sh stop_dashboard             - 停止面板"
-    echo "./nbdomain.sh restart_and_update         - 重启并更新面板"
-    echo "./nbdomain.sh show_dashboard_log         - 查看面板日志"
-    echo "./nbdomain.sh uninstall_dashboard        - 卸载管理面板"
+    echo "./nodekeep.sh                            - 显示管理菜单"
+    echo "./nodekeep.sh install_dashboard          - 安装面板端"
+    echo "./nodekeep.sh modify_dashboard_config    - 修改面板配置"
+    echo "./nodekeep.sh start_dashboard            - 启动面板"
+    echo "./nodekeep.sh stop_dashboard             - 停止面板"
+    echo "./nodekeep.sh restart_and_update         - 重启并更新面板"
+    echo "./nodekeep.sh show_dashboard_log         - 查看面板日志"
+    echo "./nodekeep.sh uninstall_dashboard        - 卸载管理面板"
     echo "--------------------------------------------------------"
-    echo "./nbdomain.sh install_agent              - 安装监测Agent"
-    echo "./nbdomain.sh modify_agent_config        - 修改Agent配置"
-    echo "./nbdomain.sh show_agent_log             - 查看Agent日志"
-    echo "./nbdomain.sh uninstall_agent            - 卸载Agen"
-    echo "./nbdomain.sh restart_agent              - 重启Agen"
+    echo "./nodekeep.sh install_agent              - 安装监测Agent"
+    echo "./nodekeep.sh modify_agent_config        - 修改Agent配置"
+    echo "./nodekeep.sh show_agent_log             - 查看Agent日志"
+    echo "./nodekeep.sh uninstall_agent            - 卸载Agen"
+    echo "./nodekeep.sh restart_agent              - 重启Agen"
     echo "--------------------------------------------------------"
 }
 
 show_menu() {
     echo -e "
-    ${green}楠格监测管理脚本${plain} ${red}${VERSION}${plain}
-    --- https://github.com/XOS/Probe ---
+    ${green}nodekeep管理脚本${plain} ${red}${VERSION}${plain}
+    --- https://github.com/r0n9/nodekeep ---
     ${green}0.${plain}  退出脚本
     ————————————————-
     ${green}1.${plain}  安装面板端

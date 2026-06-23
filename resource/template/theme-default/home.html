@@ -12,16 +12,20 @@
                 <div class="active title"><i class="dropdown icon"></i>@#(group.Tag!==''?group.Tag:'默认')#@</div>
                 <div class="active content">
                     <div class="ui four stackable status cards">
-                        <div v-for='server in group.data' :id="server.ID" class="ui card">
+                        <div v-for='server in group.data' :id="server.ID" class="ui card node-card" :class="{ offline: !server.live }">
                             <div class="content" v-if='server.Host' style="margin-top: 10px;padding-bottom: 5px">
-                                <div class="header"><i :class="server.Host.CountryCode + ' flag'"></i><i
-                                        v-if='server.Host.Platform == "darwin"' class="apple icon"></i><i
-                                        v-if='server.Host.Platform == "linux"' class="linux icon"></i><i
-                                        v-if='server.Host.Platform == "windows"' class="windows icon"></i><i
-                                        v-if='server.Host.Platform == "freebsd"' class="freebsd icon"></i>@#server.Name
-                                    +
-                                    (server.live?'':' [已离线]')#@
-                                    <i class="yellow info circle icon"></i>
+                                <div class="header">
+                                    <div class="node-card-header">
+                                        <div class="node-title">
+                                            <span class="node-name"><i :class="server.Host.CountryCode + ' flag'"></i><i
+                                                    v-if='server.Host.Platform == "darwin"' class="apple icon"></i><i
+                                                    v-if='server.Host.Platform == "linux"' class="linux icon"></i><i
+                                                    v-if='server.Host.Platform == "windows"' class="windows icon"></i><i
+                                                    v-if='server.Host.Platform == "freebsd"' class="freebsd icon"></i>@#server.Name#@</span>
+                                            <span class="node-meta">@#server.Host.Platform || 'unknown'#@ · @#server.Host.Version || '-'#@ <i class="yellow info circle icon"></i></span>
+                                        </div>
+                                        <span class="node-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
+                                    </div>
                                     <div class='ui content popup' style="margin-bottom: 0;  padding: .8em">
                                         系统：@#server.Host.Platform#@-@#server.Host.PlatformVersion#@ [<span
                                             v-if='server.Host.Virtualization'>@#server.Host.Virtualization#@:</span>@#server.Host.Arch#@]<br>
@@ -111,25 +115,48 @@
         el: '#app',
         delimiters: ['@#', '#@'],
         data: {
-            data: initData,
+            servers: initData,
             groups: [],
             cache: [],
         },
         created() {
-            this.group()
+            this.refreshServers(this.servers)
         },
         mounted() {
-            $('.yellow.info.icon').popup({
-                popup: '.ui.content.popup',
-                exclusive: true,
-            });
+            this.bindDynamicUI()
         },
         methods: {
             group() {
-                this.groups = groupingData(this.data, "Tag")
+                this.groups = groupingData(this.servers, "Tag")
                 /**
                  * console.log(this.groups)
                  **/
+            },
+            refreshServers(servers) {
+                this.servers = servers.map(server => {
+                    if (!server.Host) {
+                        server.live = false
+                        return server
+                    }
+                    const lastActive = new Date(server.LastActive).getTime()
+                    server.live = Date.now() - lastActive <= 20 * 1000
+                    return server
+                })
+                this.group()
+                this.$nextTick(this.bindDynamicUI)
+            },
+            bindDynamicUI() {
+                $('#app .ui.accordion').accordion({"exclusive": false})
+
+                const $icons = $('.status.cards .yellow.info.icon')
+                $icons.popup('destroy')
+                $icons.each(function () {
+                    const $icon = $(this)
+                    $icon.popup({
+                        popup: $icon.closest('.header').find('.ui.content.popup'),
+                        exclusive: true,
+                    })
+                })
             },
             formatPercent(live, used, total) {
                 const percent = live ? (parseInt(used / total * 100) || 0) : -1
@@ -229,21 +256,7 @@
     }
     **/
     ws.onmessage = function (evt) {
-        const oldServers = statusCards.servers
-        statusCards.servers = JSON.parse(evt.data)
-        for (let i = 0; i < statusCards.servers.length; i++) {
-            const ns = statusCards.servers[i];
-            if (!ns.Host) ns.live = false
-            else {
-                const lastActive = new Date(ns.LastActive).getTime()
-                if (Date.now() - lastActive > 20 * 1000) {
-                    ns.live = false
-                } else {
-                    ns.live = true
-                }
-            }
-        }
-        statusCards.groups = groupingData(statusCards.servers, "Tag")
+        statusCards.refreshServers(JSON.parse(evt.data))
     }
     /**
     ws.onclose = function () {
@@ -255,8 +268,5 @@
             position: 'top-center',
         });
     }**/
-    $('.ui.accordion')
-        .accordion({"exclusive": false})
-    ;
 </script>
 {{end}}

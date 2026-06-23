@@ -1,7 +1,7 @@
 package model
 
 import (
-	pb "github.com/XOS/Probe/proto"
+	pb "github.com/r0n9/nodekeep/proto"
 )
 
 type MonitorHistory struct {

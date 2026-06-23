@@ -17,15 +17,17 @@ import (
 	"github.com/blang/semver"
 	"github.com/genkiroid/cert"
 	"github.com/go-ping/ping"
-	"github.com/p14yground/go-github-selfupdate/selfupdate"
+	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/XOS/Probe/cmd/agent/monitor"
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/pkg/utils"
-	pb "github.com/XOS/Probe/proto"
-	"github.com/XOS/Probe/service/dao"
-	"github.com/XOS/Probe/service/rpc"
+	"github.com/r0n9/nodekeep/cmd/agent/monitor"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/utils"
+	pb "github.com/r0n9/nodekeep/proto"
+	"github.com/r0n9/nodekeep/service/dao"
+	"github.com/r0n9/nodekeep/service/rpc"
 )
 
 var (
@@ -57,7 +59,7 @@ func doSelfUpdate() {
 	}()
 	v := semver.MustParse(version)
 	log.Println("Check update", v)
-	latest, err := selfupdate.UpdateSelf(v, "XOS/Probe")
+	latest, err := selfupdate.UpdateSelf(v, "r0n9/nodekeep")
 	if err != nil {
 		log.Println("Binary update failed:", err)
 		return
@@ -82,7 +84,7 @@ func main() {
 	var debug bool
 	flag.String("i", "", "unused 旧Agent配置兼容")
 	flag.BoolVar(&debug, "d", false, "允许不安全连接")
-	flag.StringVar(&server, "s", "localhost:5555", "管理面板RPC端口")
+	flag.StringVar(&server, "s", "localhost:8008", "管理面板地址")
 	flag.StringVar(&clientSecret, "p", "", "Agent连接Secret")
 	flag.Parse()
 
@@ -130,7 +132,7 @@ func run() {
 	}
 
 	for {
-		conn, err = grpc.Dial(server, grpc.WithInsecure(), grpc.WithPerRPCCredentials(&auth))
+		conn, err = grpc.Dial(server, grpcDialOptions(&auth)...)
 		if err != nil {
 			log.Printf("grpc.Dial err: %v", err)
 			retry()
@@ -157,6 +159,18 @@ func run() {
 	}
 }
 
+func grpcDialOptions(auth *rpc.AuthHandler) []grpc.DialOption {
+	options := []grpc.DialOption{
+		grpc.WithPerRPCCredentials(auth),
+	}
+	if dao.Conf.Debug {
+		options = append(options, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+	}
+	return options
+}
+
 func receiveTasks(tasks pb.ProbeService_RequestTaskClient) error {
 	var err error
 	defer log.Printf("receiveTasks exit %v => %v", time.Now(), err)
@@ -179,6 +193,7 @@ func doTask(task *pb.Task) {
 		start := time.Now()
 		resp, err := httpClient.Get(task.GetData())
 		if err == nil {
+			defer resp.Body.Close()
 			result.Delay = float32(time.Now().Sub(start).Microseconds()) / 1000.0
 			if resp.StatusCode > 399 || resp.StatusCode < 200 {
 				err = errors.New("\n应用错误：" + resp.Status)

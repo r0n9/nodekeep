@@ -2,10 +2,9 @@ version: "3.3"
 
 services:
   dashboard:
-    image: szsvip/sz
+    image: ghcr.io/r0n9/nodekeep-dashboard
     restart: always
     volumes:
       - ./data:/dashboard/data
     ports:
       - site_port:80
-      - grpc_port:5555

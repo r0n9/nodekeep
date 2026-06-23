@@ -1,8 +1,8 @@
 [Unit]
-Description=Probe Dashborad
+Description=nodekeep Agent
 After=syslog.target
 After=network.target
-After=mariadb.service mysqld.service postgresql.service memcached.service redis.service
+#After=nodekeep-dashboard.service
 
 [Service]
 # Modify these two values and uncomment them if you have
@@ -12,10 +12,10 @@ After=mariadb.service mysqld.service postgresql.service memcached.service redis.
 #LimitMEMLOCK=infinity
 #LimitNOFILE=65535
 Type=simple
-#User=root
-#Group=root
-WorkingDirectory=/opt/probe/dashboard/
-ExecStart=/opt/probe/dashboard/probe-dashboard-linux-amd64
+User=root
+Group=root
+WorkingDirectory=/opt/nodekeep/agent/
+ExecStart=/opt/nodekeep/agent/nodekeep-agent insecure_flag -s dashboard_host:dashboard_port -p client_secret
 Restart=always
 #Environment=DEBUG=true
 

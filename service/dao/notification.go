@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XOS/Probe/model"
+	"github.com/r0n9/nodekeep/model"
 )
 
 const firstNotificationDelay = time.Minute * 15

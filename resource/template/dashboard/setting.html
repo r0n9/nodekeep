@@ -6,7 +6,7 @@
         <form id="settingForm" class="ui large form" onsubmit="return false;">
             <div class="field">
                 <label>站点标题</label>
-                <input type="text" name="Title" placeholder="楠格监测" value="{{.Conf.Site.Brand}}" style="
+                <input type="text" name="Title" placeholder="nodekeep" value="{{.Conf.Site.Brand}}" style="
                 background: rgb(255 255 255 / 50%);
             ">
             </div>
@@ -15,6 +15,24 @@
                 <input type="text" name="Admin" placeholder="1010,2020" value="{{.Conf.Oauth2.Admin}}" style="
                 background: rgb(255 255 255 / 50%);
             ">
+            </div>
+            <div class="field">
+                <label>本地管理员用户名</label>
+                <input type="text" name="LocalAuthUsername" placeholder="admin" value="{{.Conf.Auth.Local.Username}}" style="
+                background: rgb(255 255 255 / 50%);
+            ">
+            </div>
+            <div class="field">
+                <label>本地管理员密码</label>
+                <input type="password" name="LocalAuthPassword" placeholder="留空则不修改" autocomplete="new-password" style="
+                background: rgb(255 255 255 / 50%);
+            ">
+            </div>
+            <div class="field">
+                <div class="ui local-auth checkbox">
+                    <input name="LocalAuthEnabled" type="checkbox" tabindex="0" class="hidden">
+                    <label>启用本地账号登录</label>
+                </div>
             </div>
             <div class="field" style="
             background: rgb(255 255 255 / 50%);
@@ -36,6 +54,18 @@
                 <input type="text" name="ViewPassword" placeholder="" value="{{.Conf.Site.ViewPassword}}" style="
                 background: rgb(255 255 255 / 50%);
             ">
+            </div>
+            <div class="field">
+                <label>Agent 安装地址</label>
+                <input type="text" name="AgentInstallHost" placeholder="example.com:443" value="{{.Conf.Agent.InstallHost}}" style="
+                background: rgb(255 255 255 / 50%);
+            ">
+            </div>
+            <div class="field">
+                <div class="ui agent-tls checkbox">
+                    <input name="AgentTLS" type="checkbox" tabindex="0" class="hidden">
+                    <label>Agent 使用 TLS 连接</label>
+                </div>
             </div>
             <div class="field">
                 <div class="ui nf-ssl checkbox">
@@ -81,7 +111,13 @@
     })
     $('.checkbox').checkbox()
     {{if .Conf.EnableIPChangeNotification}}
-    $('.checkbox').checkbox('set checked')
+    $('.nf-ssl.checkbox').checkbox('set checked')
+    {{end}}
+    {{if .Conf.Auth.Local.Enabled}}
+    $('.local-auth.checkbox').checkbox('set checked')
+    {{end}}
+    {{if .Conf.Agent.TLS}}
+    $('.agent-tls.checkbox').checkbox('set checked')
     {{end}}
 </script>
 {{end}}

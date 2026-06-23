@@ -131,6 +131,83 @@ function addOrEditServer(server) {
     showFormModal('.server.modal', '#serverForm', '/api/server')
 }
 
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text)
+    }
+
+    return new Promise(function (resolve, reject) {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.left = '-9999px'
+        document.body.appendChild(textarea)
+        textarea.select()
+        try {
+            document.execCommand('copy') ? resolve() : reject(new Error('copy failed'))
+        } catch (err) {
+            reject(err)
+        } finally {
+            document.body.removeChild(textarea)
+        }
+    })
+}
+
+function shellQuote(value) {
+    return "'" + String(value).replace(/'/g, "'\\''") + "'"
+}
+
+function formatEndpointHost(host) {
+    return host.indexOf(':') === -1 || host[0] === '[' ? host : '[' + host + ']'
+}
+
+function currentEndpointPort(dashboardPort) {
+    if (window.location.port) {
+        return window.location.port
+    }
+    if (window.location.protocol === 'https:') {
+        return '443'
+    }
+    if (window.location.protocol === 'http:') {
+        return '80'
+    }
+    return dashboardPort || '8008'
+}
+
+function buildAgentInstallCommand(secret, options) {
+    options = options || {}
+    const configuredEndpoint = (options.installHost || '').trim()
+    const host = formatEndpointHost(window.location.hostname || window.location.host.split(':')[0])
+    const endpoint = configuredEndpoint || host + ':' + currentEndpointPort(options.dashboardPort)
+    const useTLS = configuredEndpoint ? options.agentTLS === 'true' : window.location.protocol === 'https:'
+    const insecureFlag = useTLS ? '' : ' --insecure'
+    const scriptURL = 'https://raw.githubusercontent.com/r0n9/nodekeep/master/script/install-agent.sh'
+    return '(command -v curl >/dev/null 2>&1 && curl -fsSL ' + shellQuote(scriptURL) +
+        ' || wget -qO- ' + shellQuote(scriptURL) + ') | bash -s -- -s ' +
+        shellQuote(endpoint) + ' -p ' + shellQuote(secret) + insecureFlag
+}
+
+function copyAgentInstallCommand(btn) {
+    const secret = btn.dataset.secret
+    const command = buildAgentInstallCommand(secret, {
+        dashboardPort: btn.dataset.dashboardPort || window.location.port || '8008',
+        installHost: btn.dataset.agentInstallHost || '',
+        agentTLS: btn.dataset.agentTls || 'false',
+    })
+    copyTextToClipboard(command).then(function () {
+        $.suiAlert({
+            title: '已复制 Agent 安装命令',
+            type: 'success',
+            description: '在目标服务器以 root 执行即可安装并启动 Agent。',
+            time: '4',
+            position: 'top-center',
+        })
+    }).catch(function () {
+        window.prompt('复制失败，请手动复制以下命令', command)
+    })
+}
+
 function addOrEditMonitor(monitor) {
     const modal = $('.monitor.modal')
     modal.children('.header').text((monitor ? '修改' : '添加') + '监控')

@@ -4,14 +4,26 @@
     <div class="ui center aligned grid">
         <div class="column">
             <h2 class="ui teal image header">
-                <img src="static/logo.png" class="image">
+                <img src="static/logo.svg" class="image">
                 <div class="content">
-                    使用 GitHub 账号登录
+                    登录 {{.Conf.Site.Brand}}
                 </div>
             </h2>
-            <a href="/oauth2/login" class="ui fluid large teal submit button">登录</a>
+            {{if .Conf.Auth.Local.Enabled}}
+            <form class="ui large form" action="/login" method="POST">
+                <div class="field">
+                    <input type="text" name="Username" placeholder="用户名" autocomplete="username" required>
+                </div>
+                <div class="field">
+                    <input type="password" name="Password" placeholder="密码" autocomplete="current-password" required>
+                </div>
+                <button class="ui fluid large teal submit button" type="submit">本地账号登录</button>
+            </form>
+            <div class="ui horizontal divider">或</div>
+            {{end}}
+            <a href="/oauth2/login" class="ui fluid large button">OAuth2 登录</a>
             <div class="ui message">
-                没有账号？ <a href="https://github.com/join" target="_blank">注册</a>
+                OAuth2 支持 GitHub / Gitee，管理员名单由配置控制。
             </div>
         </div>
     </div>

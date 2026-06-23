@@ -30,8 +30,18 @@ type Config struct {
 		ClientID     string
 		ClientSecret string
 	}
+	Auth struct {
+		Local struct {
+			Enabled  bool
+			Username string
+			Password string
+		}
+	}
+	Agent struct {
+		InstallHost string `mapstructure:"install_host" yaml:"install_host"`
+		TLS         bool   `mapstructure:"tls" yaml:"tls"`
+	}
 	HTTPPort                   uint
-	GRPCPort                   uint
 	EnableIPChangeNotification bool
 
 	v *viper.Viper

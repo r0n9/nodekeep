@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/XOS/Probe/model"
+	"github.com/r0n9/nodekeep/model"
 )
 
 type ErrInfo struct {

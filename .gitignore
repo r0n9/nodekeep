@@ -10,7 +10,34 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-.idea
-/data
-/dist
+
+# Local IDE and OS files
+.idea/
 .DS_Store
+
+# Runtime data and local configuration
+/data/
+.env
+.env.*
+
+# Build and release output
+/dist/
+/bin/
+/agent
+/dashboard
+/playground
+nodekeep-agent
+nodekeep-dashboard
+
+# Test and coverage artifacts
+coverage.out
+coverage.html
+
+# Logs and temporary files
+*.log
+*.pid
+*.tmp
+tmp/
+.cache/
+
+AGENTS.md

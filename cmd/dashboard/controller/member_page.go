@@ -3,10 +3,10 @@ package controller
 import (
 	"net/http"
 
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/pkg/mygin"
-	"github.com/XOS/Probe/service/dao"
 	"github.com/gin-gonic/gin"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/mygin"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 type memberPage struct {
@@ -30,11 +30,10 @@ func (mp *memberPage) serve() {
 }
 
 func (mp *memberPage) server(c *gin.Context) {
-	dao.SortedServerLock.RLock()
-	defer dao.SortedServerLock.RUnlock()
+	servers := dao.SortedServerSnapshot()
 	c.HTML(http.StatusOK, "dashboard/server", mygin.CommonEnvironment(c, gin.H{
 		"Title":   "服务器管理",
-		"Servers": dao.SortedServerList,
+		"Servers": servers,
 	}))
 }
 

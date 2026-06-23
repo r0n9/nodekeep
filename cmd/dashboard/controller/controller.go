@@ -9,11 +9,11 @@ import (
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/gin-gonic/gin"
 
-	"github.com/XOS/Probe/pkg/mygin"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/pkg/mygin"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
-func ServeWeb(port uint) {
+func ServeWeb() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	if dao.Conf.Debug {
 		gin.SetMode(gin.DebugMode)
@@ -110,7 +110,7 @@ func ServeWeb(port uint) {
 	r.Static("/static", "resource/static")
 	r.LoadHTMLGlob("resource/template/**/*")
 	routers(r)
-	r.Run(fmt.Sprintf(":%d", port))
+	return r
 }
 
 func routers(r *gin.Engine) {

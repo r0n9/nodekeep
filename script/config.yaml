@@ -1,5 +1,13 @@
 debug: true
 httpport: 80
+auth:
+  local:
+    enabled: true
+    username: "local_admin_username"
+    password: "local_admin_password"
+agent:
+  install_host: "agent_install_host"
+  tls: agent_tls
 oauth2:
   type: "oauth2_type" #Oauth2 登录接入类型，gitee/github
   admin: "admin_logins" #管理员列表，半角逗号隔开
@@ -7,5 +15,5 @@ oauth2:
   clientsecret: "github_oauth_client_secret"
 site:
   brand: "site_title"
-  cookiename: "Probe-dashboard" #浏览器 Cookie 字段名，可不改
+  cookiename: "nodekeep-dashboard" #浏览器 Cookie 字段名，可不改
   theme: "default"

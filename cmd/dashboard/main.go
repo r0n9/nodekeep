@@ -2,18 +2,21 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron/v3"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/XOS/Probe/cmd/dashboard/controller"
-	"github.com/XOS/Probe/cmd/dashboard/rpc"
-	"github.com/XOS/Probe/model"
-	pb "github.com/XOS/Probe/proto"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/cmd/dashboard/controller"
+	"github.com/r0n9/nodekeep/cmd/dashboard/rpc"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 func init() {
@@ -26,8 +29,7 @@ func init() {
 	dao.Conf = &model.Config{}
 	dao.Cron = cron.New(cron.WithLocation(shanghai))
 	dao.Crons = make(map[uint64]*model.Cron)
-	dao.ServerList = make(map[uint64]*model.Server)
-	dao.SecretToID = make(map[string]uint64)
+	dao.InitServerRuntimeState()
 
 	err = dao.Conf.Read("data/config.yaml")
 	if err != nil {
@@ -39,9 +41,6 @@ func init() {
 	}
 	if dao.Conf.Debug {
 		dao.DB = dao.DB.Debug()
-	}
-	if dao.Conf.GRPCPort == 0 {
-		dao.Conf.GRPCPort = 5555
 	}
 	dao.Cache = cache.New(5*time.Minute, 10*time.Minute)
 
@@ -68,13 +67,8 @@ func loadServers() {
 	var servers []model.Server
 	dao.DB.Find(&servers)
 	for _, s := range servers {
-		innerS := s
-		innerS.Host = &model.Host{}
-		innerS.State = &model.HostState{}
-		dao.ServerList[innerS.ID] = &innerS
-		dao.SecretToID[innerS.Secret] = innerS.ID
+		dao.UpsertServerRuntime(s, false)
 	}
-	dao.ReSortServer()
 }
 
 func loadCrons() {
@@ -84,19 +78,7 @@ func loadCrons() {
 	for i := 0; i < len(crons); i++ {
 		cr := crons[i]
 		cr.CronID, err = dao.Cron.AddFunc(cr.Scheduler, func() {
-			dao.ServerLock.RLock()
-			defer dao.ServerLock.RUnlock()
-			for j := 0; j < len(cr.Servers); j++ {
-				if dao.ServerList[cr.Servers[j]].TaskStream != nil {
-					dao.ServerList[cr.Servers[j]].TaskStream.Send(&pb.Task{
-						Id:   cr.ID,
-						Data: cr.Command,
-						Type: model.TaskTypeCommand,
-					})
-				} else {
-					dao.SendNotification(fmt.Sprintf("计划任务：%s，服务器：%d 离线，无法执行。", cr.Name, cr.Servers[j]), false)
-				}
-			}
+			dao.CronTrigger(&cr)
 		})
 		if err != nil {
 			panic(err)
@@ -107,8 +89,24 @@ func loadCrons() {
 }
 
 func main() {
-	go controller.ServeWeb(dao.Conf.HTTPPort)
-	go rpc.ServeRPC(dao.Conf.GRPCPort)
+	webHandler := controller.ServeWeb()
+	grpcHandler := rpc.ServeRPC()
+
 	go rpc.DispatchTask(time.Minute * 3)
-	dao.AlertSentinelStart()
+	go dao.AlertSentinelStart()
+
+	handler := h2c.NewHandler(httpAndGRPCMux(webHandler, grpcHandler), &http2.Server{})
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", dao.Conf.HTTPPort), handler); err != nil {
+		panic(err)
+	}
+}
+
+func httpAndGRPCMux(webHandler http.Handler, grpcHandler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+			grpcHandler.ServeHTTP(w, r)
+			return
+		}
+		webHandler.ServeHTTP(w, r)
+	})
 }

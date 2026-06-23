@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"time"
-
-	pb "github.com/XOS/Probe/proto"
 )
 
 type Server struct {
@@ -16,13 +14,13 @@ type Server struct {
 	Secret       string `gorm:"uniqueIndex" json:"-"`
 	Note         string `json:"-"` // 管理员可见备注
 	DisplayIndex int    // 展示排序，越大越靠前
+}
 
+type ServerRuntime struct {
+	Server
 	Host       *Host      `gorm:"-"`
 	State      *HostState `gorm:"-"`
 	LastActive time.Time  `gorm:"-"`
-
-	TaskClose  chan error                        `gorm:"-" json:"-"`
-	TaskStream pb.ProbeService_RequestTaskServer `gorm:"-" json:"-"`
 }
 
 func (s Server) Marshal() template.JS {

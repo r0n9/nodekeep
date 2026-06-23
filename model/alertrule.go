@@ -32,32 +32,40 @@ func percentage(used, total uint64) uint64 {
 }
 
 // Snapshot 未通过规则返回 struct{}{}, 通过返回 nil
-func (u *Rule) Snapshot(server *Server) interface{} {
+func (u *Rule) Snapshot(server *ServerRuntime) interface{} {
 	if u.Ignore[server.ID] {
 		return nil
+	}
+	state := server.State
+	if state == nil {
+		state = &HostState{}
+	}
+	host := server.Host
+	if host == nil {
+		host = &Host{}
 	}
 	var src uint64
 	switch u.Type {
 	case "cpu":
-		src = uint64(server.State.CPU)
+		src = uint64(state.CPU)
 	case "memory":
-		src = percentage(server.State.MemUsed, server.Host.MemTotal)
+		src = percentage(state.MemUsed, host.MemTotal)
 	case "swap":
-		src = percentage(server.State.SwapUsed, server.Host.SwapTotal)
+		src = percentage(state.SwapUsed, host.SwapTotal)
 	case "disk":
-		src = percentage(server.State.DiskUsed, server.Host.DiskTotal)
+		src = percentage(state.DiskUsed, host.DiskTotal)
 	case "net_in_speed":
-		src = server.State.NetInSpeed
+		src = state.NetInSpeed
 	case "net_out_speed":
-		src = server.State.NetOutSpeed
+		src = state.NetOutSpeed
 	case "net_all_speed":
-		src = server.State.NetOutSpeed + server.State.NetOutSpeed
+		src = state.NetInSpeed + state.NetOutSpeed
 	case "transfer_in":
-		src = server.State.NetInTransfer
+		src = state.NetInTransfer
 	case "transfer_out":
-		src = server.State.NetOutTransfer
+		src = state.NetOutTransfer
 	case "transfer_all":
-		src = server.State.NetOutTransfer + server.State.NetInTransfer
+		src = state.NetOutTransfer + state.NetInTransfer
 	case "offline":
 		if server.LastActive.IsZero() {
 			src = 0
@@ -95,7 +103,7 @@ func (r *AlertRule) AfterFind(tx *gorm.DB) error {
 	return json.Unmarshal([]byte(r.RulesRaw), &r.Rules)
 }
 
-func (r *AlertRule) Snapshot(server *Server) []interface{} {
+func (r *AlertRule) Snapshot(server *ServerRuntime) []interface{} {
 	var point []interface{}
 	for i := 0; i < len(r.Rules); i++ {
 		point = append(point, r.Rules[i].Snapshot(server))

@@ -11,11 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
 
-	"github.com/XOS/Probe/model"
-	"github.com/XOS/Probe/pkg/mygin"
-	"github.com/XOS/Probe/pkg/utils"
-	pb "github.com/XOS/Probe/proto"
-	"github.com/XOS/Probe/service/dao"
+	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/mygin"
+	"github.com/r0n9/nodekeep/pkg/utils"
+	"github.com/r0n9/nodekeep/service/dao"
 )
 
 type memberAPI struct {
@@ -59,11 +58,7 @@ func (ma *memberAPI) delete(c *gin.Context) {
 	case "server":
 		err = dao.DB.Delete(&model.Server{}, "id = ?", id).Error
 		if err == nil {
-			dao.ServerLock.Lock()
-			delete(dao.SecretToID, dao.ServerList[id].Secret)
-			delete(dao.ServerList, id)
-			dao.ServerLock.Unlock()
-			dao.ReSortServer()
+			dao.DeleteServerRuntime(id)
 		}
 	case "notification":
 		err = dao.DB.Delete(&model.Notification{}, "id = ?", id).Error
@@ -78,8 +73,8 @@ func (ma *memberAPI) delete(c *gin.Context) {
 	case "cron":
 		err = dao.DB.Delete(&model.Cron{}, "id = ?", id).Error
 		if err == nil {
-			dao.CronLock.RLock()
-			defer dao.CronLock.RUnlock()
+			dao.CronLock.Lock()
+			defer dao.CronLock.Unlock()
 			cr := dao.Crons[id]
 			if cr != nil && cr.CronID != 0 {
 				dao.Cron.Remove(cr.CronID)
@@ -170,20 +165,10 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 		return
 	}
 	if isEdit {
-		dao.ServerLock.RLock()
-		s.Host = dao.ServerList[s.ID].Host
-		s.State = dao.ServerList[s.ID].State
-		dao.ServerList[s.ID] = &s
-		dao.ServerLock.RUnlock()
+		dao.UpsertServerRuntime(s, true)
 	} else {
-		s.Host = &model.Host{}
-		s.State = &model.HostState{}
-		dao.ServerLock.Lock()
-		dao.SecretToID[s.Secret] = s.ID
-		dao.ServerList[s.ID] = &s
-		dao.ServerLock.Unlock()
+		dao.UpsertServerRuntime(s, false)
 	}
-	dao.ReSortServer()
 	c.JSON(http.StatusOK, model.Response{
 		Code: http.StatusOK,
 	})
@@ -274,19 +259,7 @@ func (ma *memberAPI) addOrEditCron(c *gin.Context) {
 	}
 
 	cr.CronID, err = dao.Cron.AddFunc(cr.Scheduler, func() {
-		dao.ServerLock.RLock()
-		defer dao.ServerLock.RUnlock()
-		for j := 0; j < len(cr.Servers); j++ {
-			if dao.ServerList[cr.Servers[j]].TaskStream != nil {
-				dao.ServerList[cr.Servers[j]].TaskStream.Send(&pb.Task{
-					Id:   cr.ID,
-					Data: cr.Command,
-					Type: model.TaskTypeCommand,
-				})
-			} else {
-				dao.SendNotification(fmt.Sprintf("计划任务：%s，服务器：%d 离线，无法执行。", cr.Name, cr.Servers[j]), false)
-			}
-		}
+		dao.CronTrigger(&cr)
 	})
 
 	delete(dao.Crons, cr.ID)
@@ -448,6 +421,11 @@ type settingForm struct {
 	ViewPassword               string
 	EnableIPChangeNotification string
 	Oauth2Type                 string
+	LocalAuthEnabled           string
+	LocalAuthUsername          string
+	LocalAuthPassword          string
+	AgentInstallHost           string
+	AgentTLS                   string
 }
 
 func (ma *memberAPI) updateSetting(c *gin.Context) {
@@ -466,6 +444,20 @@ func (ma *memberAPI) updateSetting(c *gin.Context) {
 	dao.Conf.Site.ViewPassword = sf.ViewPassword
 	dao.Conf.Oauth2.Type = sf.Oauth2Type
 	dao.Conf.Oauth2.Admin = sf.Admin
+	dao.Conf.Auth.Local.Enabled = sf.LocalAuthEnabled == "on"
+	dao.Conf.Auth.Local.Username = sf.LocalAuthUsername
+	dao.Conf.Agent.InstallHost = sf.AgentInstallHost
+	dao.Conf.Agent.TLS = sf.AgentTLS == "on"
+	if sf.LocalAuthPassword != "" {
+		dao.Conf.Auth.Local.Password = sf.LocalAuthPassword
+	}
+	if dao.Conf.Auth.Local.Enabled && (dao.Conf.Auth.Local.Username == "" || dao.Conf.Auth.Local.Password == "") {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "启用本地账号登录时，用户名和密码不能为空",
+		})
+		return
+	}
 	if err := dao.Conf.Save(); err != nil {
 		c.JSON(http.StatusOK, model.Response{
 			Code:    http.StatusBadRequest,
