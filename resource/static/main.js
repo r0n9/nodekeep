@@ -183,8 +183,7 @@ function buildAgentInstallCommand(secret, options) {
     const useTLS = configuredEndpoint ? options.agentTLS === 'true' : window.location.protocol === 'https:'
     const insecureFlag = useTLS ? '' : ' --insecure'
     const scriptURL = 'https://raw.githubusercontent.com/r0n9/nodekeep/master/script/install-agent.sh'
-    return '(command -v curl >/dev/null 2>&1 && curl -fsSL ' + shellQuote(scriptURL) +
-        ' || wget -qO- ' + shellQuote(scriptURL) + ') | bash -s -- -s ' +
+    return 'curl -fsSL ' + shellQuote(scriptURL) + ' | bash -s -- -s ' +
         shellQuote(endpoint) + ' -p ' + shellQuote(secret) + insecureFlag
 }
 
