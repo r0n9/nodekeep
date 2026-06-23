@@ -19,6 +19,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.8.3
 	golang.org/x/crypto v0.46.0
+	golang.org/x/net v0.48.0
 	golang.org/x/oauth2 v0.34.0
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.10
@@ -34,7 +35,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
@@ -69,10 +70,8 @@ require (
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/ulikunitz/xz v0.5.9 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
