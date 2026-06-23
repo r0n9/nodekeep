@@ -12,9 +12,9 @@ import (
 
 	"github.com/go-ping/ping"
 	"github.com/r0n9/nodekeep/pkg/utils"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/host"
 )
 
 func main() {
