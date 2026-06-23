@@ -47,7 +47,7 @@ func TestNotification(t *testing.T) {
 			expectType: "",
 		},
 		{
-			url:        "https://example.com/?m=#NG#",
+			url:        "https://example.com/?m=#NODEKEEP#",
 			body:       `{"asd":"dsa"}`,
 			reqMethod:  NotificationRequestMethodGET,
 			expectURL:  "https://example.com/?m=" + msg,
@@ -55,8 +55,8 @@ func TestNotification(t *testing.T) {
 			expectType: "",
 		},
 		{
-			url:        "https://example.com/?m=#NG#",
-			body:       `{"asd":"#NG#"}`,
+			url:        "https://example.com/?m=#NODEKEEP#",
+			body:       `{"asd":"#NODEKEEP#"}`,
 			reqMethod:  NotificationRequestMethodPOST,
 			reqType:    NotificationRequestTypeForm,
 			expectURL:  "https://example.com/?m=" + msg,
@@ -64,17 +64,17 @@ func TestNotification(t *testing.T) {
 			expectType: reqTypeForm,
 		},
 		{
-			url:        "https://example.com/?m=#NG#",
-			body:       `{"#NG#":"#NG#"}`,
+			url:        "https://example.com/?m=#NODEKEEP#",
+			body:       `{"#NODEKEEP#":"#NODEKEEP#"}`,
 			reqMethod:  NotificationRequestMethodPOST,
 			reqType:    NotificationRequestTypeForm,
 			expectURL:  "https://example.com/?m=" + msg,
-			expectBody: "%23NG%23=" + msg,
+			expectBody: "%23NODEKEEP%23=" + msg,
 			expectType: reqTypeForm,
 		},
 		{
-			url:        "https://example.com/?m=#NG#",
-			body:       `{"asd":"#NG#"}`,
+			url:        "https://example.com/?m=#NODEKEEP#",
+			body:       `{"asd":"#NODEKEEP#"}`,
 			reqMethod:  NotificationRequestMethodPOST,
 			reqType:    NotificationRequestTypeJSON,
 			expectURL:  "https://example.com/?m=" + msg,
@@ -82,8 +82,8 @@ func TestNotification(t *testing.T) {
 			expectType: reqTypeJSON,
 		},
 		{
-			url:        "https://example.com/?m=#NG#",
-			body:       `{"#NG#":"#NG#"}`,
+			url:        "https://example.com/?m=#NODEKEEP#",
+			body:       `{"#NODEKEEP#":"#NODEKEEP#"}`,
 			reqMethod:  NotificationRequestMethodPOST,
 			reqType:    NotificationRequestTypeJSON,
 			expectURL:  "https://example.com/?m=" + msg,
@@ -95,4 +95,12 @@ func TestNotification(t *testing.T) {
 	for _, c := range cases {
 		execCase(t, c)
 	}
+}
+
+func TestNotificationOldPlaceholderIsNotReplaced(t *testing.T) {
+	n := Notification{
+		URL:           "https://example.com/?m=#NG#",
+		RequestMethod: NotificationRequestMethodGET,
+	}
+	assert.Equal(t, "https://example.com/?m=#NG#", n.reqURL(msg))
 }

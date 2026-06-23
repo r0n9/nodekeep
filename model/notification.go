@@ -24,6 +24,8 @@ const (
 	NotificationRequestMethodPOST
 )
 
+const NotificationMessagePlaceholder = "#NODEKEEP#"
+
 type Notification struct {
 	Common
 	Name          string
@@ -75,14 +77,14 @@ func (n *Notification) reqContentType() string {
 }
 
 func (n *Notification) Send(message string) error {
-	var verifySSL bool
+	var insecureSkipVerify bool
 
-	if n.VerifySSL != nil && *n.VerifySSL {
-		verifySSL = true
+	if n.VerifySSL == nil || !*n.VerifySSL {
+		insecureSkipVerify = true
 	}
 
 	transCfg := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: verifySSL},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipVerify},
 	}
 	client := &http.Client{Transport: transCfg, Timeout: time.Minute * 5}
 
@@ -112,9 +114,9 @@ func (n *Notification) Send(message string) error {
 
 func replaceParamsInString(str string, message string, mod func(string) string) string {
 	if mod != nil {
-		str = strings.ReplaceAll(str, "#NG#", mod(message))
+		str = strings.ReplaceAll(str, NotificationMessagePlaceholder, mod(message))
 	} else {
-		str = strings.ReplaceAll(str, "#NG#", message)
+		str = strings.ReplaceAll(str, NotificationMessagePlaceholder, message)
 	}
 	return str
 }
