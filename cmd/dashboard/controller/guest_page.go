@@ -104,7 +104,7 @@ func (gp *guestPage) localLogin(c *gin.Context) {
 		gp.showLoginFailed(c, fmt.Sprintf("写入用户失败：%s", err))
 		return
 	}
-	c.SetCookie(dao.Conf.Site.CookieName, user.Token, 60*60*24, "", "", false, false)
+	mygin.SetSecureCookie(c, dao.Conf.Site.CookieName, user.Token, 60*60*24)
 	c.Redirect(http.StatusFound, "/")
 }
 

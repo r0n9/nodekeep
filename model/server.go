@@ -23,6 +23,29 @@ type ServerRuntime struct {
 	LastActive time.Time  `gorm:"-"`
 }
 
+type PublicHost struct {
+	Platform        string
+	PlatformVersion string
+	CPU             []string
+	MemTotal        uint64
+	DiskTotal       uint64
+	SwapTotal       uint64
+	Arch            string
+	Virtualization  string
+	BootTime        uint64
+	CountryCode     string
+	Version         string
+}
+
+type PublicServerRuntime struct {
+	ID         uint64
+	Name       string
+	Tag        string
+	Host       *PublicHost
+	State      *HostState
+	LastActive time.Time
+}
+
 func (s Server) Marshal() template.JS {
 	name, _ := json.Marshal(s.Name)
 	tag, _ := json.Marshal(s.Tag)

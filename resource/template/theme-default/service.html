@@ -25,8 +25,8 @@
             <article class="nk-service-card">
                 <div class="nk-service-head">
                     <div>
-                        <h2>{{$service.Monitor.Name}}</h2>
-                        <p>{{$service.Monitor.Target}}</p>
+                        <h2>{{$service.Name}}</h2>
+                        <p>最近 30 天可用性统计</p>
                     </div>
                     <span class="nk-status-pill {{className (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}">
                         {{statusName (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}

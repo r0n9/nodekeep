@@ -52,7 +52,7 @@ func (p *commonPage) issueViewPassword(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	c.SetCookie(dao.Conf.Site.CookieName+"-vp", string(hash), 60*60*24, "", "", false, false)
+	mygin.SetSecureCookie(c, dao.Conf.Site.CookieName+"-vp", string(hash), 60*60*24)
 	c.Redirect(http.StatusFound, c.Request.Referer())
 }
 
@@ -81,7 +81,8 @@ func (p *commonPage) checkViewPassword(c *gin.Context) {
 }
 
 type ServiceItem struct {
-	Monitor     model.Monitor
+	MonitorID   uint64
+	Name        string
 	TotalUp     uint64
 	TotalDown   uint64
 	CurrentUp   uint64
@@ -115,10 +116,11 @@ func (p *commonPage) service(c *gin.Context) {
 
 		for i := 0; i < len(ms); i++ {
 			msm[ms[i].ID] = &ServiceItem{
-				Monitor: ms[i],
-				Delay:   &[30]float32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Up:      &[30]int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Down:    &[30]int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				MonitorID: ms[i].ID,
+				Name:      ms[i].Name,
+				Delay:     &[30]float32{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				Up:        &[30]int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+				Down:      &[30]int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 			}
 		}
 		// 整合数据
@@ -141,8 +143,8 @@ func (p *commonPage) service(c *gin.Context) {
 		}
 		// 当日最后 20 个采样作为当前状态
 		for _, m := range msm {
-			for i := len(todayStatus[m.Monitor.ID]) - 1; i >= 0 && i >= (len(todayStatus[m.Monitor.ID])-1-20); i-- {
-				if todayStatus[m.Monitor.ID][i] {
+			for i := len(todayStatus[m.MonitorID]) - 1; i >= 0 && i >= (len(todayStatus[m.MonitorID])-1-20); i-- {
+				if todayStatus[m.MonitorID][i] {
 					m.CurrentUp++
 				} else {
 					m.CurrentDown++
@@ -161,7 +163,7 @@ func (p *commonPage) service(c *gin.Context) {
 }
 
 func (cp *commonPage) home(c *gin.Context) {
-	servers := dao.SortedServerSnapshot()
+	servers := dao.SortedPublicServerSnapshot()
 	c.HTML(http.StatusOK, "theme-default/home", mygin.CommonEnvironment(c, gin.H{
 		"Servers":    servers,
 		"CustomCode": dao.Conf.Site.CustomCode,
@@ -184,7 +186,7 @@ func (cp *commonPage) ws(c *gin.Context) {
 	}
 	defer conn.Close()
 	for {
-		err = conn.WriteJSON(dao.SortedServerSnapshot())
+		err = conn.WriteJSON(dao.SortedPublicServerSnapshot())
 		if err != nil {
 			break
 		}

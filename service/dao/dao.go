@@ -104,6 +104,42 @@ func cloneServerRuntime(s *model.ServerRuntime) *model.ServerRuntime {
 	return &clone
 }
 
+func publicHostSnapshot(h *model.Host) *model.PublicHost {
+	if h == nil {
+		return nil
+	}
+	host := &model.PublicHost{
+		Platform:        h.Platform,
+		PlatformVersion: h.PlatformVersion,
+		MemTotal:        h.MemTotal,
+		DiskTotal:       h.DiskTotal,
+		SwapTotal:       h.SwapTotal,
+		Arch:            h.Arch,
+		Virtualization:  h.Virtualization,
+		BootTime:        h.BootTime,
+		CountryCode:     h.CountryCode,
+		Version:         h.Version,
+	}
+	if h.CPU != nil {
+		host.CPU = append([]string(nil), h.CPU...)
+	}
+	return host
+}
+
+func publicServerRuntimeSnapshot(s *model.ServerRuntime) *model.PublicServerRuntime {
+	if s == nil {
+		return nil
+	}
+	return &model.PublicServerRuntime{
+		ID:         s.ID,
+		Name:       s.Name,
+		Tag:        s.Tag,
+		Host:       publicHostSnapshot(s.Host),
+		State:      cloneState(s.State),
+		LastActive: s.LastActive,
+	}
+}
+
 func UpsertServerRuntime(s model.Server, isEdit bool) {
 	serverLock.Lock()
 	if isEdit {
@@ -225,6 +261,19 @@ func SortedServerSnapshot() []*model.ServerRuntime {
 	servers := make([]*model.ServerRuntime, 0, len(sortedServerList))
 	for _, s := range sortedServerList {
 		servers = append(servers, cloneServerRuntime(&s.runtime))
+	}
+	return servers
+}
+
+func SortedPublicServerSnapshot() []*model.PublicServerRuntime {
+	serverLock.RLock()
+	defer serverLock.RUnlock()
+	sortedServerLock.RLock()
+	defer sortedServerLock.RUnlock()
+
+	servers := make([]*model.PublicServerRuntime, 0, len(sortedServerList))
+	for _, s := range sortedServerList {
+		servers = append(servers, publicServerRuntimeSnapshot(&s.runtime))
 	}
 	return servers
 }

@@ -4,6 +4,12 @@ function readableBytes(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(0) + ' ' + sizes[i];
 }
 
+$.ajaxSetup({
+    headers: {
+        'X-NodeKeep-Request': '1'
+    }
+})
+
 const confirmBtn = $('.mini.confirm.modal .positive.button')
 
 function showConfirm(title, content, callFn, extData) {
@@ -272,7 +278,7 @@ function manualTrigger(btn, cronId) {
     $(btn).toggleClass('loading')
     $.ajax({
         url: '/api/cron/' + cronId + '/manual',
-        type: 'GET',
+        type: 'POST',
     }).done(resp => {
         $(btn).toggleClass('loading')
         if (resp.code == 200) {

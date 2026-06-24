@@ -1,8 +1,15 @@
 {{define "common/footer"}}
 <footer class="nk-footer">
     <div class="ui container">
-        <span>&copy; 2026 {{.Conf.Site.Brand}}</span>
-        <span>nodekeep {{.Version}}</span>
+        <div class="nk-footer-brand">
+            <span>{{.Conf.Site.Brand}}</span>
+            <code>{{.Version}}</code>
+        </div>
+        <nav class="nk-footer-links" aria-label="底部链接">
+            <a href="https://github.com/r0n9/nodekeep" target="_blank" rel="noopener noreferrer">
+                <i class="github icon"></i>GitHub
+            </a>
+        </nav>
     </div>
 </footer>
 <script src="/static/vendor/jquery/jquery.min.js"></script>

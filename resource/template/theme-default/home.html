@@ -13,18 +13,28 @@
                     <h1>{{.Conf.Site.Brand}}</h1>
                     <p class="nk-hero-subtitle">实时查看节点在线状态、资源占用和网络吞吐。</p>
                 </div>
-                <div class="nk-summary-grid">
-                    <div class="nk-summary-item">
-                        <span>节点总数</span>
-                        <strong>@#servers.length#@</strong>
+                <div class="nk-hero-actions">
+                    <div class="nk-summary-grid">
+                        <div class="nk-summary-item">
+                            <span>节点总数</span>
+                            <strong>@#servers.length#@</strong>
+                        </div>
+                        <div class="nk-summary-item">
+                            <span>在线节点</span>
+                            <strong>@#onlineCount#@</strong>
+                        </div>
+                        <div class="nk-summary-item">
+                            <span>离线节点</span>
+                            <strong>@#offlineCount#@</strong>
+                        </div>
                     </div>
-                    <div class="nk-summary-item">
-                        <span>在线节点</span>
-                        <strong>@#onlineCount#@</strong>
-                    </div>
-                    <div class="nk-summary-item">
-                        <span>离线节点</span>
-                        <strong>@#offlineCount#@</strong>
+                    <div class="nk-view-switch" role="group" aria-label="节点展示模式">
+                        <button type="button" :class="{ active: viewMode === 'card' }" @click="setViewMode('card')" aria-label="卡片视图">
+                            <i class="grid layout icon"></i>
+                        </button>
+                        <button type="button" :class="{ active: viewMode === 'list' }" @click="setViewMode('list')" aria-label="列表视图">
+                            <i class="list icon"></i>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -38,7 +48,7 @@
                     <span>@#group.data.length#@ 台节点</span>
                 </div>
 
-                <div class="nk-node-grid">
+                <div v-if="viewMode === 'card'" class="nk-node-grid">
                     <article v-for="server in group.data" :id="server.ID" class="nk-node-card" :class="{ offline: !server.live }">
                         <div class="nk-node-top">
                             <div>
@@ -47,7 +57,8 @@
                                     <span>@#server.Name#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-if="server.Host">
-                                    @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@ · @#server.Host.Version || '-'#@
+                                    <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
+                                    <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@ · @#server.Host.Version || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
                             </div>
@@ -73,11 +84,27 @@
                                 </div>
                             </div>
 
-                            <div class="nk-node-facts">
-                                <div><span>网络入站</span><strong>@#formatByteSize(server.State.NetInSpeed)#@/s</strong></div>
-                                <div><span>网络出站</span><strong>@#formatByteSize(server.State.NetOutSpeed)#@/s</strong></div>
-                                <div><span>运行时间</span><strong>@#secondToDate(server.State.Uptime)#@</strong></div>
-                                <div><span>公网 IP</span><strong>@#server.Host.IP || '-'#@</strong></div>
+                            <div class="nk-network-grid">
+                                <div class="nk-network-card inbound">
+                                    <div class="nk-network-head">
+                                        <span><i class="arrow down icon"></i>入站</span>
+                                        <strong>@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
+                                    </div>
+                                    <div class="nk-network-track">
+                                        <i :style="netLoadStyle(server.live, server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
+                                    </div>
+                                    <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
+                                </div>
+                                <div class="nk-network-card outbound">
+                                    <div class="nk-network-head">
+                                        <span><i class="arrow up icon"></i>出站</span>
+                                        <strong>@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
+                                    </div>
+                                    <div class="nk-network-track">
+                                        <i :style="netLoadStyle(server.live, server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
+                                    </div>
+                                    <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
+                                </div>
                             </div>
 
                             <details class="nk-node-details">
@@ -99,6 +126,63 @@
                         </div>
                     </article>
                 </div>
+
+                <div v-else class="nk-node-list-wrap">
+                    <table class="nk-node-list">
+                        <thead>
+                            <tr>
+                                <th>节点</th>
+                                <th>状态</th>
+                                <th>CPU</th>
+                                <th>内存</th>
+                                <th>硬盘</th>
+                                <th>网络</th>
+                                <th>最近活动</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: !server.live }">
+                                <td>
+                                    <div class="nk-list-node-name">
+                                        <i v-if="server.Host && server.Host.CountryCode" :class="server.Host.CountryCode + ' flag'"></i>
+                                        <span>@#server.Name#@</span>
+                                    </div>
+                                    <div class="nk-list-node-meta" v-if="server.Host">
+                                        运行 @#secondToDate(server.State.Uptime)#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
+                                    </div>
+                                    <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
+                                </td>
+                                <td><span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span></td>
+                                <td>
+                                    <div class="nk-list-meter">
+                                        <strong>@#listPercent(server, 'cpu')#@%</strong>
+                                        <div class="nk-meter-track"><i :style="listMeterStyle(server, 'cpu')"></i></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="nk-list-meter">
+                                        <strong>@#listPercent(server, 'mem')#@%</strong>
+                                        <div class="nk-meter-track"><i :style="listMeterStyle(server, 'mem')"></i></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="nk-list-meter">
+                                        <strong>@#listPercent(server, 'disk')#@%</strong>
+                                        <div class="nk-meter-track"><i :style="listMeterStyle(server, 'disk')"></i></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="nk-list-network" v-if="server.Host">
+                                        <span><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInSpeed)#@/s</span>
+                                        <span><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutSpeed)#@/s</span>
+                                    </div>
+                                    <span v-else class="nk-list-node-meta">-</span>
+                                </td>
+                                <td><span class="nk-list-node-meta">@#server.Host ? formatDate(server.LastActive) : '-'#@</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </section>
     </div>
@@ -112,6 +196,7 @@
         data: {
             servers: initData,
             groups: [],
+            viewMode: localStorage.getItem('nodekeep:view-mode') || 'card',
         },
         computed: {
             onlineCount() {
@@ -127,6 +212,10 @@
         methods: {
             group() {
                 this.groups = groupingData(this.servers, "Tag")
+            },
+            setViewMode(mode) {
+                this.viewMode = mode
+                localStorage.setItem('nodekeep:view-mode', mode)
             },
             refreshServers(servers) {
                 this.servers = servers.map(server => {
@@ -160,6 +249,34 @@
                     color = '#d97706'
                 }
                 return { width: percent + '%', backgroundColor: color }
+            },
+            listMetric(server, type) {
+                if (!server.Host) {
+                    return { used: 0, total: 0 }
+                }
+                if (type === 'cpu') {
+                    return { used: server.State.CPU, total: 100 }
+                }
+                if (type === 'mem') {
+                    return { used: server.State.MemUsed, total: server.Host.MemTotal }
+                }
+                return { used: server.State.DiskUsed, total: server.Host.DiskTotal }
+            },
+            listPercent(server, type) {
+                const metric = this.listMetric(server, type)
+                return this.formatPercentValue(server.live, metric.used, metric.total)
+            },
+            listMeterStyle(server, type) {
+                const metric = this.listMetric(server, type)
+                return this.meterStyle(server.live, metric.used, metric.total)
+            },
+            netLoadStyle(live, current, peer) {
+                if (!live || !current) {
+                    return { width: '0%' }
+                }
+                const max = Math.max(current, peer || 0, 1)
+                const percent = Math.max(8, Math.min(100, parseInt(current / max * 100) || 0))
+                return { width: percent + '%' }
             },
             secondToDate(s) {
                 var d = Math.floor(s / 3600 / 24);

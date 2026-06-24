@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -15,7 +17,6 @@ import (
 
 	"github.com/r0n9/nodekeep/model"
 	"github.com/r0n9/nodekeep/pkg/mygin"
-	"github.com/r0n9/nodekeep/pkg/utils"
 	"github.com/r0n9/nodekeep/service/dao"
 )
 
@@ -39,8 +40,16 @@ func (oa *oauth2controller) fillRedirectURL(c *gin.Context) {
 
 func (oa *oauth2controller) login(c *gin.Context) {
 	oa.fillRedirectURL(c)
-	state := utils.RandStringBytesMaskImprSrcUnsafe(6)
-	dao.Cache.Set(fmt.Sprintf("%s%s", model.CacheKeyOauth2State, c.ClientIP()), state, 0)
+	state, err := newOAuth2State()
+	if err != nil {
+		mygin.ShowErrorPage(c, mygin.ErrInfo{
+			Code:  http.StatusInternalServerError,
+			Title: "登录失败",
+			Msg:   fmt.Sprintf("错误信息：%s", err),
+		}, true)
+		return
+	}
+	dao.Cache.Set(oauth2StateCacheKey(state), true, 0)
 	url := oa.oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOnline)
 	c.Redirect(http.StatusFound, url)
 }
@@ -49,8 +58,11 @@ func (oa *oauth2controller) callback(c *gin.Context) {
 	oa.fillRedirectURL(c)
 	var err error
 	// 验证登录跳转时的 State
-	state, ok := dao.Cache.Get(fmt.Sprintf("%s%s", model.CacheKeyOauth2State, c.ClientIP()))
-	if !ok || state.(string) != c.Query("state") {
+	state := c.Query("state")
+	stateKey := oauth2StateCacheKey(state)
+	_, ok := dao.Cache.Get(stateKey)
+	dao.Cache.Delete(stateKey)
+	if state == "" || !ok {
 		err = errors.New("非法的登录方式")
 	}
 	ctx := context.Background()
@@ -98,7 +110,19 @@ func (oa *oauth2controller) callback(c *gin.Context) {
 	user := model.NewUserFromGitHub(gu)
 	user.IssueNewToken()
 	dao.DB.Save(&user)
-	c.SetCookie(dao.Conf.Site.CookieName, user.Token, 60*60*24, "", "", false, false)
+	mygin.SetSecureCookie(c, dao.Conf.Site.CookieName, user.Token, 60*60*24)
 	c.Status(http.StatusOK)
 	c.Writer.WriteString("<script>window.location.href='/'</script>")
+}
+
+func newOAuth2State() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func oauth2StateCacheKey(state string) string {
+	return fmt.Sprintf("%s:%s", model.CacheKeyOauth2State, state)
 }

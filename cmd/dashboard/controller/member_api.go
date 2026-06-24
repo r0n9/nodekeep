@@ -30,12 +30,13 @@ func (ma *memberAPI) serve() {
 		Btn:      "点此登录",
 		Redirect: "/login",
 	}))
+	mr.Use(mygin.RequireSameOriginForUnsafeRequests())
 
 	mr.GET("/search-server", ma.searchServer)
 	mr.POST("/server", ma.addOrEditServer)
 	mr.POST("/monitor", ma.addOrEditMonitor)
 	mr.POST("/cron", ma.addOrEditCron)
-	mr.GET("/cron/:id/manual", ma.manualTrigger)
+	mr.POST("/cron/:id/manual", ma.manualTrigger)
 	mr.POST("/notification", ma.addOrEditNotification)
 	mr.POST("/alert-rule", ma.addOrEditAlertRule)
 	mr.POST("/setting", ma.updateSetting)
@@ -408,6 +409,7 @@ func (ma *memberAPI) logout(c *gin.Context) {
 		Token:        "",
 		TokenExpired: time.Now(),
 	})
+	mygin.ClearSecureCookie(c, dao.Conf.Site.CookieName)
 	c.JSON(http.StatusOK, model.Response{
 		Code: http.StatusOK,
 	})
