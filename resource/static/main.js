@@ -10,6 +10,36 @@ $.ajaxSetup({
     }
 })
 
+const colorModeKey = 'nodekeep-color-mode'
+
+function currentColorMode() {
+    const mode = document.documentElement.getAttribute('data-theme')
+    if (mode === 'dark' || mode === 'light') {
+        return mode
+    }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyColorMode(mode) {
+    const nextMode = mode === 'dark' ? 'dark' : 'light'
+    document.documentElement.setAttribute('data-theme', nextMode)
+    document.documentElement.style.colorScheme = nextMode
+    const toggle = document.querySelector('.nk-theme-toggle')
+    if (toggle) {
+        toggle.setAttribute('aria-label', nextMode === 'dark' ? '切换亮色模式' : '切换暗色模式')
+        toggle.setAttribute('title', nextMode === 'dark' ? '切换亮色模式' : '切换暗色模式')
+    }
+}
+
+function toggleColorMode() {
+    const nextMode = currentColorMode() === 'dark' ? 'light' : 'dark'
+    try {
+        localStorage.setItem(colorModeKey, nextMode)
+    } catch (error) {
+    }
+    applyColorMode(nextMode)
+}
+
 const confirmBtn = $('.mini.confirm.modal .positive.button')
 
 function showConfirm(title, content, callFn, extData) {
@@ -342,6 +372,7 @@ function logout(id) {
 }
 
 $(document).ready(() => {
+    applyColorMode(currentColorMode())
     try {
         $('.ui.servers.search.dropdown').dropdown({
             clearable: true,

@@ -24,6 +24,14 @@ jobs:
         with:
           go-version: "1.25.4"
 
+      - name: Fetch IPInfo GeoIP Database
+        env:
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: |
+          if [ -n "$IPINFO_TOKEN" ]; then
+            curl -fsSL "https://ipinfo.io/data/free/country.mmdb?token=${IPINFO_TOKEN}" -o pkg/geoip/geoip.db
+          fi
+
       - name: Test
         run: go test -v ./...
 
@@ -55,6 +63,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch IPInfo GeoIP Database
+        env:
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: |
+          if [ -n "$IPINFO_TOKEN" ]; then
+            curl -fsSL "https://ipinfo.io/data/free/country.mmdb?token=${IPINFO_TOKEN}" -o pkg/geoip/geoip.db
+          fi
 
       - name: Extract Docker Metadata
         id: meta

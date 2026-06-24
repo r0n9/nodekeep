@@ -8,6 +8,7 @@ data
 dist
 tmp
 *.db
+!pkg/geoip/geoip.db
 *.log
 
 AGENTS.md

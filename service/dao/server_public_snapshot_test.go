@@ -85,3 +85,24 @@ func TestSortedPublicServerSnapshotIsDeepCopy(t *testing.T) {
 		t.Fatalf("public snapshot mutation changed runtime state uptime: %d", fresh[0].State.Uptime)
 	}
 }
+
+func TestUpdateServerHostKeepsAgentCountryCodeWhenDashboardGeoIPUnavailable(t *testing.T) {
+	InitServerRuntimeState()
+	UpsertServerRuntime(model.Server{
+		Common: model.Common{ID: 1},
+		Name:   "node",
+	}, false)
+
+	UpdateServerHost(1, model.Host{
+		IP:          "IPs[IPv4:203.0.113.10,IPv6:]",
+		CountryCode: "US",
+	}, false)
+
+	servers := SortedPublicServerSnapshot()
+	if len(servers) != 1 || servers[0].Host == nil {
+		t.Fatalf("server host missing after update: %#v", servers)
+	}
+	if servers[0].Host.CountryCode != "us" {
+		t.Fatalf("country code = %q, want us", servers[0].Host.CountryCode)
+	}
+}

@@ -40,28 +40,74 @@
                 <div class="nk-panel-head">
                     <div>
                         <h2>管理员登录</h2>
-                        <p>本地账号和 OAuth2 管理员名单。</p>
+                        <p>配置后台允许使用的登录方式和管理员身份范围。</p>
                     </div>
                 </div>
-                <div class="nk-form-grid">
-                    <div class="field nk-form-full">
-                        <label>管理员列表</label>
-                        <input type="text" name="Admin" placeholder="1010,2020" value="{{.Conf.Oauth2.Admin}}">
-                    </div>
-                    <div class="field">
-                        <label>本地管理员用户名</label>
-                        <input type="text" name="LocalAuthUsername" placeholder="admin" value="{{.Conf.Auth.Local.Username}}">
-                    </div>
-                    <div class="field">
-                        <label>本地管理员密码</label>
-                        <input type="password" name="LocalAuthPassword" placeholder="留空则不修改" autocomplete="new-password">
-                    </div>
-                    <div class="field nk-form-full">
-                        <div class="ui local-auth checkbox">
-                            <input name="LocalAuthEnabled" type="checkbox" tabindex="0" class="hidden">
-                            <label>启用本地账号登录</label>
+                <div class="nk-auth-config">
+                    <fieldset class="nk-auth-method">
+                        <legend class="nk-auth-method-head">
+                            <span class="nk-auth-method-icon"><i class="github icon"></i></span>
+                            <span class="nk-auth-method-title">
+                                <strong>OAuth2 管理员</strong>
+                                <small>GitHub / Gitee 登录后，只允许名单内账号进入后台。</small>
+                            </span>
+                            {{if ts .Conf.Oauth2.Admin}}
+                            <span class="nk-auth-status is-on">已配置</span>
+                            {{else}}
+                            <span class="nk-auth-status is-warn">未配置</span>
+                            {{end}}
+                        </legend>
+                        <div class="nk-form-grid nk-auth-fields">
+                            <div class="field">
+                                <label>OAuth2 平台</label>
+                                <select name="Oauth2Type" class="ui fluid dropdown">
+                                    <option value="Github" {{if ne .Conf.Oauth2.Type "Gitee"}}selected{{end}}>GitHub</option>
+                                    <option value="Gitee" {{if eq .Conf.Oauth2.Type "Gitee"}}selected{{end}}>Gitee</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>管理员名单</label>
+                                <input type="text" name="Admin" placeholder="r0n9,ops-admin" value="{{.Conf.Oauth2.Admin}}">
+                                <p class="nk-field-hint">填写 OAuth2 登录名，多个账号用英文逗号分隔。</p>
+                            </div>
                         </div>
-                    </div>
+                    </fieldset>
+
+                    <fieldset class="nk-auth-method">
+                        <legend class="nk-auth-method-head">
+                            <span class="nk-auth-method-icon"><i class="key icon"></i></span>
+                            <span class="nk-auth-method-title">
+                                <strong>本地备用账号</strong>
+                                <small>无需第三方 OAuth，可用于首次部署或外部登录不可用时进入后台。</small>
+                            </span>
+                            {{if .Conf.Auth.Local.Enabled}}
+                            <span class="nk-auth-status is-on">已启用</span>
+                            {{else}}
+                            <span class="nk-auth-status">未启用</span>
+                            {{end}}
+                        </legend>
+                        <div class="nk-form-grid nk-auth-fields">
+                            <div class="field">
+                                <label>用户名</label>
+                                <input type="text" name="LocalAuthUsername" placeholder="admin" value="{{.Conf.Auth.Local.Username}}">
+                            </div>
+                            <div class="field">
+                                <label>密码</label>
+                                <input type="password" name="LocalAuthPassword" placeholder="留空则保持原密码" autocomplete="new-password">
+                                <p class="nk-field-hint">首次启用本地登录时必须设置密码。</p>
+                            </div>
+                            <div class="field nk-form-full nk-auth-toggle">
+                                <div class="ui local-auth checkbox">
+                                    <input name="LocalAuthEnabled" type="checkbox" tabindex="0" class="hidden">
+                                    <label>启用本地账号登录</label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="nk-auth-note">
+                    <i class="shield icon"></i>
+                    <span>建议至少保留一种可用登录方式。OAuth2 的 Client ID 与 Client Secret 仍在 <code>data/config.yaml</code> 中维护。</span>
                 </div>
             </section>
 
@@ -69,18 +115,37 @@
                 <div class="nk-panel-head">
                     <div>
                         <h2>Agent 接入</h2>
-                        <p>控制后台复制出的 Agent 安装命令使用的连接地址。</p>
+                        <p>控制后台复制出的 Agent 安装命令所使用的服务地址和连接协议。</p>
                     </div>
                 </div>
-                <div class="nk-form-grid">
-                    <div class="field">
-                        <label>Agent 安装地址</label>
-                        <input type="text" name="AgentInstallHost" placeholder="example.com:443" value="{{.Conf.Agent.InstallHost}}">
+                <div class="nk-agent-option">
+                    <div class="nk-agent-main">
+                        <span class="nk-auth-method-icon"><i class="plug icon"></i></span>
+                        <div class="nk-auth-method-title">
+                            <strong>Agent 连接入口</strong>
+                            <small>生成安装命令时会把这个地址写入 Agent 参数，用于连接 dashboard/gRPC 单端口服务。</small>
+                        </div>
+                        {{if ts .Conf.Agent.InstallHost}}
+                        <span class="nk-auth-status is-on">自定义地址</span>
+                        {{else}}
+                        <span class="nk-auth-status">跟随访问地址</span>
+                        {{end}}
                     </div>
-                    <div class="field nk-checkbox-field">
-                        <div class="ui agent-tls checkbox">
-                            <input name="AgentTLS" type="checkbox" tabindex="0" class="hidden">
-                            <label>Agent 使用 TLS 连接</label>
+                    <div class="nk-form-grid nk-agent-fields">
+                        <div class="field">
+                            <label>Agent 安装地址</label>
+                            <input type="text" name="AgentInstallHost" placeholder="example.com:443" value="{{.Conf.Agent.InstallHost}}">
+                            <p class="nk-field-hint">留空时，复制安装命令会自动使用当前 dashboard 的访问域名和端口。</p>
+                        </div>
+                        <div class="field nk-agent-tls-field">
+                            <label>连接协议</label>
+                            <div class="nk-agent-tls-box">
+                                <div class="ui agent-tls checkbox">
+                                    <input name="AgentTLS" type="checkbox" tabindex="0" class="hidden">
+                                    <label>Agent 使用 TLS 连接</label>
+                                </div>
+                                <p class="nk-field-hint">通过 HTTPS 反代或 443 端口接入时建议开启；直连 HTTP/h2c 时保持关闭。</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -89,14 +154,29 @@
             <section class="nk-panel">
                 <div class="nk-panel-head">
                     <div>
-                        <h2>通知</h2>
-                        <p>控制节点 IP 变化类提醒。</p>
+                        <h2>节点 IP 变更通知</h2>
+                        <p>当 Agent 上报的节点 IP 与上次记录不一致时，向管理员发送提醒。</p>
                     </div>
                 </div>
-                <div class="field">
-                    <div class="ui nf-ssl checkbox">
-                        <input name="EnableIPChangeNotification" type="checkbox" tabindex="0" class="hidden">
-                        <label>开启 IP 变更提醒</label>
+                <div class="nk-notify-option">
+                    <div class="nk-notify-main">
+                        <span class="nk-auth-method-icon"><i class="exchange icon"></i></span>
+                        <div class="nk-auth-method-title">
+                            <strong>节点 IP 变化提醒</strong>
+                            <small>适合发现公网出口、NAT、云主机弹性 IP 或网络线路发生变化。</small>
+                        </div>
+                        {{if .Conf.EnableIPChangeNotification}}
+                        <span class="nk-auth-status is-on">已启用</span>
+                        {{else}}
+                        <span class="nk-auth-status">未启用</span>
+                        {{end}}
+                    </div>
+                    <div class="nk-notify-control">
+                        <div class="ui ip-change-notification checkbox">
+                            <input name="EnableIPChangeNotification" type="checkbox" tabindex="0" class="hidden">
+                            <label>检测到节点 IP 变更时发送通知</label>
+                        </div>
+                        <p class="nk-field-hint">通知会通过已配置的通知方式发送；未配置通知方式时不会产生外部消息。</p>
                     </div>
                 </div>
             </section>
@@ -137,7 +217,7 @@
     })
     $('.checkbox').checkbox()
     {{if .Conf.EnableIPChangeNotification}}
-    $('.nf-ssl.checkbox').checkbox('set checked')
+    $('.ip-change-notification.checkbox').checkbox('set checked')
     {{end}}
     {{if .Conf.Auth.Local.Enabled}}
     $('.local-auth.checkbox').checkbox('set checked')
@@ -145,5 +225,6 @@
     {{if .Conf.Agent.TLS}}
     $('.agent-tls.checkbox').checkbox('set checked')
     {{end}}
+    $('#settingForm .ui.dropdown').dropdown()
 </script>
 {{end}}

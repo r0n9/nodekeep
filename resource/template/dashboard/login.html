@@ -2,10 +2,16 @@
 {{template "common/header" .}}
 <main class="nk-auth-page">
     <section class="nk-auth-panel">
-        <a class="nk-auth-brand" href="/">
-            <img src="/static/logo.svg" alt="nodekeep">
-            <span>{{.Conf.Site.Brand}}</span>
-        </a>
+        <div class="nk-auth-panel-top">
+            <a class="nk-auth-brand" href="/">
+                <img src="/static/logo.svg" alt="nodekeep">
+                <span>{{.Conf.Site.Brand}}</span>
+            </a>
+            <button class="nk-theme-toggle" type="button" onclick="if (window.toggleColorMode) window.toggleColorMode()" aria-label="切换暗色模式" title="切换暗色/亮色模式">
+                <i class="moon icon nk-theme-icon-dark"></i>
+                <i class="sun icon nk-theme-icon-light"></i>
+            </button>
+        </div>
         <h1>登录管理后台</h1>
         <p>使用本地管理员账号或 OAuth2 账号进入 nodekeep。</p>
 

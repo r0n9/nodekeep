@@ -53,8 +53,8 @@
                         <div class="nk-node-top">
                             <div>
                                 <div class="nk-node-name">
-                                    <i v-if="server.Host && server.Host.CountryCode" :class="server.Host.CountryCode + ' flag'"></i>
-                                    <span>@#server.Name#@</span>
+                                    <span class="nk-node-label">@#server.Name#@</span>
+                                    <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                 </div>
                                 <div class="nk-node-meta" v-if="server.Host">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
@@ -108,15 +108,39 @@
                             </div>
 
                             <details class="nk-node-details">
-                                <summary>节点详情</summary>
-                                <div>
-                                    <p>系统：@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</p>
-                                    <p>CPU：@#server.Host.CPU#@</p>
-                                    <p>内存：@#formatByteSize(server.State.MemUsed)#@ / @#formatByteSize(server.Host.MemTotal)#@</p>
-                                    <p>交换：@#formatByteSize(server.State.SwapUsed)#@ / @#formatByteSize(server.Host.SwapTotal)#@</p>
-                                    <p>磁盘：@#formatByteSize(server.State.DiskUsed)#@ / @#formatByteSize(server.Host.DiskTotal)#@</p>
-                                    <p>累计流量：↓ @#formatByteSize(server.State.NetInTransfer)#@ · ↑ @#formatByteSize(server.State.NetOutTransfer)#@</p>
-                                    <p>最近活动：@#formatDate(server.LastActive)#@</p>
+                                <summary>
+                                    <span>节点详情</span>
+                                    <i class="angle down icon"></i>
+                                </summary>
+                                <div class="nk-node-detail-grid">
+                                    <div class="nk-node-detail-item">
+                                        <span>系统</span>
+                                        <strong>@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item">
+                                        <span>最近活动</span>
+                                        <strong>@#formatDate(server.LastActive)#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item nk-node-detail-wide">
+                                        <span>处理器</span>
+                                        <strong>@#server.Host.CPU#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item">
+                                        <span>内存</span>
+                                        <strong>@#formatByteSize(server.State.MemUsed)#@ / @#formatByteSize(server.Host.MemTotal)#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item">
+                                        <span>交换</span>
+                                        <strong>@#formatByteSize(server.State.SwapUsed)#@ / @#formatByteSize(server.Host.SwapTotal)#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item">
+                                        <span>磁盘</span>
+                                        <strong>@#formatByteSize(server.State.DiskUsed)#@ / @#formatByteSize(server.Host.DiskTotal)#@</strong>
+                                    </div>
+                                    <div class="nk-node-detail-item">
+                                        <span>累计流量</span>
+                                        <strong>↓ @#formatByteSize(server.State.NetInTransfer)#@ · ↑ @#formatByteSize(server.State.NetOutTransfer)#@</strong>
+                                    </div>
                                 </div>
                             </details>
                         </template>
@@ -132,11 +156,11 @@
                         <thead>
                             <tr>
                                 <th>节点</th>
-                                <th>状态</th>
                                 <th>CPU</th>
                                 <th>内存</th>
                                 <th>硬盘</th>
                                 <th>网络</th>
+                                <th>累计流量</th>
                                 <th>最近活动</th>
                             </tr>
                         </thead>
@@ -144,15 +168,15 @@
                             <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: !server.live }">
                                 <td>
                                     <div class="nk-list-node-name">
-                                        <i v-if="server.Host && server.Host.CountryCode" :class="server.Host.CountryCode + ' flag'"></i>
-                                        <span>@#server.Name#@</span>
+                                        <span class="nk-status-pill nk-list-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
+                                        <span class="nk-list-node-label">@#server.Name#@</span>
+                                        <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                     </div>
                                     <div class="nk-list-node-meta" v-if="server.Host">
-                                        运行 @#secondToDate(server.State.Uptime)#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
+                                        运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
                                 </td>
-                                <td><span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span></td>
                                 <td>
                                     <div class="nk-list-meter">
                                         <strong>@#listPercent(server, 'cpu')#@%</strong>
@@ -175,6 +199,13 @@
                                     <div class="nk-list-network" v-if="server.Host">
                                         <span><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInSpeed)#@/s</span>
                                         <span><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutSpeed)#@/s</span>
+                                    </div>
+                                    <span v-else class="nk-list-node-meta">-</span>
+                                </td>
+                                <td>
+                                    <div class="nk-list-traffic" v-if="server.Host">
+                                        <span><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInTransfer)#@</span>
+                                        <span><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutTransfer)#@</span>
                                     </div>
                                     <span v-else class="nk-list-node-meta">-</span>
                                 </td>

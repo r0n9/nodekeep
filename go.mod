@@ -12,6 +12,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/gorilla/websocket v1.4.2
+	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/robfig/cron/v3 v3.0.1

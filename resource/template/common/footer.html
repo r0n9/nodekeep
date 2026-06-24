@@ -1,22 +1,24 @@
 {{define "common/footer"}}
 <footer class="nk-footer">
     <div class="ui container">
-        <div class="nk-footer-brand">
-            <span>{{.Conf.Site.Brand}}</span>
-            <code>{{.Version}}</code>
+        <div class="nk-footer-panel">
+            <div class="nk-footer-meta">
+                <span>{{.Conf.Site.Brand}}</span>
+                <code>{{.Version}}</code>
+            </div>
+            <nav class="nk-footer-links" aria-label="底部链接">
+                <a href="https://github.com/r0n9/nodekeep" target="_blank" rel="noopener noreferrer">
+                    <i class="github icon"></i><span>GitHub</span>
+                </a>
+            </nav>
         </div>
-        <nav class="nk-footer-links" aria-label="底部链接">
-            <a href="https://github.com/r0n9/nodekeep" target="_blank" rel="noopener noreferrer">
-                <i class="github icon"></i>GitHub
-            </a>
-        </nav>
     </div>
 </footer>
 <script src="/static/vendor/jquery/jquery.min.js"></script>
 <script src="/static/vendor/semantic-ui/semantic.min.js"></script>
 <script src="/static/semantic-ui-alerts.min.js"></script>
 <script src="/static/vendor/vue/vue.min.js"></script>
-<script src="/static/main.js?v202101240939"></script>
+<script src="/static/main.js?v2026062421"></script>
 </body>
 
 </html>

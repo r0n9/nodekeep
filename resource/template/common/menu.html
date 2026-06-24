@@ -20,6 +20,10 @@
         </nav>
 
         <div class="nk-account">
+            <button class="nk-theme-toggle" type="button" onclick="if (window.toggleColorMode) window.toggleColorMode()" aria-label="切换暗色模式" title="切换暗色/亮色模式">
+                <i class="moon icon nk-theme-icon-dark"></i>
+                <i class="sun icon nk-theme-icon-light"></i>
+            </button>
             {{if .Admin}}
             <div class="ui simple dropdown nk-account-menu">
                 <div class="text">

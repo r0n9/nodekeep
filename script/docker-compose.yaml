@@ -7,4 +7,4 @@ services:
     volumes:
       - ./data:/dashboard/data
     ports:
-      - site_port:80
+      - site_port:8008

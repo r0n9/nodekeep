@@ -1,5 +1,5 @@
 debug: true
-httpport: 80
+httpport: 8008
 auth:
   local:
     enabled: true

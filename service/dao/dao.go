@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/geoip"
 	pb "github.com/r0n9/nodekeep/proto"
 )
 
@@ -232,6 +234,8 @@ func UpdateServerState(clientID uint64, state model.HostState, now time.Time) {
 }
 
 func UpdateServerHost(clientID uint64, host model.Host, enableIPChangeNotification bool) (name, oldIP, newIP string, changed bool) {
+	host.CountryCode = resolveCountryCode(host)
+
 	serverLock.Lock()
 	defer serverLock.Unlock()
 	s := serverList[clientID]
@@ -250,6 +254,13 @@ func UpdateServerHost(clientID uint64, host model.Host, enableIPChangeNotificati
 	}
 	s.runtime.Host = &host
 	return
+}
+
+func resolveCountryCode(host model.Host) string {
+	if code, err := geoip.LookupCountryCode(host.IP); err == nil && code != "" {
+		return code
+	}
+	return strings.ToLower(strings.TrimSpace(host.CountryCode))
 }
 
 func SortedServerSnapshot() []*model.ServerRuntime {
