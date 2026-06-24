@@ -4,110 +4,105 @@
 {{.CustomCode|safe}}
 {{end}}
 {{template "common/menu" .}}
-<div class="nb-container">
+<main class="nk-page nk-public-page">
     <div class="ui container">
-        <div id="app">
-
-            <div class="ui styled fluid accordion" v-for="group in groups">
-                <div class="active title"><i class="dropdown icon"></i>@#(group.Tag!==''?group.Tag:'默认')#@</div>
-                <div class="active content">
-                    <div class="ui four stackable status cards">
-                        <div v-for='server in group.data' :id="server.ID" class="ui card node-card" :class="{ offline: !server.live }">
-                            <div class="content" v-if='server.Host' style="margin-top: 10px;padding-bottom: 5px">
-                                <div class="header">
-                                    <div class="node-card-header">
-                                        <div class="node-title">
-                                            <span class="node-name"><i :class="server.Host.CountryCode + ' flag'"></i><i
-                                                    v-if='server.Host.Platform == "darwin"' class="apple icon"></i><i
-                                                    v-if='server.Host.Platform == "linux"' class="linux icon"></i><i
-                                                    v-if='server.Host.Platform == "windows"' class="windows icon"></i><i
-                                                    v-if='server.Host.Platform == "freebsd"' class="freebsd icon"></i>@#server.Name#@</span>
-                                            <span class="node-meta">@#server.Host.Platform || 'unknown'#@ · @#server.Host.Version || '-'#@ <i class="yellow info circle icon"></i></span>
-                                        </div>
-                                        <span class="node-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
-                                    </div>
-                                    <div class='ui content popup' style="margin-bottom: 0;  padding: .8em">
-                                        系统：@#server.Host.Platform#@-@#server.Host.PlatformVersion#@ [<span
-                                            v-if='server.Host.Virtualization'>@#server.Host.Virtualization#@:</span>@#server.Host.Arch#@]<br>
-                                        CPU：@#server.Host.CPU#@<br>
-                                        硬盘：@#formatByteSize(server.State.DiskUsed)#@/@#formatByteSize(server.Host.DiskTotal)#@<br>
-                                        内存：@#formatByteSize(server.State.MemUsed)#@/@#formatByteSize(server.Host.MemTotal)#@<br>
-                                        交换：@#formatByteSize(server.State.SwapUsed)#@/@#formatByteSize(server.Host.SwapTotal)#@<br>
-                                        流量：<i
-                                            class='arrow alternate circle down outline icon'></i>@#formatByteSize(server.State.NetInTransfer)#@<i
-                                            class='arrow alternate circle up outline icon'></i>@#formatByteSize(server.State.NetOutTransfer)#@<br>
-                                        启动：@# formatTimestamp(server.Host.BootTime) #@<br>
-                                        活动：@# new Date(server.LastActive).toLocaleString() #@<br>
-                                        版本：@#server.Host.Version#@<br>
-                                    </div>
-                                    <div class="ui divider" style="margin-bottom: 5px"></div>
-                                </div>
-                                <div class="description">
-                                    <div class="ui grid">
-                                        <div class="three wide column">CPU</div>
-                                        <div class="thirteen wide column">
-                                            <div :class="formatPercent(server.live,server.State.CPU, 100).class">
-                                                <div class="bar"
-                                                     :style="formatPercent(server.live,server.State.CPU, 100).style">
-                                                    <small>@#formatPercent(server.live,server.State.CPU,100).percent#@%</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="three wide column">内存</div>
-                                        <div class="thirteen wide column">
-                                            <div
-                                                    :class="formatPercent(server.live,server.State.MemUsed, server.Host.MemTotal).class">
-                                                <div class="bar"
-                                                     :style="formatPercent(server.live,server.State.MemUsed, server.Host.MemTotal).style">
-                                                    <small>@#parseInt(server.State?server.State.MemUsed/server.Host.MemTotal*100:0)#@%</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="three wide column">交换</div>
-                                        <div class="thirteen wide column">
-                                            <div
-                                                    :class="formatPercent(server.live,server.State.SwapUsed, server.Host.SwapTotal).class">
-                                                <div class="bar"
-                                                     :style="formatPercent(server.live,server.State.SwapUsed, server.Host.SwapTotal).style">
-                                                    <small>@#parseInt(server.State?server.State.SwapUsed/server.Host.SwapTotal*100:0)#@%</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="three wide column">网络</div>
-                                        <div class="thirteen wide column">
-                                            <i class="arrow alternate circle down outline icon"></i>
-                                            @#formatByteSize(server.State.NetInSpeed)#@/s
-                                            <i class="arrow alternate circle up outline icon"></i>
-                                            @#formatByteSize(server.State.NetOutSpeed)#@/s
-                                        </div>
-                                        <div class="three wide column">硬盘</div>
-                                        <div class="thirteen wide column">
-                                            <div
-                                                    :class="formatPercent(server.live,server.State.DiskUsed, server.Host.DiskTotal).class">
-                                                <div class="bar"
-                                                     :style="formatPercent(server.live,server.State.DiskUsed, server.Host.DiskTotal).style">
-                                                    <small>@#parseInt(server.State?server.State.DiskUsed/server.Host.DiskTotal*100:0)#@%</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="three wide column">在线</div>
-                                        <div class="thirteen wide column">
-                                            <i class="clock icon"></i>@#secondToDate(server.State.Uptime)#@
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="content" v-else>
-                                <p>@#server.Name#@</p>
-                                <p>节点已离线</p>
-                            </div>
-                        </div>
+        <section id="app" class="nk-monitor">
+            <header class="nk-hero">
+                <div>
+                    <p class="nk-eyebrow">Nodekeep Monitor</p>
+                    <h1>{{.Conf.Site.Brand}}</h1>
+                    <p class="nk-hero-subtitle">实时查看节点在线状态、资源占用和网络吞吐。</p>
+                </div>
+                <div class="nk-summary-grid">
+                    <div class="nk-summary-item">
+                        <span>节点总数</span>
+                        <strong>@#servers.length#@</strong>
+                    </div>
+                    <div class="nk-summary-item">
+                        <span>在线节点</span>
+                        <strong>@#onlineCount#@</strong>
+                    </div>
+                    <div class="nk-summary-item">
+                        <span>离线节点</span>
+                        <strong>@#offlineCount#@</strong>
                     </div>
                 </div>
-            </div>
-        </div>
+            </header>
+
+            <section v-for="group in groups" class="nk-group">
+                <div class="nk-section-title">
+                    <div>
+                        <p class="nk-eyebrow">Group</p>
+                        <h2>@#(group.Tag !== '' ? group.Tag : '默认分组')#@</h2>
+                    </div>
+                    <span>@#group.data.length#@ 台节点</span>
+                </div>
+
+                <div class="nk-node-grid">
+                    <article v-for="server in group.data" :id="server.ID" class="nk-node-card" :class="{ offline: !server.live }">
+                        <div class="nk-node-top">
+                            <div>
+                                <div class="nk-node-name">
+                                    <i v-if="server.Host && server.Host.CountryCode" :class="server.Host.CountryCode + ' flag'"></i>
+                                    <span>@#server.Name#@</span>
+                                </div>
+                                <div class="nk-node-meta" v-if="server.Host">
+                                    @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@ · @#server.Host.Version || '-'#@
+                                </div>
+                                <div class="nk-node-meta" v-else>等待 Agent 上报</div>
+                            </div>
+                            <span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
+                        </div>
+
+                        <template v-if="server.Host">
+                            <div class="nk-metrics">
+                                <div class="nk-meter">
+                                    <span>CPU</span>
+                                    <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.CPU, 100)"></i></div>
+                                    <strong>@#formatPercentValue(server.live, server.State.CPU, 100)#@%</strong>
+                                </div>
+                                <div class="nk-meter">
+                                    <span>内存</span>
+                                    <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.MemUsed, server.Host.MemTotal)"></i></div>
+                                    <strong>@#formatPercentValue(server.live, server.State.MemUsed, server.Host.MemTotal)#@%</strong>
+                                </div>
+                                <div class="nk-meter">
+                                    <span>硬盘</span>
+                                    <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.DiskUsed, server.Host.DiskTotal)"></i></div>
+                                    <strong>@#formatPercentValue(server.live, server.State.DiskUsed, server.Host.DiskTotal)#@%</strong>
+                                </div>
+                            </div>
+
+                            <div class="nk-node-facts">
+                                <div><span>网络入站</span><strong>@#formatByteSize(server.State.NetInSpeed)#@/s</strong></div>
+                                <div><span>网络出站</span><strong>@#formatByteSize(server.State.NetOutSpeed)#@/s</strong></div>
+                                <div><span>运行时间</span><strong>@#secondToDate(server.State.Uptime)#@</strong></div>
+                                <div><span>公网 IP</span><strong>@#server.Host.IP || '-'#@</strong></div>
+                            </div>
+
+                            <details class="nk-node-details">
+                                <summary>节点详情</summary>
+                                <div>
+                                    <p>系统：@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</p>
+                                    <p>CPU：@#server.Host.CPU#@</p>
+                                    <p>内存：@#formatByteSize(server.State.MemUsed)#@ / @#formatByteSize(server.Host.MemTotal)#@</p>
+                                    <p>交换：@#formatByteSize(server.State.SwapUsed)#@ / @#formatByteSize(server.Host.SwapTotal)#@</p>
+                                    <p>磁盘：@#formatByteSize(server.State.DiskUsed)#@ / @#formatByteSize(server.Host.DiskTotal)#@</p>
+                                    <p>累计流量：↓ @#formatByteSize(server.State.NetInTransfer)#@ · ↑ @#formatByteSize(server.State.NetOutTransfer)#@</p>
+                                    <p>最近活动：@#formatDate(server.LastActive)#@</p>
+                                </div>
+                            </details>
+                        </template>
+
+                        <div v-else class="nk-empty-node">
+                            节点暂未上报运行数据。
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </section>
     </div>
-</div>
+</main>
 {{template "common/footer" .}}
 <script>
     const initData = {{.Servers}};
@@ -117,20 +112,21 @@
         data: {
             servers: initData,
             groups: [],
-            cache: [],
+        },
+        computed: {
+            onlineCount() {
+                return this.servers.filter(server => server.live).length
+            },
+            offlineCount() {
+                return this.servers.length - this.onlineCount
+            },
         },
         created() {
             this.refreshServers(this.servers)
         },
-        mounted() {
-            this.bindDynamicUI()
-        },
         methods: {
             group() {
                 this.groups = groupingData(this.servers, "Tag")
-                /**
-                 * console.log(this.groups)
-                 **/
             },
             refreshServers(servers) {
                 this.servers = servers.map(server => {
@@ -143,51 +139,27 @@
                     return server
                 })
                 this.group()
-                this.$nextTick(this.bindDynamicUI)
             },
-            bindDynamicUI() {
-                $('#app .ui.accordion').accordion({"exclusive": false})
-
-                const $icons = $('.status.cards .yellow.info.icon')
-                $icons.popup('destroy')
-                $icons.each(function () {
-                    const $icon = $(this)
-                    $icon.popup({
-                        popup: $icon.closest('.header').find('.ui.content.popup'),
-                        exclusive: true,
-                    })
-                })
-            },
-            formatPercent(live, used, total) {
-                const percent = live ? (parseInt(used / total * 100) || 0) : -1
-                if (!this.cache[percent]) {
-                    this.cache[percent] = {
-                        class: {
-                            ui: true,
-                            progress: true,
-                        },
-                        style: {
-                            'transition-duration': '300ms',
-                            'min-width': 'unset',
-                            width: percent + '% !important',
-                        },
-                        percent,
-                    }
-                    if (percent < 0) {
-                        this.cache[percent].style['background-color'] = 'slategray'
-                        this.cache[percent].class.offline = true
-                    } else if (percent < 71) {
-                        this.cache[percent].style['background-color'] = 'rgb(76,175,80)'
-                        this.cache[percent].class.fine = true
-                    } else if (percent < 91) {
-                        this.cache[percent].style['background-color'] = '#ff9800'
-                        this.cache[percent].class.warning = true
-                    } else {
-                        this.cache[percent].style['background-color'] = '#f44336'
-                        this.cache[percent].class.error = true
-                    }
+            percent(live, used, total) {
+                if (!live || !total) {
+                    return 0
                 }
-                return this.cache[percent]
+                return Math.max(0, Math.min(100, parseInt(used / total * 100) || 0))
+            },
+            formatPercentValue(live, used, total) {
+                return this.percent(live, used, total)
+            },
+            meterStyle(live, used, total) {
+                const percent = this.percent(live, used, total)
+                let color = '#20a162'
+                if (!live) {
+                    color = '#94a3b8'
+                } else if (percent >= 91) {
+                    color = '#dc2626'
+                } else if (percent >= 71) {
+                    color = '#d97706'
+                }
+                return { width: percent + '%', backgroundColor: color }
             },
             secondToDate(s) {
                 var d = Math.floor(s / 3600 / 24);
@@ -196,11 +168,11 @@
                 }
                 var h = Math.floor(s / 3600 % 24);
                 var m = Math.floor(s / 60 % 60);
-                var s = Math.floor(s % 60);
-                return h + ":" + ("0" + m).slice(-2) + ":" + ("0" + s).slice(-2);
+                var sec = Math.floor(s % 60);
+                return h + ":" + ("0" + m).slice(-2) + ":" + ("0" + sec).slice(-2);
             },
-            formatTimestamp(t) {
-                return new Date(t * 1000).toLocaleString()
+            formatDate(t) {
+                return new Date(t).toLocaleString()
             },
             formatByteSize(bs) {
                 const x = readableBytes(bs)
@@ -211,62 +183,29 @@
 
     function groupingData(data, filed) {
         let map = {};
-
         let dest = [];
-
         data.forEach(item => {
             if (!map[item[filed]]) {
                 dest.push({
                     [filed]: item[filed],
-
                     data: [item]
-
                 });
-
                 map[item[filed]] = item;
-
             } else {
                 dest.forEach(dItem => {
                     if (dItem[filed] == item[filed]) {
                         dItem.data.push(item);
-
                     }
-
                 });
-
             }
-
         })
-
         return dest;
-
     }
 
     const wsProtocol = window.location.protocol == "https:" ? "wss" : "ws"
     const ws = new WebSocket(wsProtocol + '://' + window.location.host + '/ws');
-    /**
-    ws.onopen = function (evt) {
-        $.suiAlert({
-            title: '实时通道建立',
-            description: '可以实时获取最新监控数据啦',
-            type: 'success',
-            time: '2',
-            position: 'top-center',
-        });
-    }
-    **/
     ws.onmessage = function (evt) {
         statusCards.refreshServers(JSON.parse(evt.data))
     }
-    /**
-    ws.onclose = function () {
-        $.suiAlert({
-            title: '实时通道断开',
-            description: '无法实时获取最新监控数据咯',
-            type: 'warning',
-            time: '2',
-            position: 'top-center',
-        });
-    }**/
 </script>
 {{end}}

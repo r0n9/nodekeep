@@ -108,7 +108,6 @@ agent:
   tls: true
 site:
   brand: "nodekeep"
-  theme: "default"
 ```
 
 不要提交本地 `data/config.yaml`、SQLite 数据库或任何密钥。

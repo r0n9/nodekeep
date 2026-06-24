@@ -15,7 +15,7 @@ import (
 	pb "github.com/r0n9/nodekeep/proto"
 )
 
-var Version = "v2.1.3" // ！！记得修改 README 中的 badge 版本！
+var Version = "v1.0.0"
 
 const (
 	SnapshotDelay = 3

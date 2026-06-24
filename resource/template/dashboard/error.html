@@ -1,22 +1,15 @@
 {{define "dashboard/error"}}
 {{template "common/header" .}}
-<div class="login nb-container">
-    <div class="ui center aligned grid">
-        <div class="column">
-            <h2 class="ui teal image header">
-                <img src="/static/logo.svg" class="image">
-                <div class="content">
-                    访问受限
-                </div>
-            </h2>
-            <div class="ui message">
-                <p>
-                    {{.Msg}}
-                </p>
-                <a href="{{.Link}}">{{.Btn}}</a>
-            </div>
-        </div>
-    </div>
-</div>
+<main class="nk-auth-page">
+    <section class="nk-auth-panel">
+        <a class="nk-auth-brand" href="/">
+            <img src="/static/logo.svg" alt="nodekeep">
+            <span>{{.Conf.Site.Brand}}</span>
+        </a>
+        <h1>访问受限</h1>
+        <p>{{.Msg}}</p>
+        <a class="ui fluid primary button" href="{{.Link}}">{{.Btn}}</a>
+    </section>
+</main>
 {{template "common/footer" .}}
 {{end}}

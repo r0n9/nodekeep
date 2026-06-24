@@ -20,7 +20,6 @@ type Config struct {
 	Site  struct {
 		Brand        string // 站点名称
 		CookieName   string // 浏览器 Cookie 名称
-		Theme        string
 		CustomCode   string
 		ViewPassword string // 前台查看密码
 	}
@@ -58,10 +57,6 @@ func (c *Config) Read(path string) error {
 	err = c.v.Unmarshal(c)
 	if err != nil {
 		return err
-	}
-
-	if c.Site.Theme == "" {
-		c.Site.Theme = "default"
 	}
 
 	c.v.OnConfigChange(func(in fsnotify.Event) {

@@ -69,7 +69,7 @@ func (p *commonPage) checkViewPassword(c *gin.Context) {
 	// 验证查看密码
 	viewPassword, _ := c.Cookie(dao.Conf.Site.CookieName + "-vp")
 	if err := bcrypt.CompareHashAndPassword([]byte(viewPassword), []byte(dao.Conf.Site.ViewPassword)); err != nil {
-		c.HTML(http.StatusOK, "theme-"+dao.Conf.Site.Theme+"/viewpassword", mygin.CommonEnvironment(c, gin.H{
+		c.HTML(http.StatusOK, "theme-default/viewpassword", mygin.CommonEnvironment(c, gin.H{
 			"Title":      "验证查看密码",
 			"CustomCode": dao.Conf.Site.CustomCode,
 		}))
@@ -153,7 +153,7 @@ func (p *commonPage) service(c *gin.Context) {
 		dao.Cache.Set(model.CacheKeyServicePage, msm, time.Minute*10)
 	}
 
-	c.HTML(http.StatusOK, "theme-"+dao.Conf.Site.Theme+"/service", mygin.CommonEnvironment(c, gin.H{
+	c.HTML(http.StatusOK, "theme-default/service", mygin.CommonEnvironment(c, gin.H{
 		"Title":      "服务状态",
 		"Services":   msm,
 		"CustomCode": dao.Conf.Site.CustomCode,
@@ -162,7 +162,7 @@ func (p *commonPage) service(c *gin.Context) {
 
 func (cp *commonPage) home(c *gin.Context) {
 	servers := dao.SortedServerSnapshot()
-	c.HTML(http.StatusOK, "theme-"+dao.Conf.Site.Theme+"/home", mygin.CommonEnvironment(c, gin.H{
+	c.HTML(http.StatusOK, "theme-default/home", mygin.CommonEnvironment(c, gin.H{
 		"Servers":    servers,
 		"CustomCode": dao.Conf.Site.CustomCode,
 	}))

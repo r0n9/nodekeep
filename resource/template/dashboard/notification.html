@@ -1,89 +1,105 @@
 {{define "dashboard/notification"}}
 {{template "common/header" .}}
 {{template "common/menu" .}}
-<div class="nb-container">
+<main class="nk-page nk-admin-page">
     <div class="ui container">
-        <div class="ui grid">
-            <div class="right floated right aligned twelve wide column">
-                <button class="ui right labeled positive icon button" onclick="addOrEditNotification()"><i
-                        class="add icon"></i> 添加通知方式
-                </button>
+        <div class="nk-page-head">
+            <div>
+                <p class="nk-eyebrow">Alerts</p>
+                <h1>告警通知</h1>
+                <p>配置通知渠道和资源告警规则。</p>
             </div>
         </div>
-        <table class="ui very basic table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>名称</th>
-                    <th>URL</th>
-                    <th>验证 HTTPS 证书</th>
-                    <th>管理</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range $notification := .Notifications}}
-                <tr>
-                    <td>{{$notification.ID}}</td>
-                    <td>{{$notification.Name}}</td>
-                    <td>{{$notification.URL}}</td>
-                    <td>{{$notification.VerifySSL}}</td>
-                    <td>
-                        <div class="ui mini icon buttons">
-                            <button class="ui button" onclick="addOrEditNotification({{$notification}})">
-                                <i class="edit icon"></i>
-                            </button>
-                            <button class="ui button"
-                                onclick="showConfirm('删除通知方式','确认删除此通知方式？',deleteRequest,'/api/notification/'+{{$notification.ID}})">
-                                <i class="trash alternate outline icon"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-        <div class="ui grid">
-            <div class="right floated right aligned twelve wide column">
-                <button class="ui right labeled positive icon button" onclick="addOrEditAlertRule()"><i
-                        class="add icon"></i>
-                    添加报警规则
-                </button>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>通知方式</h2>
+                    <p>Webhook、Bark 或其他兼容 HTTP 的通知入口。</p>
+                </div>
+                <button class="ui primary button" onclick="addOrEditNotification()"><i class="add icon"></i>添加通知方式</button>
             </div>
-        </div>
-        <table class="ui very basic table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>名称</th>
-                    <th>规则</th>
-                    <th>启用</th>
-                    <th>管理</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range $rule := .AlertRules}}
-                <tr>
-                    <td>{{$rule.ID}}</td>
-                    <td>{{$rule.Name}}</td>
-                    <td>{{$rule.RulesRaw}}</td>
-                    <td>{{$rule.Enable}}</td>
-                    <td>
-                        <div class="ui mini icon buttons">
-                            <button class="ui button" onclick="addOrEditAlertRule({{$rule}})">
-                                <i class="edit icon"></i>
-                            </button>
-                            <button class="ui button"
-                                onclick="showConfirm('删除通知方式','确认删除此通知方式？',deleteRequest,'/api/alert-rule/'+{{$rule.ID}})">
-                                <i class="trash alternate outline icon"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>URL</th>
+                            <th>验证 HTTPS 证书</th>
+                            <th>管理</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $notification := .Notifications}}
+                        <tr>
+                            <td>{{$notification.ID}}</td>
+                            <td><strong>{{$notification.Name}}</strong></td>
+                            <td style="word-break: break-all;">{{$notification.URL}}</td>
+                            <td>{{$notification.VerifySSL}}</td>
+                            <td>
+                                <div class="ui mini icon buttons">
+                                    <button class="ui button" onclick="addOrEditNotification({{$notification}})">
+                                        <i class="edit icon"></i>
+                                    </button>
+                                    <button class="ui button"
+                                        onclick="showConfirm('删除通知方式','确认删除此通知方式？',deleteRequest,'/api/notification/'+{{$notification.ID}})">
+                                        <i class="trash alternate outline icon"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>告警规则</h2>
+                    <p>节点离线、资源阈值和持续时间规则。</p>
+                </div>
+                <button class="ui primary button" onclick="addOrEditAlertRule()"><i class="add icon"></i>添加告警规则</button>
+            </div>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>规则</th>
+                            <th>启用</th>
+                            <th>管理</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $rule := .AlertRules}}
+                        <tr>
+                            <td>{{$rule.ID}}</td>
+                            <td><strong>{{$rule.Name}}</strong></td>
+                            <td style="word-break: break-all;"><code>{{$rule.RulesRaw}}</code></td>
+                            <td>{{$rule.Enable}}</td>
+                            <td>
+                                <div class="ui mini icon buttons">
+                                    <button class="ui button" onclick="addOrEditAlertRule({{$rule}})">
+                                        <i class="edit icon"></i>
+                                    </button>
+                                    <button class="ui button"
+                                        onclick="showConfirm('删除告警规则','确认删除此告警规则？',deleteRequest,'/api/alert-rule/'+{{$rule.ID}})">
+                                        <i class="trash alternate outline icon"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
-</div>
+</main>
 {{template "component/notification"}}
 {{template "component/rule"}}
 {{template "common/footer" .}}

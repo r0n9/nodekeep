@@ -1,82 +1,108 @@
 {{define "dashboard/setting"}}
 {{template "common/header" .}}
 {{template "common/menu" .}}
-<div class="nb-container">
+<main class="nk-page nk-admin-page">
     <div class="ui container">
-        <form id="settingForm" class="ui large form" onsubmit="return false;">
-            <div class="field">
-                <label>站点标题</label>
-                <input type="text" name="Title" placeholder="nodekeep" value="{{.Conf.Site.Brand}}" style="
-                background: rgb(255 255 255 / 50%);
-            ">
+        <div class="nk-page-head">
+            <div>
+                <p class="nk-eyebrow">System</p>
+                <h1>系统设置</h1>
+                <p>配置站点、登录方式、Agent 接入和通知行为。</p>
             </div>
-            <div class="field">
-                <label>管理员列表</label>
-                <input type="text" name="Admin" placeholder="1010,2020" value="{{.Conf.Oauth2.Admin}}" style="
-                background: rgb(255 255 255 / 50%);
-            ">
-            </div>
-            <div class="field">
-                <label>本地管理员用户名</label>
-                <input type="text" name="LocalAuthUsername" placeholder="admin" value="{{.Conf.Auth.Local.Username}}" style="
-                background: rgb(255 255 255 / 50%);
-            ">
-            </div>
-            <div class="field">
-                <label>本地管理员密码</label>
-                <input type="password" name="LocalAuthPassword" placeholder="留空则不修改" autocomplete="new-password" style="
-                background: rgb(255 255 255 / 50%);
-            ">
-            </div>
-            <div class="field">
-                <div class="ui local-auth checkbox">
-                    <input name="LocalAuthEnabled" type="checkbox" tabindex="0" class="hidden">
-                    <label>启用本地账号登录</label>
+            <button class="ui primary button" type="submit" form="settingForm"><i class="save icon"></i>保存设置</button>
+        </div>
+
+        <form id="settingForm" class="ui form nk-settings-form" onsubmit="return false;">
+            <section class="nk-panel">
+                <div class="nk-panel-head">
+                    <div>
+                        <h2>站点</h2>
+                        <p>展示名称和前台访问控制。</p>
+                    </div>
                 </div>
-            </div>
-            <div class="field" style="
-            background: rgb(255 255 255 / 50%);
-        ">
-                <select name="Theme">
-                    <option value="default"{{if eq .Conf.Site.Theme "default"}} selected="selected"{{end}}>默认主题</option>
-                    <option value="daynight"{{if eq .Conf.Site.Theme "daynight"}} selected="selected"{{end}}>JackieSung DayNight</option>
-                    <option value="hotaru"{{if eq .Conf.Site.Theme "hotaru"}} selected="selected"{{end}}>CokeMine Hotaru</option>
-                </select>
-            </div>
-            <div class="field">
-                <label>自定义代码(style、script 都可以)</label>
-                <textarea name="CustomCode" style="
-                background: rgb(255 255 255 / 50%);
-            ">{{.Conf.Site.CustomCode}}</textarea>
-            </div>
-            <div class="field">
-                <label>前台查看密码</label>
-                <input type="text" name="ViewPassword" placeholder="" value="{{.Conf.Site.ViewPassword}}" style="
-                background: rgb(255 255 255 / 50%);
-            ">
-            </div>
-            <div class="field">
-                <label>Agent 安装地址</label>
-                <input type="text" name="AgentInstallHost" placeholder="example.com:443" value="{{.Conf.Agent.InstallHost}}" style="
-                background: rgb(255 255 255 / 50%);
-            ">
-            </div>
-            <div class="field">
-                <div class="ui agent-tls checkbox">
-                    <input name="AgentTLS" type="checkbox" tabindex="0" class="hidden">
-                    <label>Agent 使用 TLS 连接</label>
+                <div class="nk-form-grid">
+                    <div class="field">
+                        <label>站点标题</label>
+                        <input type="text" name="Title" placeholder="nodekeep" value="{{.Conf.Site.Brand}}">
+                    </div>
+                    <div class="field">
+                        <label>前台查看密码</label>
+                        <input type="text" name="ViewPassword" placeholder="留空则公开访问" value="{{.Conf.Site.ViewPassword}}">
+                    </div>
+                    <div class="field nk-form-full">
+                        <label>自定义代码</label>
+                        <textarea name="CustomCode" placeholder="可填写 style 或 script">{{.Conf.Site.CustomCode}}</textarea>
+                    </div>
                 </div>
-            </div>
-            <div class="field">
-                <div class="ui nf-ssl checkbox">
-                    <input name="EnableIPChangeNotification" type="checkbox" tabindex="0" class="hidden">
-                    <label>开启 IP 变更提醒</label>
+            </section>
+
+            <section class="nk-panel">
+                <div class="nk-panel-head">
+                    <div>
+                        <h2>管理员登录</h2>
+                        <p>本地账号和 OAuth2 管理员名单。</p>
+                    </div>
                 </div>
-            </div>
-            <button class="ui button" type="submit">保存</button>
+                <div class="nk-form-grid">
+                    <div class="field nk-form-full">
+                        <label>管理员列表</label>
+                        <input type="text" name="Admin" placeholder="1010,2020" value="{{.Conf.Oauth2.Admin}}">
+                    </div>
+                    <div class="field">
+                        <label>本地管理员用户名</label>
+                        <input type="text" name="LocalAuthUsername" placeholder="admin" value="{{.Conf.Auth.Local.Username}}">
+                    </div>
+                    <div class="field">
+                        <label>本地管理员密码</label>
+                        <input type="password" name="LocalAuthPassword" placeholder="留空则不修改" autocomplete="new-password">
+                    </div>
+                    <div class="field nk-form-full">
+                        <div class="ui local-auth checkbox">
+                            <input name="LocalAuthEnabled" type="checkbox" tabindex="0" class="hidden">
+                            <label>启用本地账号登录</label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="nk-panel">
+                <div class="nk-panel-head">
+                    <div>
+                        <h2>Agent 接入</h2>
+                        <p>控制后台复制出的 Agent 安装命令使用的连接地址。</p>
+                    </div>
+                </div>
+                <div class="nk-form-grid">
+                    <div class="field">
+                        <label>Agent 安装地址</label>
+                        <input type="text" name="AgentInstallHost" placeholder="example.com:443" value="{{.Conf.Agent.InstallHost}}">
+                    </div>
+                    <div class="field nk-checkbox-field">
+                        <div class="ui agent-tls checkbox">
+                            <input name="AgentTLS" type="checkbox" tabindex="0" class="hidden">
+                            <label>Agent 使用 TLS 连接</label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="nk-panel">
+                <div class="nk-panel-head">
+                    <div>
+                        <h2>通知</h2>
+                        <p>控制节点 IP 变化类提醒。</p>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui nf-ssl checkbox">
+                        <input name="EnableIPChangeNotification" type="checkbox" tabindex="0" class="hidden">
+                        <label>开启 IP 变更提醒</label>
+                    </div>
+                </div>
+            </section>
         </form>
     </div>
-</div>
+</main>
 {{template "common/footer" .}}
 <script>
     $('#settingForm').submit(function () {

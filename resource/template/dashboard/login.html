@@ -1,32 +1,32 @@
 {{define "dashboard/login"}}
 {{template "common/header" .}}
-<div class="login nb-container">
-    <div class="ui center aligned grid">
-        <div class="column">
-            <h2 class="ui teal image header">
-                <img src="static/logo.svg" class="image">
-                <div class="content">
-                    登录 {{.Conf.Site.Brand}}
-                </div>
-            </h2>
-            {{if .Conf.Auth.Local.Enabled}}
-            <form class="ui large form" action="/login" method="POST">
-                <div class="field">
-                    <input type="text" name="Username" placeholder="用户名" autocomplete="username" required>
-                </div>
-                <div class="field">
-                    <input type="password" name="Password" placeholder="密码" autocomplete="current-password" required>
-                </div>
-                <button class="ui fluid large teal submit button" type="submit">本地账号登录</button>
-            </form>
-            <div class="ui horizontal divider">或</div>
-            {{end}}
-            <a href="/oauth2/login" class="ui fluid large button">OAuth2 登录</a>
-            <div class="ui message">
-                OAuth2 支持 GitHub / Gitee，管理员名单由配置控制。
+<main class="nk-auth-page">
+    <section class="nk-auth-panel">
+        <a class="nk-auth-brand" href="/">
+            <img src="/static/logo.svg" alt="nodekeep">
+            <span>{{.Conf.Site.Brand}}</span>
+        </a>
+        <h1>登录管理后台</h1>
+        <p>使用本地管理员账号或 OAuth2 账号进入 nodekeep。</p>
+
+        {{if .Conf.Auth.Local.Enabled}}
+        <form class="ui form nk-auth-form" action="/login" method="POST">
+            <div class="field">
+                <label>用户名</label>
+                <input type="text" name="Username" placeholder="admin" autocomplete="username" required>
             </div>
-        </div>
-    </div>
-</div>
+            <div class="field">
+                <label>密码</label>
+                <input type="password" name="Password" placeholder="请输入密码" autocomplete="current-password" required>
+            </div>
+            <button class="ui fluid primary button" type="submit">本地账号登录</button>
+        </form>
+        <div class="nk-divider"><span>或</span></div>
+        {{end}}
+
+        <a href="/oauth2/login" class="ui fluid button nk-secondary-action">OAuth2 登录</a>
+        <p class="nk-auth-note">OAuth2 支持 GitHub / Gitee，管理员名单由配置控制。</p>
+    </section>
+</main>
 {{template "common/footer" .}}
 {{end}}

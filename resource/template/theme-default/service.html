@@ -4,40 +4,59 @@
 {{.CustomCode|safe}}
 {{end}}
 {{template "common/menu" .}}
-<div class="nb-container">
+<main class="nk-page nk-public-page">
     <div class="ui container">
-        <div class="service-status">
+        <section class="nk-hero">
+            <div>
+                <p class="nk-eyebrow">Service Status</p>
+                <h1>服务状态</h1>
+                <p class="nk-hero-subtitle">最近 30 天服务可用性和当日健康状态。</p>
+            </div>
+            <div class="nk-summary-grid">
+                <div class="nk-summary-item">
+                    <span>监控项</span>
+                    <strong>{{len .Services}}</strong>
+                </div>
+            </div>
+        </section>
 
-            <table class="ui celled table">
-                <thead>
-                    <tr>
-                        <th class="ui center aligned">名称</th>
-                        <th class="ui center aligned">总在线率</th>
-                        <th class="ui center aligned">最近30天在线详情</th>
-                        <th class="ui center aligned">状态</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range $service := .Services}}
-                    <tr>
-                        <td class="ui center aligned">{{$service.Monitor.Name}}</td>
-                        <td class="ui center aligned">
-                            {{float32f (divU64 $service.TotalUp (addU64 $service.TotalUp $service.TotalDown))}}%
-                        </td>
-                        <td class="ui center aligned">{{range $i,$d := $service.Delay}}
-                            <div class="ui icon button {{className (div (index $service.Up $i) (add (index $service.Up $i) (index $service.Down $i)))}}"
-                                data-tooltip="{{dayBefore $i}}，在线率:{{float32f (div (index $service.Up $i) (add (index $service.Up $i) (index $service.Down $i)))}}%，平均延迟:{{float32f $d}}ms">
-                            </div> {{end}}
-                        </td>
-                        <td class="ui center aligned delay-today">
-                            <i class="delay-today {{className (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}"></i>
-                            {{statusName (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}
-                        </td>
-                    </tr> {{end}}
-                </tbody>
-            </table>
-        </div>
+        <section class="nk-service-list">
+            {{range $service := .Services}}
+            <article class="nk-service-card">
+                <div class="nk-service-head">
+                    <div>
+                        <h2>{{$service.Monitor.Name}}</h2>
+                        <p>{{$service.Monitor.Target}}</p>
+                    </div>
+                    <span class="nk-status-pill {{className (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}">
+                        {{statusName (divU64 $service.CurrentUp (addU64 $service.CurrentUp $service.CurrentDown))}}
+                    </span>
+                </div>
+                <div class="nk-service-stats">
+                    <div>
+                        <span>总在线率</span>
+                        <strong>{{float32f (divU64 $service.TotalUp (addU64 $service.TotalUp $service.TotalDown))}}%</strong>
+                    </div>
+                    <div>
+                        <span>今日成功</span>
+                        <strong>{{$service.CurrentUp}}</strong>
+                    </div>
+                    <div>
+                        <span>今日失败</span>
+                        <strong>{{$service.CurrentDown}}</strong>
+                    </div>
+                </div>
+                <div class="nk-uptime-strip" aria-label="最近 30 天在线详情">
+                    {{range $i,$d := $service.Delay}}
+                    <span class="{{className (div (index $service.Up $i) (add (index $service.Up $i) (index $service.Down $i)))}}"
+                        data-tooltip="{{dayBefore $i}}，在线率:{{float32f (div (index $service.Up $i) (add (index $service.Up $i) (index $service.Down $i)))}}%，平均延迟:{{float32f $d}}ms"
+                        data-position="top center"></span>
+                    {{end}}
+                </div>
+            </article>
+            {{end}}
+        </section>
     </div>
-</div>
+</main>
 {{template "common/footer" .}}
 {{end}}

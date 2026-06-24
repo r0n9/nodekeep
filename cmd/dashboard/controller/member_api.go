@@ -416,7 +416,6 @@ func (ma *memberAPI) logout(c *gin.Context) {
 type settingForm struct {
 	Title                      string
 	Admin                      string
-	Theme                      string
 	CustomCode                 string
 	ViewPassword               string
 	EnableIPChangeNotification string
@@ -439,7 +438,6 @@ func (ma *memberAPI) updateSetting(c *gin.Context) {
 	}
 	dao.Conf.EnableIPChangeNotification = sf.EnableIPChangeNotification == "on"
 	dao.Conf.Site.Brand = sf.Title
-	dao.Conf.Site.Theme = sf.Theme
 	dao.Conf.Site.CustomCode = sf.CustomCode
 	dao.Conf.Site.ViewPassword = sf.ViewPassword
 	dao.Conf.Oauth2.Type = sf.Oauth2Type
