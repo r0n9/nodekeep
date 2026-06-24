@@ -161,6 +161,10 @@ server {
 
 不要提交本地配置、数据库、OAuth2 密钥、通知 Webhook 或 Agent 密钥。
 
+## 发布说明
+
+仓库中的 `pkg/geoip/geoip.db` 是占位文件，不是可用的 GeoIP 数据库。发布 GitHub Release 或 GHCR 镜像前，需要在 GitHub Actions Secrets 配置 `IPINFO_TOKEN`，工作流会下载真实的 IPInfo `country.mmdb` 并嵌入 Dashboard；未配置或下载结果异常时发布会失败。
+
 ## License
 
 当前仓库未声明许可证。
