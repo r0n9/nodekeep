@@ -3,12 +3,16 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/r0n9/nodekeep/model"
+	"github.com/r0n9/nodekeep/pkg/geoip"
 	pb "github.com/r0n9/nodekeep/proto"
 	"github.com/r0n9/nodekeep/service/dao"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 type ProbeHandler struct {
@@ -125,6 +129,7 @@ func (s *ProbeHandler) ReportSystemInfo(c context.Context, r *pb.Host) (*pb.Rece
 		return nil, err
 	}
 	host := model.PB2Host(r)
+	fillClientIPFromContext(c, &host)
 	name, oldIP, newIP, changed := dao.UpdateServerHost(clientID, host, dao.Conf.EnableIPChangeNotification)
 	if changed {
 		dao.SendNotification(fmt.Sprintf(
@@ -132,4 +137,50 @@ func (s *ProbeHandler) ReportSystemInfo(c context.Context, r *pb.Host) (*pb.Rece
 			name, oldIP, newIP), true)
 	}
 	return &pb.Receipt{Proced: true}, nil
+}
+
+func fillClientIPFromContext(ctx context.Context, host *model.Host) {
+	if host == nil {
+		return
+	}
+	ipv4, ipv6 := geoip.ExtractIPs(host.IP)
+	if ipv4 != "" || ipv6 != "" {
+		return
+	}
+	if ip := clientIPFromContext(ctx); ip != "" {
+		host.IP = ip
+	}
+}
+
+func clientIPFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		for _, key := range []string{"x-forwarded-for", "x-real-ip", "cf-connecting-ip"} {
+			for _, value := range md.Get(key) {
+				if ip := firstValidIP(value); ip != "" {
+					return ip
+				}
+			}
+		}
+	}
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		return firstValidIP(p.Addr.String())
+	}
+	return ""
+}
+
+func firstValidIP(raw string) string {
+	for _, part := range strings.Split(raw, ",") {
+		candidate := strings.TrimSpace(part)
+		if candidate == "" {
+			continue
+		}
+		if host, _, err := net.SplitHostPort(candidate); err == nil {
+			candidate = host
+		}
+		candidate = strings.Trim(candidate, "[]")
+		if ip := net.ParseIP(candidate); ip != nil {
+			return ip.String()
+		}
+	}
+	return ""
 }

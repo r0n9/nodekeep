@@ -31,6 +31,7 @@ func GetHost() *model.Host {
 	mv, _ := mem.VirtualMemory()
 	ms, _ := mem.SwapMemory()
 	u, _ := disk.Usage("/")
+	ip, country := CachedIP()
 
 	return &model.Host{
 		Platform:        hi.OS,
@@ -42,8 +43,8 @@ func GetHost() *model.Host {
 		Arch:            hi.KernelArch,
 		Virtualization:  hi.VirtualizationSystem,
 		BootTime:        hi.BootTime,
-		IP:              cachedIP,
-		CountryCode:     strings.ToLower(cachedCountry),
+		IP:              ip,
+		CountryCode:     strings.ToLower(country),
 		Version:         dao.Version,
 	}
 }

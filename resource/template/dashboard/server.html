@@ -20,7 +20,8 @@
                             <th>ID(排序)</th>
                             <th>名称</th>
                             <th>分组</th>
-                            <th>IP</th>
+                            <th>IPv4</th>
+                            <th>IPv6</th>
                             <th>密钥</th>
                             <th>备注</th>
                             <th>管理</th>
@@ -32,7 +33,22 @@
                             <td>{{$server.ID}}({{$server.DisplayIndex}})</td>
                             <td><strong>{{$server.Name}}</strong></td>
                             <td>{{$server.Tag}}</td>
-                            <td>{{$server.Host.IP}}</td>
+                            <td>
+                                {{if $server.Host}}
+                                    {{$ipv4 := ipv4 $server.Host.IP}}
+                                    {{if $ipv4}}<code class="nk-ip-code">{{$ipv4}}</code>{{else}}<span class="nk-muted-text">-</span>{{end}}
+                                {{else}}
+                                    <span class="nk-muted-text">-</span>
+                                {{end}}
+                            </td>
+                            <td>
+                                {{if $server.Host}}
+                                    {{$ipv6 := ipv6 $server.Host.IP}}
+                                    {{if $ipv6}}<code class="nk-ip-code">{{$ipv6}}</code>{{else}}<span class="nk-muted-text">-</span>{{end}}
+                                {{else}}
+                                    <span class="nk-muted-text">-</span>
+                                {{end}}
+                            </td>
                             <td><code>{{$server.Secret}}</code></td>
                             <td style="word-break: break-word;">{{$server.Note}}</td>
                             <td>

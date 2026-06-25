@@ -9,6 +9,7 @@ import (
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/gin-gonic/gin"
 
+	"github.com/r0n9/nodekeep/pkg/geoip"
 	"github.com/r0n9/nodekeep/pkg/mygin"
 	"github.com/r0n9/nodekeep/service/dao"
 )
@@ -41,6 +42,14 @@ func ServeWeb() *gin.Engine {
 		},
 		"ts": func(s string) string {
 			return strings.TrimSpace(s)
+		},
+		"ipv4": func(s string) string {
+			ipv4, _ := geoip.ExtractIPs(s)
+			return ipv4
+		},
+		"ipv6": func(s string) string {
+			_, ipv6 := geoip.ExtractIPs(s)
+			return ipv6
 		},
 		"float32f": func(f float32) string {
 			return fmt.Sprintf("%.2f", f)

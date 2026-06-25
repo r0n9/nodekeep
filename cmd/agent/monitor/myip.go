@@ -3,8 +3,11 @@ package monitor
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,38 +26,76 @@ var ipv6Servers = []string{
 	"https://api-ipv6.ip.sb/geoip",
 }
 
-var cachedIP, cachedCountry string
+var (
+	ipHTTPClient  = &http.Client{Timeout: 3 * time.Second}
+	cachedIPMu    sync.RWMutex
+	cachedIP      string
+	cachedCountry string
+)
 
 func UpdateIP() {
-	for {
-		ipv4 := fetchGeoIP(ipv4Servers)
-		ipv6 := fetchGeoIP(ipv6Servers)
-		cachedIP = fmt.Sprintf("IPs[IPv4:%s,IPv6:%s]", ipv4.IP, ipv6.IP)
-		if ipv4.CountryCode != "" {
-			cachedCountry = ipv4.CountryCode
-		} else if ipv6.CountryCode != "" {
-			cachedCountry = ipv6.CountryCode
-		}
-		time.Sleep(time.Minute * 10)
+	ticker := time.NewTicker(time.Minute * 10)
+	defer ticker.Stop()
+	for range ticker.C {
+		RefreshIP()
 	}
 }
 
-func fetchGeoIP(servers []string) geoIP {
-	var ip geoIP
-	for i := 0; i < len(servers); i++ {
-		resp, err := http.Get(servers[i])
-		if err == nil {
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				continue
-			}
-			resp.Body.Close()
-			err = json.Unmarshal(body, &ip)
-			if err != nil {
-				continue
-			}
-			return ip
-		}
+func RefreshIP() {
+	var wg sync.WaitGroup
+	var ipv4, ipv6 geoIP
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		ipv4 = fetchGeoIP(ipv4Servers)
+	}()
+	go func() {
+		defer wg.Done()
+		ipv6 = fetchGeoIP(ipv6Servers)
+	}()
+	wg.Wait()
+
+	country := ipv4.CountryCode
+	if country == "" {
+		country = ipv6.CountryCode
 	}
-	return ip
+	if ipv4.IP == "" && ipv6.IP == "" {
+		return
+	}
+
+	cachedIPMu.Lock()
+	cachedIP = fmt.Sprintf("IPs[IPv4:%s,IPv6:%s]", ipv4.IP, ipv6.IP)
+	cachedCountry = strings.ToLower(country)
+	cachedIPMu.Unlock()
+}
+
+func CachedIP() (string, string) {
+	cachedIPMu.RLock()
+	defer cachedIPMu.RUnlock()
+	return cachedIP, cachedCountry
+}
+
+func fetchGeoIP(servers []string) geoIP {
+	for i := 0; i < len(servers); i++ {
+		var ip geoIP
+		resp, err := ipHTTPClient.Get(servers[i])
+		if err != nil {
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+			continue
+		}
+		if err := json.Unmarshal(body, &ip); err != nil {
+			continue
+		}
+		ip.IP = strings.TrimSpace(ip.IP)
+		ip.CountryCode = strings.ToLower(strings.TrimSpace(ip.CountryCode))
+		if net.ParseIP(ip.IP) == nil {
+			continue
+		}
+		return ip
+	}
+	return geoIP{}
 }

@@ -62,7 +62,14 @@ func ExtractIPs(raw string) (string, string) {
 		}
 	}
 
-	return normalizeIP(raw), ""
+	ip := normalizeIP(raw)
+	if ip == "" {
+		return "", ""
+	}
+	if strings.Contains(ip, ":") {
+		return "", ip
+	}
+	return ip, ""
 }
 
 func LookupCountryCode(rawIP string) (string, error) {

@@ -1265,6 +1265,14 @@ html[data-theme="dark"] .nk-theme-icon-light {
   white-space: nowrap;
 }
 
+.ui.table.nk-table td code.nk-ip-code {
+  max-width: 180px;
+}
+
+.nk-muted-text {
+  color: var(--nk-subtle);
+}
+
 .ui.table.nk-table td:last-child {
   width: 1%;
   white-space: nowrap;

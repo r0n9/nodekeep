@@ -19,6 +19,13 @@ func TestExtractIPsFromPlainIP(t *testing.T) {
 	}
 }
 
+func TestExtractIPsFromPlainIPv6(t *testing.T) {
+	ipv4, ipv6 := ExtractIPs("2001:db8::1")
+	if ipv4 != "" || ipv6 != "2001:db8::1" {
+		t.Fatalf("ExtractIPs plain IPv6 = %q, %q", ipv4, ipv6)
+	}
+}
+
 func TestExtractIPsRejectsInvalidInput(t *testing.T) {
 	ipv4, ipv6 := ExtractIPs("not-an-ip")
 	if ipv4 != "" || ipv6 != "" {
