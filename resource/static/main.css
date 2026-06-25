@@ -1847,6 +1847,21 @@ html[data-theme="dark"] .nk-theme-icon-light {
   transform: translateY(-0.02em);
 }
 
+.nk-country-flag-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 12px;
+  border: 1px solid var(--nk-border-strong);
+  border-radius: 2px;
+  color: var(--nk-subtle);
+  background: var(--nk-surface-soft);
+  font-size: 0.48rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 @media (max-width: 900px) {
   .nk-topbar {
     padding: 0.3rem 0;
