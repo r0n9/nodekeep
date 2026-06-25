@@ -55,7 +55,7 @@
                                 <div class="nk-node-name">
                                     <span class="nk-node-label">@#server.Name#@</span>
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                    <span v-else-if="server.Host" class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                    <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
                                 </div>
                                 <div class="nk-node-meta" v-if="server.Host">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
@@ -172,7 +172,7 @@
                                         <span class="nk-status-pill nk-list-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
                                         <span class="nk-list-node-label">@#server.Name#@</span>
                                         <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                        <span v-else-if="server.Host" class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                        <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
                                     </div>
                                     <div class="nk-list-node-meta" v-if="server.Host">
                                         运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
