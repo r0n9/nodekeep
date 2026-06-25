@@ -105,6 +105,8 @@ curl -fsSL https://raw.githubusercontent.com/r0n9/nodekeep/master/script/install
 
 Agent 安装脚本支持 Linux systemd、Linux OpenRC 和 macOS launchd。安装过程会打印当前系统架构、下载地址和安装路径；重复安装会备份旧二进制和服务文件，启动失败时自动回滚。卸载和停止命令会在安装成功后输出。
 
+Agent 默认会过滤 loopback、Docker、veth、VPN/隧道等虚拟网卡，减少内部流量重复计数。如果网络速率仍不符合预期，可以用 `--nic eth0,en0` 指定只统计这些网卡。
+
 ## 反向代理
 
 nodekeep 使用同一个后端端口承载：
