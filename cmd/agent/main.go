@@ -37,12 +37,10 @@ var (
 )
 
 var (
-	reporting      bool
-	client         pb.ProbeServiceClient
-	ctx            = context.Background()
 	delayWhenError = time.Second * 10       // Agent 重连间隔
 	updateCh       = make(chan struct{}, 0) // Agent 自动更新间隔
 	httpClient     = &http.Client{
+		Timeout: time.Second * 30,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
@@ -57,7 +55,11 @@ func doSelfUpdate() {
 		time.Sleep(time.Minute * 30)
 		updateCh <- struct{}{}
 	}()
-	v := semver.MustParse(version)
+	v, err := semver.Parse(strings.TrimPrefix(version, "v"))
+	if err != nil {
+		log.Println("Skip binary update, invalid version:", version)
+		return
+	}
 	log.Println("Check update", v)
 	latest, err := selfupdate.UpdateSelf(v, "r0n9/nodekeep")
 	if err != nil {
@@ -108,8 +110,6 @@ func run() {
 	// 更新IP信息
 	monitor.RefreshIP()
 	go monitor.UpdateIP()
-	// 上报服务器信息
-	go reportState()
 
 	if version != "" {
 		go func() {
@@ -139,25 +139,41 @@ func run() {
 			retry()
 			continue
 		}
-		client = pb.NewProbeServiceClient(conn)
-		// 第一步注册
-		_, err = client.ReportSystemInfo(ctx, monitor.GetHost().PB())
+		err = runClient(pb.NewProbeServiceClient(conn))
 		if err != nil {
-			log.Printf("client.ReportSystemInfo err: %v", err)
+			log.Printf("agent connection exited: %v", err)
 			retry()
 			continue
 		}
-		// 执行 Task
-		tasks, err := client.RequestTask(ctx, monitor.GetHost().PB())
-		if err != nil {
-			log.Printf("client.RequestTask err: %v", err)
-			retry()
-			continue
-		}
-		err = receiveTasks(tasks)
-		log.Printf("receiveTasks exit to main: %v", err)
 		retry()
 	}
+}
+
+func runClient(client pb.ProbeServiceClient) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 第一步注册
+	if err := reportSystemInfo(ctx, client); err != nil {
+		return fmt.Errorf("ReportSystemInfo: %w", err)
+	}
+
+	tasks, err := client.RequestTask(ctx, monitor.GetHost().PB())
+	if err != nil {
+		return fmt.Errorf("RequestTask: %w", err)
+	}
+
+	errCh := make(chan error, 2)
+	go func() {
+		errCh <- reportState(ctx, client)
+	}()
+	go func() {
+		errCh <- receiveTasks(client, tasks)
+	}()
+
+	err = <-errCh
+	cancel()
+	return err
 }
 
 func grpcDialOptions(auth *rpc.AuthHandler) []grpc.DialOption {
@@ -172,7 +188,7 @@ func grpcDialOptions(auth *rpc.AuthHandler) []grpc.DialOption {
 	return options
 }
 
-func receiveTasks(tasks pb.ProbeService_RequestTaskClient) error {
+func receiveTasks(client pb.ProbeServiceClient, tasks pb.ProbeService_RequestTaskClient) error {
 	var err error
 	defer log.Printf("receiveTasks exit %v => %v", time.Now(), err)
 	for {
@@ -181,11 +197,11 @@ func receiveTasks(tasks pb.ProbeService_RequestTaskClient) error {
 		if err != nil {
 			return err
 		}
-		go doTask(task)
+		go doTask(client, task)
 	}
 }
 
-func doTask(task *pb.Task) {
+func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 	var result pb.TaskResult
 	result.Id = task.GetId()
 	result.Type = task.GetType()
@@ -233,46 +249,51 @@ func doTask(task *pb.Task) {
 		start := time.Now()
 		conn, err := net.DialTimeout("tcp", task.GetData(), time.Second*10)
 		if err == nil {
-			conn.Write([]byte("ping\n"))
-			conn.Close()
-			result.Delay = float32(time.Now().Sub(start).Microseconds()) / 1000.0
-			result.Successful = true
+			_ = conn.SetDeadline(time.Now().Add(time.Second * 10))
+			if _, err = conn.Write([]byte("ping\n")); err == nil {
+				result.Delay = float32(time.Now().Sub(start).Microseconds()) / 1000.0
+				result.Successful = true
+			}
+			if closeErr := conn.Close(); err == nil && closeErr != nil {
+				err = closeErr
+			}
+			if err != nil {
+				result.Data = err.Error()
+			}
 		} else {
 			result.Data = err.Error()
 		}
 	case model.TaskTypeCommand:
 		startedAt := time.Now()
 		var cmd *exec.Cmd
-		var endCh = make(chan struct{})
 		pg, err := utils.NewProcessExitGroup()
 		if err != nil {
 			// 进程组创建失败，直接退出
 			result.Data = err.Error()
-			client.ReportTask(ctx, &result)
+			reportTaskResult(client, &result)
 			return
 		}
-		timeout := time.NewTimer(time.Hour * 2)
+		cmdCtx, cancel := context.WithTimeout(context.Background(), time.Hour*2)
+		defer cancel()
 		if utils.IsWindows() {
-			cmd = exec.Command("cmd", "/c", task.GetData())
+			cmd = exec.CommandContext(cmdCtx, "cmd", "/c", task.GetData())
 		} else {
-			cmd = exec.Command("sh", "-c", task.GetData())
+			cmd = exec.CommandContext(cmdCtx, "sh", "-c", task.GetData())
 		}
-		pg.AddProcess(cmd)
-		go func() {
-			select {
-			case <-timeout.C:
-				result.Data = "任务执行超时\n"
-				close(endCh)
-				pg.Dispose()
-			case <-endCh:
-				timeout.Stop()
-			}
-		}()
+		if err := pg.AddProcess(cmd); err != nil {
+			result.Data = err.Error()
+			reportTaskResult(client, &result)
+			return
+		}
+		cmd.Cancel = pg.Dispose
+		cmd.WaitDelay = time.Second * 5
 		output, err := cmd.Output()
-		if err != nil {
+		switch {
+		case cmdCtx.Err() == context.DeadlineExceeded:
+			result.Data = fmt.Sprintf("任务执行超时\n%s", string(output))
+		case err != nil:
 			result.Data += fmt.Sprintf("%s\n%s", string(output), err.Error())
-		} else {
-			close(endCh)
+		default:
 			result.Data = string(output)
 			result.Successful = true
 		}
@@ -280,24 +301,52 @@ func doTask(task *pb.Task) {
 	default:
 		log.Printf("Unknown action: %v", task)
 	}
-	client.ReportTask(ctx, &result)
+	reportTaskResult(client, &result)
 }
 
-func reportState() {
+func reportTaskResult(client pb.ProbeServiceClient, result *pb.TaskResult) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	if _, err := client.ReportTask(ctx, result); err != nil {
+		log.Printf("client.ReportTask err: %v", err)
+	}
+}
+
+func reportSystemInfo(parent context.Context, client pb.ProbeServiceClient) error {
+	host := monitor.GetHost().PB()
+	ctx, cancel := context.WithTimeout(parent, time.Second*30)
+	defer cancel()
+	_, err := client.ReportSystemInfo(ctx, host)
+	return err
+}
+
+func reportSystemState(parent context.Context, client pb.ProbeServiceClient) error {
+	state := monitor.GetState(dao.ReportDelay).PB()
+	ctx, cancel := context.WithTimeout(parent, time.Second*30)
+	defer cancel()
+	_, err := client.ReportSystemState(ctx, state)
+	return err
+}
+
+func reportState(ctx context.Context, client pb.ProbeServiceClient) error {
 	var lastReportHostInfo time.Time
 	var err error
 	defer log.Printf("reportState exit %v => %v", time.Now(), err)
 	for {
-		if client != nil {
-			monitor.TrackNetworkSpeed()
-			_, err = client.ReportSystemState(ctx, monitor.GetState(dao.ReportDelay).PB())
-			if err != nil {
-				log.Printf("reportState error %v", err)
-				time.Sleep(delayWhenError)
-			}
-			if lastReportHostInfo.Before(time.Now().Add(-10 * time.Minute)) {
-				lastReportHostInfo = time.Now()
-				client.ReportSystemInfo(ctx, monitor.GetHost().PB())
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		monitor.TrackNetworkSpeed()
+		if err = reportSystemState(ctx, client); err != nil {
+			return err
+		}
+		if lastReportHostInfo.Before(time.Now().Add(-10 * time.Minute)) {
+			lastReportHostInfo = time.Now()
+			if err = reportSystemInfo(ctx, client); err != nil {
+				return err
 			}
 		}
 	}

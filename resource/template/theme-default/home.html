@@ -123,7 +123,7 @@
                                     </div>
                                     <div class="nk-node-detail-item nk-node-detail-wide">
                                         <span>处理器</span>
-                                        <strong>@#server.Host.CPU#@</strong>
+                                        <strong :title="formatCPUInfo(server.Host.CPU)">@#formatCPUInfo(server.Host.CPU)#@</strong>
                                     </div>
                                     <div class="nk-node-detail-item">
                                         <span>内存</span>
@@ -321,6 +321,14 @@
             },
             formatDate(t) {
                 return new Date(t).toLocaleString()
+            },
+            formatCPUInfo(cpu) {
+                const items = Array.isArray(cpu) ? cpu : [cpu]
+                const formatted = items
+                    .map(item => String(item || '').trim())
+                    .filter(Boolean)
+                    .map(item => item.replace(/^\[\s*"?|"?\s*\]$/g, '').trim())
+                return formatted.length ? formatted.join(' / ') : '-'
             },
             formatByteSize(bs) {
                 const x = readableBytes(bs)

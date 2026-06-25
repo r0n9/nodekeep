@@ -134,17 +134,25 @@ func fallbackCPUCoreCount() int {
 func TrackNetworkSpeed() {
 	var innerNetInTransfer, innerNetOutTransfer uint64
 	nc, err := net.IOCounters(false)
-	if err == nil {
-		innerNetInTransfer += nc[0].BytesRecv
-		innerNetOutTransfer += nc[0].BytesSent
-		now := uint64(time.Now().Unix())
-		diff := now - atomic.LoadUint64(&lastUpdate)
-		if diff > 0 {
-			atomic.StoreUint64(&netInSpeed, (innerNetInTransfer-atomic.LoadUint64(&netInTransfer))/diff)
-			atomic.StoreUint64(&netOutSpeed, (innerNetOutTransfer-atomic.LoadUint64(&netOutTransfer))/diff)
-		}
-		atomic.StoreUint64(&netInTransfer, innerNetInTransfer)
-		atomic.StoreUint64(&netOutTransfer, innerNetOutTransfer)
-		atomic.StoreUint64(&lastUpdate, now)
+	if err != nil || len(nc) == 0 {
+		return
 	}
+
+	innerNetInTransfer += nc[0].BytesRecv
+	innerNetOutTransfer += nc[0].BytesSent
+	now := uint64(time.Now().Unix())
+	diff := now - atomic.LoadUint64(&lastUpdate)
+	if diff > 0 {
+		prevIn := atomic.LoadUint64(&netInTransfer)
+		prevOut := atomic.LoadUint64(&netOutTransfer)
+		if innerNetInTransfer >= prevIn {
+			atomic.StoreUint64(&netInSpeed, (innerNetInTransfer-prevIn)/diff)
+		}
+		if innerNetOutTransfer >= prevOut {
+			atomic.StoreUint64(&netOutSpeed, (innerNetOutTransfer-prevOut)/diff)
+		}
+	}
+	atomic.StoreUint64(&netInTransfer, innerNetInTransfer)
+	atomic.StoreUint64(&netOutTransfer, innerNetOutTransfer)
+	atomic.StoreUint64(&lastUpdate, now)
 }
