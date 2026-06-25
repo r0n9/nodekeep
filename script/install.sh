@@ -73,8 +73,8 @@ before_show_menu() {
 }
 
 install_base() {
-    (command -v git >/dev/null 2>&1 && command -v curl >/dev/null 2>&1 && command -v wget >/dev/null 2>&1 && command -v tar >/dev/null 2>&1) ||
-        (install_soft curl wget git tar)
+    (command -v curl >/dev/null 2>&1 && command -v wget >/dev/null 2>&1 && command -v tar >/dev/null 2>&1) ||
+        (install_soft curl wget tar)
 }
 
 install_soft() {
@@ -84,6 +84,69 @@ install_soft() {
         (command -v apt-get >/dev/null 2>&1 && apt-get install $* -y)
 }
 
+download_file() {
+    local url="$1"
+    local output="$2"
+
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$output"
+    else
+        wget -O "$output" "$url"
+    fi
+}
+
+compose() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    else
+        docker-compose "$@"
+    fi
+}
+
+replace_placeholder() {
+    local placeholder="$1"
+    local value="$2"
+    local file="$3"
+    local escaped
+
+    escaped=$(printf '%s' "$value" | sed -e 's/[\/&|\\]/\\&/g')
+    sed -i "s|${placeholder}|${escaped}|g" "$file"
+}
+
+yaml_quote() {
+    local value="$1"
+
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//$'\n'/ }
+    printf '"%s"' "$value"
+}
+
+write_dashboard_config() {
+    local file="$1"
+
+    cat > "$file" <<EOF
+debug: false
+httpport: 8008
+auth:
+  local:
+    enabled: true
+    username: $(yaml_quote "${local_admin_username}")
+    password: $(yaml_quote "${local_admin_password}")
+agent:
+  install_host: $(yaml_quote "${agent_install_host}")
+  tls: ${agent_tls}
+oauth2:
+  type: $(yaml_quote "${oauth2_type}")
+  admin: $(yaml_quote "${admin_logins}")
+  clientid: $(yaml_quote "${github_oauth_client_id}")
+  clientsecret: $(yaml_quote "${github_oauth_client_secret}")
+site:
+  brand: $(yaml_quote "${site_title}")
+  cookiename: "nodekeep-dashboard"
+EOF
+}
+
 install_dashboard() {
     install_base
 
@@ -91,7 +154,7 @@ install_dashboard() {
 
     # nodekeep文件夹
     mkdir -p $DASHBOARD_PATH
-    chmod 777 -R $DASHBOARD_PATH
+    chmod 755 -R $DASHBOARD_PATH
 
     command -v docker >/dev/null 2>&1
     if [[ $? != 0 ]]; then
@@ -106,10 +169,11 @@ install_dashboard() {
         echo -e "${green}Docker${plain} 安装成功"
     fi
 
-    command -v docker-compose >/dev/null 2>&1
-    if [[ $? != 0 ]]; then
+    if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+        compose_os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+        compose_arch="$(uname -m)"
         echo -e "正在安装 Docker Compose"
-        wget -O /usr/local/bin/docker-compose "https://${GITHUB_URL}/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" >/dev/null 2>&1
+        download_file "https://${GITHUB_URL}/docker/compose/releases/latest/download/docker-compose-${compose_os}-${compose_arch}" /usr/local/bin/docker-compose >/dev/null 2>&1
         if [[ $? != 0 ]]; then
             echo -e "${red}下载脚本失败，请检查本机能否连接 ${GITHUB_URL}${plain}"
             return 0
@@ -129,22 +193,7 @@ install_agent() {
     install_base
 
     echo -e "> 安装监测Agent"
-
-    # nodekeep文件夹
-    mkdir -p $AGENT_PATH
-    chmod 777 -R $AGENT_PATH
-
-    echo -e "正在下载监测端"
-    wget -O nodekeep-agent_linux_${os_arch}.tar.gz https://${GITHUB_URL}/r0n9/nodekeep/releases/latest/download/nodekeep-agent_linux_${os_arch}.tar.gz >/dev/null 2>&1
-    if [[ $? != 0 ]]; then
-        echo -e "${red}Release 下载失败，请检查本机能否连接 ${GITHUB_URL}${plain}"
-        return 0
-    fi
-    tar xf nodekeep-agent_linux_${os_arch}.tar.gz &&
-        mv nodekeep-agent $AGENT_PATH &&
-        rm -rf nodekeep-agent_linux_${os_arch}.tar.gz README.md
-
-    modify_agent_config 0
+    run_agent_installer
 
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -153,69 +202,58 @@ install_agent() {
 
 modify_agent_config() {
     echo -e "> 修改Agent配置"
-
-    wget -O $AGENT_SERVICE https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/nodekeep-agent.service >/dev/null 2>&1
-    if [[ $? != 0 ]]; then
-        echo -e "${red}文件下载失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
-        return 0
-    fi
-
-    echo "请先在管理面板上添加Agent，记录下密钥" &&
-        read -p "请输入一个解析到面板所在IP的域名（不可套CDN）: " dashboard_host &&
-        read -p "Agent 是否通过 HTTPS 反代连接面板？(y/N): " dashboard_tls &&
-        read -p "请输入面板访问端口: " dashboard_port &&
-        read -p "请输入Agent 密钥: " client_secret
-    if [[ -z "${dashboard_host}" || -z "${client_secret}" ]]; then
-        echo -e "${red}所有选项都不能为空${plain}"
-        before_show_menu
-        return 1
-    fi
-
-    if [[ -z "${dashboard_port}" ]]; then
-        if [[ "${dashboard_tls}" =~ ^[Yy]$ ]]; then
-            dashboard_port=443
-        else
-            dashboard_port=8008
-        fi
-    fi
-    insecure_flag="-d"
-    if [[ "${dashboard_tls}" =~ ^[Yy]$ ]]; then
-        insecure_flag=""
-    fi
-
-    sed -i "s/insecure_flag/${insecure_flag}/" ${AGENT_SERVICE}
-    sed -i "s/dashboard_host/${dashboard_host}/" ${AGENT_SERVICE}
-    sed -i "s/dashboard_port/${dashboard_port}/" ${AGENT_SERVICE}
-    sed -i "s/client_secret/${client_secret}/" ${AGENT_SERVICE}
-
-    echo -e "Agent配置 ${green}修改成功，请稍等重启生效${plain}"
-
-    systemctl daemon-reload
-    systemctl enable nodekeep-agent
-    systemctl restart nodekeep-agent
+    install_base
+    run_agent_installer
 
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
+run_agent_installer() {
+    local installer="/tmp/nodekeep-install-agent.sh"
+    local dashboard_server
+    local dashboard_tls
+    local client_secret
+    local agent_args
+
+    echo -e "正在下载 Agent 安装脚本"
+    download_file "https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/install-agent.sh" "$installer" >/dev/null 2>&1
+    if [[ $? != 0 ]]; then
+        echo -e "${red}文件下载失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
+        return 0
+    fi
+    chmod +x "$installer"
+
+    echo "请先在管理面板上添加Agent，记录下密钥" &&
+        read -p "请输入 Dashboard 接入地址（例如 nodekeep.example.com:443 或 127.0.0.1:8008）: " dashboard_server &&
+        read -p "Agent 是否使用 TLS 连接？HTTPS 反代填 y，直连 HTTP 填 N (y/N): " dashboard_tls &&
+        read -p "请输入Agent 密钥: " client_secret
+    if [[ -z "${dashboard_server}" || -z "${client_secret}" ]]; then
+        echo -e "${red}所有选项都不能为空${plain}"
+        before_show_menu
+        return 1
+    fi
+
+    agent_args=("-s" "${dashboard_server}" "-p" "${client_secret}")
+    if [[ ! "${dashboard_tls}" =~ ^[Yy]$ ]]; then
+        agent_args+=("--insecure")
+    fi
+
+    bash "$installer" "${agent_args[@]}"
+}
+
 modify_dashboard_config() {
     echo -e "> 修改面板配置"
 
     echo -e "正在下载 Docker 脚本"
-    wget -O ${DASHBOARD_PATH}/docker-compose.yaml https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/docker-compose.yaml >/dev/null 2>&1
+    download_file "https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/docker-compose.yaml" "${DASHBOARD_PATH}/docker-compose.yaml" >/dev/null 2>&1
     if [[ $? != 0 ]]; then
         echo -e "${red}下载脚本失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
         return 0
     fi
 
     mkdir -p $DASHBOARD_PATH/data
-
-    wget -O ${DASHBOARD_PATH}/data/config.yaml https://${GITHUB_RAW_URL}/r0n9/nodekeep/master/script/config.yaml >/dev/null 2>&1
-    if [[ $? != 0 ]]; then
-        echo -e "${red}下载脚本失败，请检查本机能否连接 ${GITHUB_RAW_URL}${plain}"
-        return 0
-    fi
 
     echo "本地管理员账号用于首次部署登录，请登录后尽快在设置页修改密码。" &&
         read -p "请输入本地管理员用户名: (admin)" local_admin_username &&
@@ -252,16 +290,8 @@ modify_dashboard_config() {
         agent_tls=true
     fi
 
-    sed -i "s/local_admin_username/${local_admin_username}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/local_admin_password/${local_admin_password}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/agent_install_host/${agent_install_host}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/agent_tls/${agent_tls}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/oauth2_type/${oauth2_type}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/admin_logins/${admin_logins}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/github_oauth_client_id/${github_oauth_client_id}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/github_oauth_client_secret/${github_oauth_client_secret}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/site_title/${site_title}/" ${DASHBOARD_PATH}/data/config.yaml
-    sed -i "s/site_port/${site_port}/" ${DASHBOARD_PATH}/docker-compose.yaml
+    write_dashboard_config "${DASHBOARD_PATH}/data/config.yaml"
+    replace_placeholder "site_port" "${site_port}" "${DASHBOARD_PATH}/docker-compose.yaml"
 
     echo -e "面板配置 ${green}修改成功，请稍等重启生效${plain}"
 
@@ -276,9 +306,9 @@ restart_and_update() {
     echo -e "> 重启并更新面板"
 
     cd $DASHBOARD_PATH
-    docker-compose pull
-    docker-compose down
-    docker-compose up -d
+    compose pull
+    compose down
+    compose up -d
     if [[ $? == 0 ]]; then
         echo -e "${green}nodekeep 重启成功${plain}"
         echo -e "默认管理面板地址：${yellow}域名:站点访问端口${plain}"
@@ -294,7 +324,7 @@ restart_and_update() {
 start_dashboard() {
     echo -e "> 启动面板"
 
-    cd $DASHBOARD_PATH && docker-compose up -d
+    cd $DASHBOARD_PATH && compose up -d
     if [[ $? == 0 ]]; then
         echo -e "${green}nodekeep 启动成功${plain}"
     else
@@ -309,7 +339,7 @@ start_dashboard() {
 stop_dashboard() {
     echo -e "> 停止面板"
 
-    cd $DASHBOARD_PATH && docker-compose down
+    cd $DASHBOARD_PATH && compose down
     if [[ $? == 0 ]]; then
         echo -e "${green}nodekeep 停止成功${plain}"
     else
@@ -324,7 +354,7 @@ stop_dashboard() {
 show_dashboard_log() {
     echo -e "> 获取面板日志"
 
-    cd $DASHBOARD_PATH && docker-compose logs -f
+    cd $DASHBOARD_PATH && compose logs -f
 
     if [[ $# == 0 ]]; then
         before_show_menu
@@ -335,7 +365,7 @@ uninstall_dashboard() {
     echo -e "> 卸载管理面板"
 
     cd $DASHBOARD_PATH &&
-        docker-compose down
+        compose down
     rm -rf $DASHBOARD_PATH
     clean_all
 
