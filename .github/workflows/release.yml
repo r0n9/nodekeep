@@ -24,17 +24,6 @@ jobs:
         with:
           go-version: "1.25.4"
 
-      - name: Fetch IPInfo GeoIP Database
-        env:
-          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
-        run: |
-          if [ -z "$IPINFO_TOKEN" ]; then
-            echo "IPINFO_TOKEN is required to build releases with a valid GeoIP database." >&2
-            exit 1
-          fi
-          curl -fsSL "https://ipinfo.io/data/free/country.mmdb?token=${IPINFO_TOKEN}" -o pkg/geoip/geoip.db
-          test "$(wc -c < pkg/geoip/geoip.db)" -gt 1024
-
       - name: Test
         run: go test -v ./...
 
