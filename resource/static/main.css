@@ -412,9 +412,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
   position: relative;
   grid-template-columns: minmax(0, 1fr) minmax(280px, auto);
   align-items: center;
-  gap: 1.1rem;
-  padding: 0.95rem 0 1rem;
-  margin-bottom: 0.9rem;
+  gap: 0.56rem;
+  padding: 0.66rem 0 0.58rem;
+  margin-bottom: 0.56rem;
   border: 0;
   border-top: 1px solid var(--nk-topbar-border);
   border-bottom: 1px solid var(--nk-topbar-border);
@@ -427,16 +427,16 @@ html[data-theme="dark"] .nk-theme-icon-light {
   content: "";
   position: absolute;
   left: 0;
-  top: 0.95rem;
-  bottom: 1rem;
-  width: 3px;
-  border-radius: 3px;
+  top: 0.66rem;
+  bottom: 0.58rem;
+  width: 2px;
+  border-radius: 2px;
   background: var(--nk-accent);
 }
 
 .nk-public-page .nk-hero > div:first-child {
   min-width: 0;
-  padding-left: 0.9rem;
+  padding-left: 0.62rem;
 }
 
 .nk-eyebrow {
@@ -463,8 +463,8 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 .nk-public-page .nk-hero h1 {
-  font-size: 1.55rem;
-  line-height: 1.12;
+  font-size: 1.38rem;
+  line-height: 1.08;
 }
 
 .nk-hero-subtitle,
@@ -486,58 +486,57 @@ html[data-theme="dark"] .nk-theme-icon-light {
 .nk-hero-actions {
   display: grid;
   justify-items: end;
-  gap: 0.5rem;
+  gap: 0.28rem;
 }
 
 .nk-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(96px, 1fr));
-  gap: 0.75rem;
+  gap: 0.28rem;
 }
 
 .nk-public-page .nk-summary-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.2rem;
 }
 
 .nk-summary-item {
   min-width: 0;
-  padding: 1rem;
+  padding: 0.34rem 0.44rem;
   border: 1px solid var(--nk-border);
-  border-radius: var(--nk-radius);
+  border-radius: 6px;
   background: var(--nk-surface-soft);
 }
 
 .nk-public-page .nk-summary-item {
-  min-width: 84px;
-  padding: 0.58rem 0.68rem;
+  min-width: 74px;
+  padding: 0.3rem 0.4rem;
   background: var(--nk-control-bg);
 }
 
 .nk-summary-item span {
-  display: block;
   color: var(--nk-muted);
-  font-size: 0.82rem;
+  font-size: 0.64rem;
   font-weight: 700;
+  line-height: 1.1;
 }
 
 .nk-public-page .nk-summary-item span {
-  font-size: 0.76rem;
+  font-size: 0.62rem;
 }
 
 .nk-summary-item strong {
-  display: block;
-  margin-top: 0.35rem;
+  margin-top: 0.1rem;
   color: var(--nk-text);
-  font-size: 1.8rem;
+  font-size: 0.98rem;
   line-height: 1;
 }
 
 .nk-public-page .nk-summary-item strong {
-  margin-top: 0.18rem;
-  font-size: 1.35rem;
+  margin-top: 0.08rem;
+  font-size: 0.94rem;
 }
 
 .nk-view-switch {
@@ -581,24 +580,25 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
 .nk-section-title {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.6rem;
-}
-
-.nk-section-title > div {
-  min-width: 0;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
 }
 
 .nk-section-title h2 {
   margin: 0;
+  min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 1.18rem;
+  font-size: 1.08rem;
+  line-height: 1.15;
 }
 
 .nk-section-title > span {
+  flex: none;
+  white-space: nowrap;
   color: var(--nk-muted);
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
@@ -2024,7 +2024,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
   .nk-public-page .nk-hero {
     align-items: stretch;
-    gap: 0.8rem;
+    gap: 0.4rem;
   }
 
   .nk-hero-actions {
@@ -2184,12 +2184,12 @@ html[data-theme="dark"] .nk-theme-icon-light {
   }
 
   .nk-public-page .nk-hero {
-    padding: 0.78rem 0 0.82rem;
-    gap: 0.68rem;
+    padding: 0.52rem 0 0.56rem;
+    gap: 0.34rem;
   }
 
   .nk-public-page .nk-hero > div:first-child {
-    padding-left: 0.78rem;
+    padding-left: 0.52rem;
   }
 
   .nk-hero h1,
@@ -2199,27 +2199,27 @@ html[data-theme="dark"] .nk-theme-icon-light {
   }
 
   .nk-public-page .nk-hero h1 {
-    font-size: 1.34rem;
+    font-size: 1.14rem;
   }
 
   .nk-public-page .nk-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    gap: 0.36rem;
+    gap: 0.18rem;
   }
 
   .nk-public-page .nk-summary-item {
     min-width: 0;
-    padding: 0.48rem;
+    padding: 0.26rem 0.28rem;
   }
 
   .nk-public-page .nk-summary-item span {
-    font-size: 0.7rem;
+    font-size: 0.58rem;
   }
 
   .nk-public-page .nk-summary-item strong {
-    font-size: 1.16rem;
+    font-size: 0.86rem;
   }
 
   .nk-node-grid {
@@ -2438,20 +2438,16 @@ html[data-theme="dark"] .nk-theme-icon-light {
     display: none;
   }
 
-  .nk-public-page .nk-hero-subtitle {
-    font-size: 0.86rem;
-  }
-
   .nk-public-page .nk-summary-item {
-    padding: 0.42rem 0.34rem;
+    padding: 0.24rem 0.24rem;
   }
 
   .nk-public-page .nk-summary-item span {
-    font-size: 0.66rem;
+    font-size: 0.56rem;
   }
 
   .nk-public-page .nk-summary-item strong {
-    font-size: 1.04rem;
+    font-size: 0.82rem;
   }
 
   .nk-view-switch button {

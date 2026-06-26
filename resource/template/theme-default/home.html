@@ -9,9 +9,7 @@
         <section id="app" class="nk-monitor">
             <header class="nk-hero">
                 <div>
-                    <p class="nk-eyebrow">Nodekeep Monitor</p>
                     <h1>{{.Conf.Site.Brand}}</h1>
-                    <p class="nk-hero-subtitle">实时查看节点在线状态、资源占用和网络吞吐。</p>
                 </div>
                 <div class="nk-hero-actions">
                     <div class="nk-summary-grid">
@@ -41,10 +39,7 @@
 
             <section v-for="group in groups" class="nk-group">
                 <div class="nk-section-title">
-                    <div>
-                        <p class="nk-eyebrow">Group</p>
-                        <h2>@#(group.Tag !== '' ? group.Tag : '默认分组')#@</h2>
-                    </div>
+                    <h2>@#(group.Tag !== '' ? group.Tag : '默认分组')#@</h2>
                     <span>@#group.data.length#@ 台节点</span>
                 </div>
 
