@@ -86,62 +86,60 @@
                             </div>
 
                             <div class="nk-network-grid">
-                                <div class="nk-network-card inbound">
-                                    <div class="nk-network-head">
-                                        <span><i class="arrow down icon"></i>入站</span>
-                                        <strong>@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
+                                <div class="nk-network-card nk-network-combo">
+                                    <div class="nk-network-row outbound">
+                                        <div class="nk-network-head">
+                                            <span class="nk-network-label"><i class="arrow up icon"></i>出站</span>
+                                            <strong class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetOutSpeed)">@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
+                                        </div>
+                                        <div class="nk-network-track">
+                                            <i :class="netSpeedClass(server.live, server.State.NetOutSpeed)" :style="netLoadStyle(server.live, server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
+                                        </div>
+                                        <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
                                     </div>
-                                    <div class="nk-network-track">
-                                        <i :style="netLoadStyle(server.live, server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
+                                    <div class="nk-network-row inbound">
+                                        <div class="nk-network-head">
+                                            <span class="nk-network-label"><i class="arrow down icon"></i>入站</span>
+                                            <strong class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetInSpeed)">@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
+                                        </div>
+                                        <div class="nk-network-track">
+                                            <i :class="netSpeedClass(server.live, server.State.NetInSpeed)" :style="netLoadStyle(server.live, server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
+                                        </div>
+                                        <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
                                     </div>
-                                    <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
-                                </div>
-                                <div class="nk-network-card outbound">
-                                    <div class="nk-network-head">
-                                        <span><i class="arrow up icon"></i>出站</span>
-                                        <strong>@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
-                                    </div>
-                                    <div class="nk-network-track">
-                                        <i :style="netLoadStyle(server.live, server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
-                                    </div>
-                                    <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
                                 </div>
                             </div>
 
                             <details class="nk-node-details">
                                 <summary>
                                     <span>节点详情</span>
-                                    <i class="angle down icon"></i>
+                                    <i class="angle down icon nk-node-details-toggle"></i>
                                 </summary>
                                 <div class="nk-node-detail-grid">
-                                    <div class="nk-node-detail-item">
+                                    <p>
                                         <span>系统</span>
                                         <strong>@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item">
+                                    </p>
+                                    <p>
                                         <span>最近活动</span>
                                         <strong>@#formatDate(server.LastActive)#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item nk-node-detail-wide">
+                                    </p>
+                                    <p class="nk-node-detail-wide">
                                         <span>处理器</span>
                                         <strong :title="formatCPUInfo(server.Host.CPU)">@#formatCPUInfo(server.Host.CPU)#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item">
+                                    </p>
+                                    <p>
                                         <span>内存</span>
                                         <strong>@#formatByteSize(server.State.MemUsed)#@ / @#formatByteSize(server.Host.MemTotal)#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item">
+                                    </p>
+                                    <p>
                                         <span>交换</span>
                                         <strong>@#formatByteSize(server.State.SwapUsed)#@ / @#formatByteSize(server.Host.SwapTotal)#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item">
+                                    </p>
+                                    <p>
                                         <span>磁盘</span>
                                         <strong>@#formatByteSize(server.State.DiskUsed)#@ / @#formatByteSize(server.Host.DiskTotal)#@</strong>
-                                    </div>
-                                    <div class="nk-node-detail-item">
-                                        <span>累计流量</span>
-                                        <strong>↓ @#formatByteSize(server.State.NetInTransfer)#@ · ↑ @#formatByteSize(server.State.NetOutTransfer)#@</strong>
-                                    </div>
+                                    </p>
                                 </div>
                             </details>
                         </template>
@@ -199,8 +197,8 @@
                                 </td>
                                 <td>
                                     <div class="nk-list-network" v-if="server.Host">
-                                        <span><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInSpeed)#@/s</span>
-                                        <span><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutSpeed)#@/s</span>
+                                        <span class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetInSpeed)"><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInSpeed)#@/s</span>
+                                        <span class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetOutSpeed)"><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutSpeed)#@/s</span>
                                     </div>
                                     <span v-else class="nk-list-node-meta">-</span>
                                 </td>
@@ -229,7 +227,7 @@
         data: {
             servers: initData,
             groups: [],
-            viewMode: localStorage.getItem('nodekeep:view-mode') || 'card',
+            viewMode: initialViewMode(),
         },
         computed: {
             onlineCount() {
@@ -248,7 +246,7 @@
             },
             setViewMode(mode) {
                 this.viewMode = mode
-                localStorage.setItem('nodekeep:view-mode', mode)
+                localStorage.setItem(viewModeStorageKey(), mode)
             },
             refreshServers(servers) {
                 this.servers = servers.map(server => {
@@ -302,6 +300,19 @@
             listMeterStyle(server, type) {
                 const metric = this.listMetric(server, type)
                 return this.meterStyle(server.live, metric.used, metric.total)
+            },
+            netSpeedClass(live, speed) {
+                if (!live) {
+                    return 'nk-speed-offline'
+                }
+                const value = Number(speed) || 0
+                if (value >= 2 * 1024 * 1024) {
+                    return 'nk-speed-tier-high'
+                }
+                if (value >= 400 * 1024) {
+                    return 'nk-speed-tier-mid'
+                }
+                return 'nk-speed-tier-low'
             },
             netLoadStyle(live, current, peer) {
                 if (!live || !current) {
@@ -358,6 +369,19 @@
             }
         })
         return dest;
+    }
+
+    function initialViewMode() {
+        const savedMode = localStorage.getItem(viewModeStorageKey())
+        if (savedMode === 'card' || savedMode === 'list') {
+            return savedMode
+        }
+        return 'card'
+    }
+
+    function viewModeStorageKey() {
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches
+        return isMobile ? 'nodekeep:view-mode:mobile' : 'nodekeep:view-mode'
     }
 
     const wsProtocol = window.location.protocol == "https:" ? "wss" : "ws"
