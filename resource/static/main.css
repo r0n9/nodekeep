@@ -1,36 +1,36 @@
 :root {
-  --nk-bg: #f5f7f8;
+  --nk-bg: #f3f7fb;
   --nk-surface: #ffffff;
-  --nk-surface-soft: #f9fafb;
-  --nk-border: #e5e9ec;
-  --nk-border-strong: #d4dce1;
-  --nk-text: #17211d;
-  --nk-muted: #66736d;
-  --nk-subtle: #8a9690;
-  --nk-accent: #178f5a;
-  --nk-accent-strong: #0f6f45;
-  --nk-accent-soft: #e7f5ee;
+  --nk-surface-soft: #f7faff;
+  --nk-border: #dbe6f2;
+  --nk-border-strong: #c5d3e6;
+  --nk-text: #0f1b2d;
+  --nk-muted: #60708a;
+  --nk-subtle: #8796ad;
+  --nk-accent: #0b84ff;
+  --nk-accent-strong: #0067d6;
+  --nk-accent-soft: #e5f3ff;
   --nk-warning: #d97706;
   --nk-danger: #dc2626;
   --nk-offline: #94a3b8;
   --nk-radius: 8px;
-  --nk-shadow: 0 14px 36px rgba(23, 33, 29, 0.08);
-  --nk-body-gradient: linear-gradient(180deg, rgba(231, 245, 238, 0.55), rgba(245, 247, 248, 0) 280px);
-  --nk-topbar-bg: rgba(250, 252, 251, 0.94);
-  --nk-topbar-border: rgba(212, 220, 225, 0.78);
+  --nk-shadow: 0 14px 36px rgba(10, 31, 68, 0.08);
+  --nk-body-gradient: linear-gradient(180deg, rgba(11, 132, 255, 0.12), rgba(243, 247, 251, 0) 280px);
+  --nk-topbar-bg: rgba(248, 251, 255, 0.94);
+  --nk-topbar-border: rgba(197, 211, 230, 0.78);
   --nk-control-bg: rgba(255, 255, 255, 0.92);
-  --nk-panel-shadow: 0 10px 26px rgba(23, 33, 29, 0.06);
-  --nk-table-head-bg: #f2f5f4;
-  --nk-row-hover: #fbfcfc;
-  --nk-track: #eef2f3;
-  --nk-track-strong: #e8eef1;
+  --nk-panel-shadow: 0 10px 26px rgba(10, 31, 68, 0.07);
+  --nk-table-head-bg: #edf4fb;
+  --nk-row-hover: #f9fbff;
+  --nk-track: #e8eef7;
+  --nk-track-strong: #dfe8f4;
   --nk-danger-text: #7f1d1d;
   --nk-danger-soft: #fee2e2;
   --nk-warning-text: #78350f;
   --nk-warning-soft: #fef3c7;
   --nk-speed-low: #64748b;
   --nk-speed-low-bg: #f1f5f9;
-  --nk-speed-mid: #0e7490;
+  --nk-speed-mid: #0284c7;
   --nk-speed-mid-bg: #e0f2fe;
   --nk-speed-high: #dc2626;
   --nk-speed-high-bg: #fee2e2;
@@ -39,38 +39,38 @@
 }
 
 html[data-theme="dark"] {
-  --nk-bg: #101413;
-  --nk-surface: #171d1b;
-  --nk-surface-soft: #1d2522;
-  --nk-border: #2a3430;
-  --nk-border-strong: #35413c;
-  --nk-text: #eef5f1;
-  --nk-muted: #a7b5ae;
-  --nk-subtle: #7f9088;
-  --nk-accent: #28b877;
-  --nk-accent-strong: #7ee2b0;
-  --nk-accent-soft: #19372b;
+  --nk-bg: #07111f;
+  --nk-surface: #0d1a2b;
+  --nk-surface-soft: #12223a;
+  --nk-border: #203148;
+  --nk-border-strong: #2c405d;
+  --nk-text: #edf6ff;
+  --nk-muted: #9db0ca;
+  --nk-subtle: #7486a3;
+  --nk-accent: #00a7ff;
+  --nk-accent-strong: #66d9ff;
+  --nk-accent-soft: #0b2b45;
   --nk-warning: #f59e0b;
   --nk-danger: #f87171;
   --nk-offline: #64748b;
   --nk-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
-  --nk-body-gradient: linear-gradient(180deg, rgba(25, 55, 43, 0.56), rgba(16, 20, 19, 0) 300px);
-  --nk-topbar-bg: rgba(17, 23, 21, 0.94);
-  --nk-topbar-border: rgba(53, 65, 60, 0.82);
-  --nk-control-bg: rgba(23, 29, 27, 0.92);
+  --nk-body-gradient: linear-gradient(180deg, rgba(0, 167, 255, 0.18), rgba(7, 17, 31, 0) 300px);
+  --nk-topbar-bg: rgba(8, 18, 31, 0.94);
+  --nk-topbar-border: rgba(44, 64, 93, 0.82);
+  --nk-control-bg: rgba(13, 26, 43, 0.92);
   --nk-panel-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
-  --nk-table-head-bg: #1c2421;
-  --nk-row-hover: #1b2320;
-  --nk-track: #26312d;
-  --nk-track-strong: #2d3934;
+  --nk-table-head-bg: #11223a;
+  --nk-row-hover: #102039;
+  --nk-track: #1a2a42;
+  --nk-track-strong: #223650;
   --nk-danger-text: #fecaca;
   --nk-danger-soft: #3b1f22;
   --nk-warning-text: #fde68a;
   --nk-warning-soft: #3b2c16;
   --nk-speed-low: #94a3b8;
-  --nk-speed-low-bg: #26313a;
-  --nk-speed-mid: #67e8f9;
-  --nk-speed-mid-bg: #17313a;
+  --nk-speed-low-bg: #1a2a42;
+  --nk-speed-mid: #38bdf8;
+  --nk-speed-mid-bg: #0d3148;
   --nk-speed-high: #fca5a5;
   --nk-speed-high-bg: #3b1f22;
   --nk-speed-high-ring: rgba(252, 165, 165, 0.22);
@@ -237,7 +237,7 @@ code {
 
 .nk-theme-toggle:hover {
   color: var(--nk-accent-strong);
-  border-color: rgba(23, 143, 90, 0.28);
+  border-color: rgba(11, 132, 255, 0.28);
   background: var(--nk-accent-soft);
 }
 
@@ -281,9 +281,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
 .ui.dropdown.nk-account-menu:hover,
 .ui.dropdown.nk-account-menu.active,
 .ui.dropdown.nk-account-menu.visible {
-  border-color: rgba(23, 143, 90, 0.28);
+  border-color: rgba(11, 132, 255, 0.28);
   background: var(--nk-surface);
-  box-shadow: 0 8px 22px rgba(23, 33, 29, 0.08);
+  box-shadow: 0 8px 22px rgba(10, 31, 68, 0.08);
 }
 
 .ui.simple.dropdown.nk-account-menu::after {
@@ -373,7 +373,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   height: 36px;
   min-height: 36px;
   white-space: nowrap;
-  box-shadow: 0 8px 18px rgba(23, 143, 90, 0.18) !important;
+  box-shadow: 0 8px 18px rgba(11, 132, 255, 0.2) !important;
 }
 
 .nk-page {
@@ -967,7 +967,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   padding: 0.52rem 0.56rem;
   border: 1px solid var(--nk-border);
   background:
-    linear-gradient(135deg, rgba(23, 143, 90, 0.08), transparent 46%),
+    linear-gradient(135deg, rgba(11, 132, 255, 0.09), transparent 46%),
     var(--nk-surface-soft);
 }
 
@@ -1469,7 +1469,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(23, 143, 90, 0.18);
+  border: 1px solid rgba(11, 132, 255, 0.2);
   border-radius: 7px;
   color: var(--nk-accent-strong);
   background: var(--nk-accent-soft);
@@ -1528,7 +1528,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 .nk-auth-status.is-on {
-  border-color: rgba(23, 143, 90, 0.24);
+  border-color: rgba(11, 132, 255, 0.26);
   color: var(--nk-accent-strong);
   background: var(--nk-accent-soft);
 }
@@ -1563,7 +1563,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   gap: 0.52rem;
   margin-top: 0.95rem;
   padding: 0.72rem 0.85rem;
-  border: 1px solid rgba(23, 143, 90, 0.18);
+  border: 1px solid rgba(11, 132, 255, 0.2);
   border-radius: var(--nk-radius);
   color: var(--nk-muted);
   background: var(--nk-accent-soft);
@@ -1767,8 +1767,8 @@ html[data-theme="dark"] .nk-theme-icon-light {
 .ui.form input:focus,
 .ui.form textarea:focus,
 .ui.selection.dropdown:focus {
-  border-color: rgba(23, 143, 90, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(23, 143, 90, 0.12) !important;
+  border-color: rgba(11, 132, 255, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(11, 132, 255, 0.14) !important;
 }
 
 .ui.button {
