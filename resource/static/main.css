@@ -1423,6 +1423,55 @@ html[data-theme="dark"] .nk-theme-icon-light {
   margin: 0;
 }
 
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button {
+  position: relative;
+  color: var(--nk-accent-strong) !important;
+  background: var(--nk-accent-soft) none !important;
+  box-shadow: inset 0 0 0 1px rgba(11, 132, 255, 0.16);
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:hover,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible {
+  color: #fff !important;
+  background: var(--nk-accent) none !important;
+  box-shadow: 0 8px 18px rgba(11, 132, 255, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible {
+  outline: 0;
+}
+
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:active {
+  box-shadow: inset 0 2px 6px rgba(10, 31, 68, 0.18);
+  transform: translateY(0);
+}
+
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:hover i.icon,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible i.icon {
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:hover,
+html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible,
+html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:hover i.icon,
+html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible i.icon {
+  color: #06111f !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button {
+    transition: none;
+  }
+
+  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:hover,
+  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:focus-visible,
+  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button:active {
+    transform: none;
+  }
+}
+
 .nk-settings-form {
   display: grid;
   gap: 1rem;
