@@ -1424,6 +1424,84 @@ html[data-theme="dark"] .nk-theme-icon-light {
   max-width: 180px;
 }
 
+.nk-secret-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  max-width: 230px;
+  min-width: 0;
+}
+
+.ui.table.nk-table td code.nk-secret-value {
+  max-width: 172px;
+  min-width: 8.8rem;
+  color: var(--nk-text);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.ui.button.nk-secret-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  color: var(--nk-muted) !important;
+  background: var(--nk-surface-soft) none !important;
+  box-shadow: inset 0 0 0 1px var(--nk-border);
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui.button.nk-secret-toggle i.icon {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  color: currentColor !important;
+  line-height: 1;
+}
+
+.ui.button.nk-secret-toggle[data-tooltip]:after {
+  padding: 0.46rem 0.62rem;
+  border: 1px solid var(--nk-tooltip-border);
+  color: var(--nk-tooltip-text);
+  background: var(--nk-tooltip-bg);
+  box-shadow: var(--nk-tooltip-shadow);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.ui.button.nk-secret-toggle[data-tooltip]:before {
+  background: var(--nk-tooltip-bg);
+  box-shadow: -1px -1px 0 0 var(--nk-tooltip-border);
+}
+
+.ui.button.nk-secret-toggle:hover,
+.ui.button.nk-secret-toggle:focus-visible,
+.nk-secret-field[data-visible="true"] .ui.button.nk-secret-toggle {
+  color: var(--nk-accent-strong) !important;
+  background: var(--nk-accent-soft) none !important;
+  box-shadow: inset 0 0 0 1px rgba(11, 132, 255, 0.24);
+}
+
+.ui.button.nk-secret-toggle:focus-visible {
+  outline: 0;
+}
+
+.ui.button.nk-secret-toggle:active {
+  transform: translateY(1px);
+}
+
 .nk-muted-text {
   color: var(--nk-subtle);
 }

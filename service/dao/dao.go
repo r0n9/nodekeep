@@ -270,7 +270,23 @@ func SortedServerSnapshot() []*model.ServerRuntime {
 	for _, s := range sortedServerList {
 		servers = append(servers, cloneServerRuntime(&s.runtime))
 	}
+	sort.SliceStable(servers, func(i, j int) bool {
+		return lessServerRuntimeByGroupOrderID(servers[i], servers[j])
+	})
 	return servers
+}
+
+func lessServerRuntimeByGroupOrderID(a, b *model.ServerRuntime) bool {
+	if a == nil || b == nil {
+		return b != nil
+	}
+	if a.Tag != b.Tag {
+		return a.Tag > b.Tag
+	}
+	if a.DisplayIndex != b.DisplayIndex {
+		return a.DisplayIndex > b.DisplayIndex
+	}
+	return a.ID > b.ID
 }
 
 func SortedPublicServerSnapshot() []*model.PublicServerRuntime {

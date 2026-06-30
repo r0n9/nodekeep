@@ -57,7 +57,16 @@
                                     <span class="ui tiny orange label">未上报</span>
                                 {{end}}
                             </td>
-                            <td><code>{{$server.Secret}}</code></td>
+                            <td>
+                                <div class="nk-secret-field" data-visible="false">
+                                    <code class="nk-secret-value" data-secret="{{$server.Secret}}">******************</code>
+                                    <button class="ui mini icon button nk-secret-toggle" type="button" data-tooltip="显示密钥"
+                                        data-position="top center" aria-label="显示密钥" aria-pressed="false"
+                                        onclick="toggleServerSecret(this)">
+                                        <i class="eye icon"></i>
+                                    </button>
+                                </div>
+                            </td>
                             <td style="word-break: break-word;">{{$server.Note}}</td>
                             <td>
                                 <div class="ui mini icon buttons">

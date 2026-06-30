@@ -86,6 +86,33 @@ func TestSortedPublicServerSnapshotIsDeepCopy(t *testing.T) {
 	}
 }
 
+func TestSortedServerSnapshotOrdersByGroupDisplayIndexAndID(t *testing.T) {
+	InitServerRuntimeState()
+	for _, server := range []model.Server{
+		{Common: model.Common{ID: 1}, Name: "beta-high", Tag: "beta", DisplayIndex: 100},
+		{Common: model.Common{ID: 2}, Name: "alpha-low", Tag: "alpha", DisplayIndex: 20},
+		{Common: model.Common{ID: 3}, Name: "alpha-high-a", Tag: "alpha", DisplayIndex: 50},
+		{Common: model.Common{ID: 4}, Name: "alpha-high-b", Tag: "alpha", DisplayIndex: 50},
+	} {
+		UpsertServerRuntime(server, false)
+	}
+
+	servers := SortedServerSnapshot()
+	got := make([]uint64, 0, len(servers))
+	for _, server := range servers {
+		got = append(got, server.ID)
+	}
+	want := []uint64{1, 4, 3, 2}
+	if len(got) != len(want) {
+		t.Fatalf("sorted server count = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("sorted server ids = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestUpdateServerHostKeepsAgentCountryCodeWhenDashboardGeoIPUnavailable(t *testing.T) {
 	InitServerRuntimeState()
 	UpsertServerRuntime(model.Server{

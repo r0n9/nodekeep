@@ -110,7 +110,11 @@ func (ma *memberAPI) searchServer(c *gin.Context) {
 	var servers []model.Server
 	likeWord := "%" + c.Query("word") + "%"
 	dao.DB.Select("id,name").Where("id = ? OR name LIKE ? OR tag LIKE ? OR note LIKE ?",
-		c.Query("word"), likeWord, likeWord, likeWord).Find(&servers)
+		c.Query("word"), likeWord, likeWord, likeWord).
+		Order("tag DESC").
+		Order("display_index DESC").
+		Order("id DESC").
+		Find(&servers)
 
 	var resp []searchResult
 	for i := 0; i < len(servers); i++ {

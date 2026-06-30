@@ -167,6 +167,52 @@ function addOrEditServer(server) {
     showFormModal('.server.modal', '#serverForm', '/api/server')
 }
 
+function serverSecretMask(secret) {
+    const length = Math.max(String(secret || '').length, 8)
+    return new Array(length + 1).join('*')
+}
+
+function initServerSecretMasks() {
+    document.querySelectorAll('.nk-secret-value').forEach(function (secretNode) {
+        secretNode.textContent = serverSecretMask(secretNode.dataset.secret)
+    })
+}
+
+function toggleServerSecret(btn) {
+    const field = btn.closest('.nk-secret-field')
+    if (!field) {
+        return
+    }
+    const secretNode = field.querySelector('.nk-secret-value')
+    const icon = btn.querySelector('i.icon')
+    if (!secretNode) {
+        return
+    }
+    const visible = field.dataset.visible === 'true'
+    const secret = secretNode.dataset.secret || ''
+    if (visible) {
+        secretNode.textContent = serverSecretMask(secret)
+        field.dataset.visible = 'false'
+        btn.setAttribute('aria-label', '显示密钥')
+        btn.setAttribute('aria-pressed', 'false')
+        btn.setAttribute('data-tooltip', '显示密钥')
+        if (icon) {
+            icon.className = 'eye icon'
+        }
+    } else {
+        secretNode.textContent = secret || '-'
+        field.dataset.visible = 'true'
+        btn.setAttribute('aria-label', '隐藏密钥')
+        btn.setAttribute('aria-pressed', 'true')
+        btn.setAttribute('data-tooltip', '隐藏密钥')
+        if (icon) {
+            icon.className = 'eye slash icon'
+        }
+    }
+}
+
+$(initServerSecretMasks)
+
 function copyTextToClipboard(text) {
     if (navigator.clipboard && window.isSecureContext) {
         return navigator.clipboard.writeText(text)
