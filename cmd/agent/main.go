@@ -34,7 +34,7 @@ var (
 	server       string
 	clientSecret string
 	nicAllowlist string
-	version      string
+	version      = "develop"
 )
 
 var (
@@ -56,7 +56,7 @@ func doSelfUpdate() {
 		time.Sleep(time.Minute * 30)
 		updateCh <- struct{}{}
 	}()
-	v, err := semver.Parse(strings.TrimPrefix(version, "v"))
+	v, err := parseAgentVersion()
 	if err != nil {
 		log.Println("Skip binary update, invalid version:", version)
 		return
@@ -74,6 +74,15 @@ func doSelfUpdate() {
 		log.Println("Successfully updated to version", latest.Version)
 		os.Exit(1)
 	}
+}
+
+func parseAgentVersion() (semver.Version, error) {
+	return semver.Parse(strings.TrimPrefix(version, "v"))
+}
+
+func shouldSelfUpdate() bool {
+	_, err := parseAgentVersion()
+	return err == nil
 }
 
 func init() {
@@ -114,7 +123,7 @@ func run() {
 	monitor.RefreshIP()
 	go monitor.UpdateIP()
 
-	if version != "" {
+	if shouldSelfUpdate() {
 		go func() {
 			for range updateCh {
 				go doSelfUpdate()

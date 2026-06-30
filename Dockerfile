@@ -2,7 +2,7 @@ ARG GO_VERSION=1.25.4
 ARG ALPINE_VERSION=3.22
 
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder
-ARG VERSION=v1.0.0
+ARG VERSION=develop
 ARG RELEASE_DATE=
 RUN apk add --no-cache --no-progress \
     gcc git musl-dev

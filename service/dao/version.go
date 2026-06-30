@@ -1,7 +1,7 @@
 package dao
 
 var (
-	Version     = "v1.0.0"
+	Version     = "develop"
 	ReleaseDate string
 )
 

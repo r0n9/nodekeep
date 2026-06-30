@@ -2008,6 +2008,8 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 .ui-alerts .ui.icon.message > i.icon:not(.close) {
+  grid-column: 1;
+  grid-row: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2024,6 +2026,8 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 .ui-alerts .ui.icon.message > .content {
+  grid-column: 2;
+  grid-row: 1;
   display: block;
   min-width: 0;
   padding: 0 !important;
@@ -2037,6 +2041,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   font-size: 0.94rem;
   font-weight: 800;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .ui-alerts .ui.message .header:empty {
@@ -2049,6 +2054,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   font-size: 0.84rem;
   font-weight: 650;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .ui-alerts .ui.message .header:empty + p {
@@ -2057,11 +2063,14 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 .ui-alerts .ui.message > .close.icon {
+  grid-column: 3;
+  grid-row: 1;
   position: static !important;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
   align-self: start;
+  justify-self: end;
   width: 24px;
   height: 24px;
   margin: -0.08rem -0.1rem 0 0 !important;
