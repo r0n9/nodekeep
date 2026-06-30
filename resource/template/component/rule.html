@@ -26,4 +26,49 @@
         </button>
     </div>
 </div>
+
+<div class="ui small rule-help modal transition hidden">
+    <div class="header">告警规则说明</div>
+    <div class="content nk-rule-help">
+        <section>
+            <h3>规则字段</h3>
+            <div class="nk-rule-help-grid">
+                <div><code>type</code><span>指标类型</span></div>
+                <div><code>min</code><span>低于此值触发，0 表示不限制</span></div>
+                <div><code>max</code><span>高于此值触发，0 表示不限制</span></div>
+                <div><code>duration</code><span>持续时间，至少 3 秒</span></div>
+                <div><code>ignore</code><span>忽略指定服务器 ID</span></div>
+            </div>
+        </section>
+        <section>
+            <h3>指标类型</h3>
+            <div class="nk-rule-type-list">
+                <span><code>offline</code>节点离线</span>
+                <span><code>cpu</code>CPU 使用率</span>
+                <span><code>memory</code>内存使用率</span>
+                <span><code>swap</code>Swap 使用率</span>
+                <span><code>disk</code>磁盘使用率</span>
+                <span><code>net_in_speed</code>入站网速</span>
+                <span><code>net_out_speed</code>出站网速</span>
+                <span><code>net_all_speed</code>总网速</span>
+                <span><code>transfer_in</code>累计入站流量</span>
+                <span><code>transfer_out</code>累计出站流量</span>
+                <span><code>transfer_all</code>累计总流量</span>
+            </div>
+        </section>
+        <section>
+            <h3>示例</h3>
+            <pre><code>[
+  {"type":"offline","duration":30},
+  {"type":"cpu","max":90,"duration":60},
+  {"type":"memory","max":90,"duration":60},
+  {"type":"disk","max":85,"duration":60,"ignore":{"1":true}}
+]</code></pre>
+        </section>
+        <p class="nk-rule-help-note">同一告警规则内的子规则全部持续异常时才会触发；当前不支持按服务器分组指定规则。</p>
+    </div>
+    <div class="actions">
+        <button class="ui primary approve button">知道了</button>
+    </div>
+</div>
 {{end}}

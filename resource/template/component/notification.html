@@ -45,4 +45,41 @@
         </button>
     </div>
 </div>
+
+<div class="ui small notification-help modal transition hidden">
+    <div class="header">通知方式说明</div>
+    <div class="content nk-rule-help">
+        <section>
+            <h3>配置字段</h3>
+            <div class="nk-rule-help-grid">
+                <div><code>URL</code><span>通知入口地址，可包含消息占位符</span></div>
+                <div><code>#NODEKEEP#</code><span>告警消息占位符，可用于 URL 和 Body</span></div>
+                <div><code>GET</code><span>只拼接 URL，不发送 Body</span></div>
+                <div><code>POST</code><span>发送 Body，并根据请求类型设置 Content-Type</span></div>
+                <div><code>JSON</code><span>Body 按 application/json 发送</span></div>
+                <div><code>FORM</code><span>Body 按 application/x-www-form-urlencoded 发送</span></div>
+            </div>
+        </section>
+        <section>
+            <h3>占位符处理</h3>
+            <div class="nk-rule-type-list">
+                <span><code>URL</code>占位符会进行 URL 编码</span>
+                <span><code>JSON</code>占位符会按 JSON 字符串转义</span>
+                <span><code>FORM</code>Body 需要填写 JSON 对象，值内可使用占位符</span>
+                <span><code>VerifySSL</code>启用后校验 HTTPS 证书</span>
+            </div>
+        </section>
+        <section>
+            <h3>示例</h3>
+            <pre><code>{
+  "title": "nodekeep",
+  "content": "#NODEKEEP#"
+}</code></pre>
+        </section>
+        <p class="nk-rule-help-note">如果通知服务要求表单提交，请选择 FORM，并把 Body 写成 JSON 对象，例如 {"msg":"#NODEKEEP#"}。</p>
+    </div>
+    <div class="actions">
+        <button class="ui primary approve button">知道了</button>
+    </div>
+</div>
 {{end}}

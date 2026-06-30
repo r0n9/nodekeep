@@ -9,7 +9,10 @@
                 <h1>计划任务</h1>
                 <p>集中管理需要下发到 Agent 的定时命令。</p>
             </div>
-            <button class="ui primary button" onclick="addOrEditCron()"><i class="add icon"></i>添加计划任务</button>
+            <div class="nk-panel-actions">
+                <button class="ui button" onclick="$('.cron-help.modal').modal('show')"><i class="info circle icon"></i>任务说明</button>
+                <button class="ui primary button" onclick="addOrEditCron()"><i class="add icon"></i>添加计划任务</button>
+            </div>
         </div>
 
         <section class="nk-panel">

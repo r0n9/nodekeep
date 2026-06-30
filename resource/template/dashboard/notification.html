@@ -17,7 +17,10 @@
                     <h2>通知方式</h2>
                     <p>Webhook、Bark 或其他兼容 HTTP 的通知入口。</p>
                 </div>
-                <button class="ui primary button" onclick="addOrEditNotification()"><i class="add icon"></i>添加通知方式</button>
+                <div class="nk-panel-actions">
+                    <button class="ui button" onclick="$('.notification-help.modal').modal('show')"><i class="info circle icon"></i>通知说明</button>
+                    <button class="ui primary button" onclick="addOrEditNotification()"><i class="add icon"></i>添加通知方式</button>
+                </div>
             </div>
             <div class="nk-table-wrap">
                 <table class="ui very basic table nk-table">
@@ -61,7 +64,10 @@
                     <h2>告警规则</h2>
                     <p>节点离线、资源阈值和持续时间规则。</p>
                 </div>
-                <button class="ui primary button" onclick="addOrEditAlertRule()"><i class="add icon"></i>添加告警规则</button>
+                <div class="nk-panel-actions">
+                    <button class="ui button" onclick="$('.rule-help.modal').modal('show')"><i class="info circle icon"></i>规则说明</button>
+                    <button class="ui primary button" onclick="addOrEditAlertRule()"><i class="add icon"></i>添加告警规则</button>
+                </div>
             </div>
             <div class="nk-table-wrap">
                 <table class="ui very basic table nk-table">

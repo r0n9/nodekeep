@@ -48,4 +48,57 @@
         </button>
     </div>
 </div>
+
+<div class="ui small cron-help modal transition hidden">
+    <div class="header">计划任务说明</div>
+    <div class="content nk-rule-help">
+        <section>
+            <h3>执行链路</h3>
+            <div class="nk-rule-type-list">
+                <span><code>调度</code>dashboard 按计划表达式触发任务</span>
+                <span><code>下发</code>任务会发送给所选在线 Agent</span>
+                <span><code>执行</code>Agent 在本机执行命令并回传结果</span>
+                <span><code>记录</code>dashboard 更新最后执行时间和最后结果</span>
+            </div>
+        </section>
+        <section>
+            <h3>配置字段</h3>
+            <div class="nk-rule-help-grid">
+                <div><code>Scheduler</code><span>标准 5 段 cron：分 时 日 月 星期</span></div>
+                <div><code>Command</code><span>下发到 Agent 的本机命令</span></div>
+                <div><code>Servers</code><span>通过 ID 或名称选择执行服务器</span></div>
+                <div><code>PushSuccessful</code><span>开启后成功执行也发送通知</span></div>
+            </div>
+        </section>
+        <section>
+            <h3>通知行为</h3>
+            <div class="nk-rule-type-list">
+                <span><code>成功</code>仅在开启“推送成功的消息”时通知</span>
+                <span><code>失败</code>命令执行失败会通知并带回执行日志</span>
+                <span><code>离线</code>目标 Agent 离线会通知无法执行</span>
+                <span><code>发送失败</code>任务下发失败会通知错误原因</span>
+            </div>
+        </section>
+        <section>
+            <h3>命令环境</h3>
+            <div class="nk-rule-type-list">
+                <span><code>Linux/macOS</code>通过 sh -c 执行</span>
+                <span><code>Windows</code>通过 cmd /c 执行</span>
+                <span><code>超时</code>单次命令最长执行 2 小时</span>
+                <span><code>PATH</code>命令找不到时使用绝对路径或加载环境变量</span>
+            </div>
+        </section>
+        <section>
+            <h3>示例</h3>
+            <pre><code>{
+  "Scheduler": "0 3 * * *",
+  "Command": "source ~/.bashrc && /usr/local/bin/backup.sh"
+}</code></pre>
+        </section>
+        <p class="nk-rule-help-note">计划任务依赖目标 Agent 在线；多个命令建议使用 && 或 & 连接，并优先使用绝对路径。</p>
+    </div>
+    <div class="actions">
+        <button class="ui primary approve button">知道了</button>
+    </div>
+</div>
 {{end}}

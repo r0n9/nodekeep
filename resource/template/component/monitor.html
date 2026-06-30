@@ -35,4 +35,40 @@
         </button>
     </div>
 </div>
+
+<div class="ui small monitor-help modal transition hidden">
+    <div class="header">服务监控说明</div>
+    <div class="content nk-rule-help">
+        <section>
+            <h3>执行方式</h3>
+            <div class="nk-rule-type-list">
+                <span><code>调度</code>dashboard 每 3 分钟分发一次监控任务</span>
+                <span><code>执行</code>任务会发送给在线 Agent 轮询执行</span>
+                <span><code>结果</code>Agent 回传成功状态、延迟和错误信息</span>
+                <span><code>状态页</code>结果会写入历史记录，用于计算可用率</span>
+            </div>
+        </section>
+        <section>
+            <h3>监控类型</h3>
+            <div class="nk-rule-help-grid">
+                <div><code>HTTP-GET</code><span>目标填写完整 URL，例如 https://example.com</span></div>
+                <div><code>HTTPS</code><span>会同时检查 SSL 证书到期、变更和证书错误</span></div>
+                <div><code>ICMP-Ping</code><span>目标填写主机名或 IP，不带端口</span></div>
+                <div><code>TCP-Ping</code><span>目标填写主机名/IP + 端口，例如 example.com:443</span></div>
+            </div>
+        </section>
+        <section>
+            <h3>通知行为</h3>
+            <div class="nk-rule-type-list">
+                <span><code>SSL</code>证书错误、7 天内过期、证书变更会直接发送通知</span>
+                <span><code>规则</code>SSL 通知不需要配置告警规则</span>
+                <span><code>失败</code>HTTP、ICMP、TCP 普通失败当前只记录到服务状态历史</span>
+            </div>
+        </section>
+        <p class="nk-rule-help-note">服务监控依赖在线 Agent 执行；如果没有在线 Agent，监控任务不会被执行。</p>
+    </div>
+    <div class="actions">
+        <button class="ui primary approve button">知道了</button>
+    </div>
+</div>
 {{end}}

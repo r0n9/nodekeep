@@ -9,7 +9,10 @@
                 <h1>服务监控</h1>
                 <p>配置 HTTP、ICMP 和 TCP 探测目标。</p>
             </div>
-            <button class="ui primary button" onclick="addOrEditMonitor()"><i class="add icon"></i>添加监控项</button>
+            <div class="nk-panel-actions">
+                <button class="ui button" onclick="$('.monitor-help.modal').modal('show')"><i class="info circle icon"></i>监控说明</button>
+                <button class="ui primary button" onclick="addOrEditMonitor()"><i class="add icon"></i>添加监控项</button>
+            </div>
         </div>
 
         <section class="nk-panel">
