@@ -50,7 +50,7 @@ func init() {
 func initSystem() {
 	dao.DB.AutoMigrate(model.Server{}, model.User{},
 		model.Notification{}, model.AlertRule{}, model.Monitor{},
-		model.MonitorHistory{}, model.Cron{})
+		model.MonitorHistory{}, model.Cron{}, model.ServerMetric{})
 
 	loadServers() //加载服务器列表
 	loadCrons()   //加载计划任务
@@ -61,6 +61,7 @@ func initSystem() {
 
 func cleanMonitorHistory() {
 	dao.DB.Delete(&model.MonitorHistory{}, "created_at < ?", time.Now().AddDate(0, 0, -30))
+	dao.DB.Delete(&model.ServerMetric{}, "bucket_at < ?", time.Now().AddDate(0, 0, -7))
 }
 
 func loadServers() {

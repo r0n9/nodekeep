@@ -48,7 +48,7 @@
                         <div class="nk-node-top">
                             <div>
                                 <div class="nk-node-name">
-                                    <span class="nk-node-label">@#server.Name#@</span>
+                                    <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                     <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
                                 </div>
@@ -163,7 +163,7 @@
                                 <td>
                                     <div class="nk-list-node-name">
                                         <span class="nk-status-pill nk-list-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
-                                        <span class="nk-list-node-label">@#server.Name#@</span>
+                                        <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                         <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                         <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
                                     </div>

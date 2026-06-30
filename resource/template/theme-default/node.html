@@ -1,0 +1,656 @@
+{{define "theme-default/node"}}
+{{template "common/header" .}}
+{{if ts .CustomCode}}
+{{.CustomCode|safe}}
+{{end}}
+{{template "common/menu" .}}
+<main class="nk-page nk-public-page">
+    <div class="ui container">
+        <section id="node-detail-app" class="nk-node-detail-page">
+            <header class="nk-hero nk-node-hero">
+                <div>
+                    <p class="nk-eyebrow">Node Detail</p>
+                    <h1>
+                        <span>@#server.Name#@</span>
+                        <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
+                        <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                    </h1>
+                    <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · @#hasReport ? (server.Host.Platform || 'unknown') + ' ' + (server.Host.Arch || '-') : '等待 Agent 上报'#@</p>
+                </div>
+                <div class="nk-hero-actions">
+                    <div class="nk-summary-grid">
+                        <div class="nk-summary-item">
+                            <span>状态</span>
+                            <strong>@#server.live ? '在线' : '离线'#@</strong>
+                        </div>
+                        <div class="nk-summary-item">
+                            <span>运行</span>
+                            <strong>@#hasReport ? secondToDate(server.State.Uptime) : '-'#@</strong>
+                        </div>
+                        <div class="nk-summary-item">
+                            <span>最近活动</span>
+                            <strong>@#formatShortDate(server.LastActive)#@</strong>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <section class="nk-node-detail-layout">
+                <article class="nk-node-card nk-node-live-panel" :class="{ offline: !server.live }">
+                    <div class="nk-node-top">
+                        <div>
+                            <div class="nk-node-name">
+                                <span>实时状态</span>
+                            </div>
+                            <div class="nk-node-meta">@#hasReport ? formatDate(server.LastActive) : '暂无上报数据'#@</div>
+                        </div>
+                        <span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
+                    </div>
+
+                    <div class="nk-metrics">
+                        <div class="nk-meter">
+                            <span>CPU</span>
+                            <div class="nk-meter-track"><i :style="meterStyle('cpu')"></i></div>
+                            <strong>@#livePercent('cpu')#@%</strong>
+                        </div>
+                        <div class="nk-meter">
+                            <span>内存</span>
+                            <div class="nk-meter-track"><i :style="meterStyle('mem')"></i></div>
+                            <strong>@#livePercent('mem')#@%</strong>
+                        </div>
+                        <div class="nk-meter">
+                            <span>硬盘</span>
+                            <div class="nk-meter-track"><i :style="meterStyle('disk')"></i></div>
+                            <strong>@#livePercent('disk')#@%</strong>
+                        </div>
+                    </div>
+
+                    <div class="nk-network-grid">
+                        <div class="nk-network-card nk-network-combo">
+                            <div class="nk-network-row outbound">
+                                <div class="nk-network-head">
+                                    <span class="nk-network-label"><i class="arrow up icon"></i>出站</span>
+                                    <strong class="nk-speed-value" :class="netSpeedClass(server.State.NetOutSpeed)">@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
+                                </div>
+                                <div class="nk-network-track">
+                                    <i :class="netSpeedClass(server.State.NetOutSpeed)" :style="netLoadStyle(server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
+                                </div>
+                                <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
+                            </div>
+                            <div class="nk-network-row inbound">
+                                <div class="nk-network-head">
+                                    <span class="nk-network-label"><i class="arrow down icon"></i>入站</span>
+                                    <strong class="nk-speed-value" :class="netSpeedClass(server.State.NetInSpeed)">@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
+                                </div>
+                                <div class="nk-network-track">
+                                    <i :class="netSpeedClass(server.State.NetInSpeed)" :style="netLoadStyle(server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
+                                </div>
+                                <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="nk-node-card nk-node-info-panel">
+                    <div class="nk-node-top">
+                        <div>
+                            <div class="nk-node-name">
+                                <span>节点信息</span>
+                            </div>
+                            <div class="nk-node-meta">@#server.Tag || '默认分组'#@</div>
+                        </div>
+                    </div>
+                    <div class="nk-node-detail-grid nk-node-detail-grid-large">
+                        <p>
+                            <span>系统</span>
+                            <strong>@#hasReport ? (server.Host.Platform || '-') + ' ' + (server.Host.PlatformVersion || '') : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>架构</span>
+                            <strong>@#hasReport ? server.Host.Arch || '-' : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>虚拟化</span>
+                            <strong>@#hasReport ? server.Host.Virtualization || '-' : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>启动时间</span>
+                            <strong>@#hasReport ? formatUnixDate(server.Host.BootTime) : '-'#@</strong>
+                        </p>
+                        <p class="nk-node-detail-wide">
+                            <span>处理器</span>
+                            <strong :title="hasReport ? formatCPUInfo(server.Host.CPU) : '-'">@#hasReport ? formatCPUInfo(server.Host.CPU) : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>内存</span>
+                            <strong>@#hasReport ? formatByteSize(server.State.MemUsed) + ' / ' + formatByteSize(server.Host.MemTotal) : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>交换</span>
+                            <strong>@#hasReport ? formatByteSize(server.State.SwapUsed) + ' / ' + formatByteSize(server.Host.SwapTotal) : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>硬盘</span>
+                            <strong>@#hasReport ? formatByteSize(server.State.DiskUsed) + ' / ' + formatByteSize(server.Host.DiskTotal) : '-'#@</strong>
+                        </p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="nk-history-section">
+                <div class="nk-section-title">
+                    <h2>近 7 天监控指标</h2>
+                    <span>@#historyLabel#@</span>
+                </div>
+                <div v-if="hasMetrics" class="nk-history-grid">
+                    <article class="nk-history-card">
+                        <div class="nk-history-head">
+                            <div>
+                                <span>CPU</span>
+                                <strong>@#chartCurrent('cpu')#@%</strong>
+                            </div>
+                            <small>峰值 @#chartPeak('cpu')#@%</small>
+                        </div>
+                        <div class="nk-history-chart" ref="cpuChart" aria-label="CPU 使用率趋势"></div>
+                    </article>
+
+                    <article class="nk-history-card">
+                        <div class="nk-history-head">
+                            <div>
+                                <span>内存</span>
+                                <strong>@#chartCurrent('mem')#@%</strong>
+                            </div>
+                            <small>@#formatByteSize(latestMetric.MemUsedAvg)#@</small>
+                        </div>
+                        <div class="nk-history-chart" ref="memChart" aria-label="内存使用率趋势"></div>
+                    </article>
+
+                    <article class="nk-history-card">
+                        <div class="nk-history-head">
+                            <div>
+                                <span>硬盘</span>
+                                <strong>@#chartCurrent('disk')#@%</strong>
+                            </div>
+                            <small>@#formatByteSize(latestMetric.DiskUsedAvg)#@</small>
+                        </div>
+                        <div class="nk-history-chart" ref="diskChart" aria-label="硬盘使用率趋势"></div>
+                    </article>
+
+                    <article class="nk-history-card">
+                        <div class="nk-history-head">
+                            <div>
+                                <span>网络</span>
+                                <strong>@#formatByteSize(latestMetric.NetInSpeedAvg)#@/s</strong>
+                            </div>
+                            <small>出站 @#formatByteSize(latestMetric.NetOutSpeedAvg)#@/s</small>
+                        </div>
+                        <div class="nk-history-chart" ref="netChart" aria-label="网络速率趋势"></div>
+                        <div class="nk-history-legend">
+                            <span><i class="primary"></i>入站</span>
+                            <span><i class="secondary"></i>出站</span>
+                        </div>
+                    </article>
+                </div>
+                <div v-else class="nk-empty-node nk-history-empty">暂无历史指标。</div>
+            </section>
+        </section>
+    </div>
+</main>
+{{template "common/footer" .}}
+<script src="/static/vendor/uplot/uPlot.iife.min.js?v1.6.31"></script>
+<script>
+    const nodeID = {{.Server.ID}};
+    const initServer = {{.Server}};
+    const initMetrics = {{.Metrics}};
+
+    var nodeDetail = new Vue({
+        el: '#node-detail-app',
+        delimiters: ['@#', '#@'],
+        data: {
+            server: initServer,
+            metrics: initMetrics || [],
+        },
+        computed: {
+            hasReport() {
+                return !!(this.server && this.server.Host && (
+                    this.server.Host.Platform ||
+                    this.server.Host.MemTotal ||
+                    this.server.Host.DiskTotal ||
+                    this.server.Host.CPU && this.server.Host.CPU.length
+                ))
+            },
+            hasMetrics() {
+                return this.metrics.length > 0
+            },
+            latestMetric() {
+                if (!this.metrics.length) {
+                    return {}
+                }
+                return this.metrics[this.metrics.length - 1]
+            },
+            historyLabel() {
+                if (!this.metrics.length) {
+                    return '暂无数据'
+                }
+                return this.metrics.length + ' 个分钟点'
+            },
+        },
+        mounted() {
+            this.chartInstances = {}
+            this.refreshServer(this.server)
+            this.$nextTick(() => this.renderCharts())
+            this.refreshMetrics()
+            this.metricRefreshTimer = window.setInterval(this.refreshMetrics, 60 * 1000)
+            this.resizeChartsHandler = () => this.resizeCharts()
+            window.addEventListener('resize', this.resizeChartsHandler)
+            this.themeObserver = new MutationObserver(() => this.renderCharts(true))
+            this.themeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme'],
+            })
+        },
+        beforeDestroy() {
+            this.destroyCharts()
+            if (this.metricRefreshTimer) {
+                window.clearInterval(this.metricRefreshTimer)
+            }
+            if (this.resizeChartsHandler) {
+                window.removeEventListener('resize', this.resizeChartsHandler)
+            }
+            if (this.themeObserver) {
+                this.themeObserver.disconnect()
+            }
+        },
+        methods: {
+            refreshServer(server) {
+                if (!server) {
+                    return
+                }
+                const lastActive = new Date(server.LastActive).getTime()
+                server.live = Number.isFinite(lastActive) && Date.now() - lastActive <= 20 * 1000
+                this.server = server
+            },
+            refreshMetrics() {
+                fetch('/node/' + nodeID + '/metrics', {
+                    headers: { 'X-NodeKeep-Request': '1' },
+                }).then(resp => {
+                    if (!resp.ok) {
+                        return []
+                    }
+                    return resp.json()
+                }).then(metrics => {
+                    if (Array.isArray(metrics)) {
+                        this.metrics = metrics
+                        this.$nextTick(() => this.renderCharts())
+                    }
+                }).catch(() => {
+                })
+            },
+            liveMetric(type) {
+                if (!this.hasReport) {
+                    return { used: 0, total: 0 }
+                }
+                if (type === 'cpu') {
+                    return { used: this.server.State.CPU, total: 100 }
+                }
+                if (type === 'mem') {
+                    return { used: this.server.State.MemUsed, total: this.server.Host.MemTotal }
+                }
+                if (type === 'disk') {
+                    return { used: this.server.State.DiskUsed, total: this.server.Host.DiskTotal }
+                }
+                return { used: 0, total: 0 }
+            },
+            percent(used, total) {
+                if (!total) {
+                    return 0
+                }
+                return Math.max(0, Math.min(100, Math.round(Number(used) / Number(total) * 100) || 0))
+            },
+            livePercent(type) {
+                const metric = this.liveMetric(type)
+                return this.server.live ? this.percent(metric.used, metric.total) : 0
+            },
+            meterStyle(type) {
+                const percent = this.livePercent(type)
+                let color = '#0b84ff'
+                if (!this.server.live) {
+                    color = '#94a3b8'
+                } else if (percent >= 91) {
+                    color = '#dc2626'
+                } else if (percent >= 71) {
+                    color = '#d97706'
+                }
+                return { width: percent + '%', backgroundColor: color }
+            },
+            netSpeedClass(speed) {
+                if (!this.server.live) {
+                    return 'nk-speed-offline'
+                }
+                const value = Number(speed) || 0
+                if (value >= 2 * 1024 * 1024) {
+                    return 'nk-speed-tier-high'
+                }
+                if (value >= 400 * 1024) {
+                    return 'nk-speed-tier-mid'
+                }
+                return 'nk-speed-tier-low'
+            },
+            netLoadStyle(current, peer) {
+                if (!this.server.live || !current) {
+                    return { width: '0%' }
+                }
+                const max = Math.max(Number(current) || 0, Number(peer) || 0, 1)
+                const percent = Math.max(8, Math.min(100, Math.round(Number(current) / max * 100) || 0))
+                return { width: percent + '%' }
+            },
+            chartValues(type) {
+                return this.metrics.map(point => {
+                    if (type === 'cpu') {
+                        return Number(point.CPUAvg) || 0
+                    }
+                    if (type === 'mem') {
+                        return this.percent(point.MemUsedAvg, point.MemTotal)
+                    }
+                    if (type === 'disk') {
+                        return this.percent(point.DiskUsedAvg, point.DiskTotal)
+                    }
+                    if (type === 'net_out') {
+                        return Number(point.NetOutSpeedAvg) || 0
+                    }
+                    return Number(point.NetInSpeedAvg) || 0
+                })
+            },
+            chartCurrent(type) {
+                const values = this.chartValues(type)
+                if (!values.length) {
+                    return 0
+                }
+                return Math.round(values[values.length - 1])
+            },
+            chartPeak(type) {
+                const values = this.chartValues(type)
+                if (!values.length) {
+                    return 0
+                }
+                return Math.round(Math.max.apply(null, values))
+            },
+            chartDefinitions() {
+                return [
+                    {
+                        key: 'cpu',
+                        ref: 'cpuChart',
+                        percent: true,
+                        series: [
+                            { label: 'CPU', type: 'cpu', color: this.cssVar('--nk-accent') },
+                        ],
+                    },
+                    {
+                        key: 'mem',
+                        ref: 'memChart',
+                        percent: true,
+                        series: [
+                            { label: '内存', type: 'mem', color: this.cssVar('--nk-accent') },
+                        ],
+                    },
+                    {
+                        key: 'disk',
+                        ref: 'diskChart',
+                        percent: true,
+                        series: [
+                            { label: '硬盘', type: 'disk', color: this.cssVar('--nk-accent') },
+                        ],
+                    },
+                    {
+                        key: 'net',
+                        ref: 'netChart',
+                        percent: false,
+                        series: [
+                            { label: '入站', type: 'net_in', color: this.cssVar('--nk-accent') },
+                            { label: '出站', type: 'net_out', color: this.cssVar('--nk-speed-high') },
+                        ],
+                    },
+                ]
+            },
+            renderCharts(force) {
+                if (!window.uPlot || !this.hasMetrics) {
+                    this.destroyCharts()
+                    return
+                }
+                if (force) {
+                    this.destroyCharts()
+                }
+                this.chartDefinitions().forEach(definition => this.renderChart(definition))
+            },
+            renderChart(definition) {
+                const el = this.$refs[definition.ref]
+                if (!el) {
+                    return
+                }
+                const data = this.chartData(definition)
+                if (data[0].length === 0) {
+                    return
+                }
+                const size = this.chartSize(el)
+                if (this.chartInstances[definition.key]) {
+                    this.chartInstances[definition.key].setSize(size)
+                    this.chartInstances[definition.key].setData(data)
+                    return
+                }
+                this.chartInstances[definition.key] = new window.uPlot(this.chartOptions(definition, size), data, el)
+            },
+            chartData(definition) {
+                const rows = this.metrics.map(point => {
+                    const time = new Date(point.BucketAt).getTime()
+                    return {
+                        point: point,
+                        timestamp: Number.isFinite(time) ? Math.floor(time / 1000) : 0,
+                    }
+                }).filter(row => row.timestamp > 0)
+                return [
+                    rows.map(row => row.timestamp),
+                    ...definition.series.map(series => rows.map(row => this.metricValue(row.point, series.type))),
+                ]
+            },
+            chartOptions(definition, size) {
+                const muted = this.cssVar('--nk-muted')
+                const grid = this.cssVar('--nk-border')
+                const text = this.cssVar('--nk-text')
+                return {
+                    width: size.width,
+                    height: size.height,
+                    padding: [8, 0, 6, 0],
+                    legend: {
+                        show: false,
+                    },
+                    cursor: {
+                        drag: {
+                            x: true,
+                            y: false,
+                        },
+                    },
+                    scales: {
+                        x: {
+                            time: true,
+                        },
+                        y: {
+                            range: (u, min, max) => {
+                                if (definition.percent) {
+                                    return [0, 100]
+                                }
+                                const nextMax = Math.max(Number(max) || 0, 1)
+                                return [0, Math.ceil(nextMax * 1.12)]
+                            },
+                        },
+                    },
+                    axes: [
+                        {
+                            stroke: muted,
+                            grid: { stroke: grid, width: 1 },
+                            ticks: { stroke: grid, width: 1 },
+                            values: (u, values) => values.map(value => this.formatChartTime(value)),
+                            size: 32,
+                        },
+                        {
+                            stroke: muted,
+                            grid: { stroke: grid, width: 1 },
+                            ticks: { stroke: grid, width: 1 },
+                            values: (u, values) => values.map(value => this.formatChartAxisValue(value, definition.percent)),
+                            size: definition.percent ? 42 : 62,
+                        },
+                    ],
+                    series: [
+                        {},
+                        ...definition.series.map(series => ({
+                            label: series.label,
+                            stroke: series.color || text,
+                            fill: this.alphaColor(series.color || text, 0.08),
+                            width: 2,
+                            points: { show: false },
+                            value: (u, value) => this.formatChartSeriesValue(value, definition.percent),
+                        })),
+                    ],
+                }
+            },
+            resizeCharts() {
+                if (!this.chartInstances) {
+                    return
+                }
+                this.chartDefinitions().forEach(definition => {
+                    const chart = this.chartInstances[definition.key]
+                    const el = this.$refs[definition.ref]
+                    if (chart && el) {
+                        chart.setSize(this.chartSize(el))
+                    }
+                })
+            },
+            destroyCharts() {
+                if (!this.chartInstances) {
+                    return
+                }
+                Object.keys(this.chartInstances).forEach(key => {
+                    this.chartInstances[key].destroy()
+                    delete this.chartInstances[key]
+                })
+            },
+            chartSize(el) {
+                return {
+                    width: Math.max(Math.round(el.clientWidth || 280), 240),
+                    height: Math.max(Math.round(el.clientHeight || 132), 96),
+                }
+            },
+            metricValue(point, type) {
+                if (type === 'cpu') {
+                    return Number(point.CPUAvg) || 0
+                }
+                if (type === 'mem') {
+                    return this.percent(point.MemUsedAvg, point.MemTotal)
+                }
+                if (type === 'disk') {
+                    return this.percent(point.DiskUsedAvg, point.DiskTotal)
+                }
+                if (type === 'net_out') {
+                    return Number(point.NetOutSpeedAvg) || 0
+                }
+                return Number(point.NetInSpeedAvg) || 0
+            },
+            cssVar(name) {
+                return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+            },
+            alphaColor(color, alpha) {
+                const value = String(color || '').trim()
+                if (value.startsWith('#') && (value.length === 7 || value.length === 4)) {
+                    const hex = value.length === 4
+                        ? value.slice(1).split('').map(char => char + char).join('')
+                        : value.slice(1)
+                    const num = parseInt(hex, 16)
+                    const r = (num >> 16) & 255
+                    const g = (num >> 8) & 255
+                    const b = num & 255
+                    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')'
+                }
+                if (value.startsWith('rgb(')) {
+                    return value.replace('rgb(', 'rgba(').replace(')', ',' + alpha + ')')
+                }
+                return 'rgba(11,132,255,' + alpha + ')'
+            },
+            formatChartTime(value) {
+                const date = new Date(value * 1000)
+                if (!Number.isFinite(date.getTime())) {
+                    return ''
+                }
+                const month = date.getMonth() + 1
+                const day = date.getDate()
+                const hour = ('0' + date.getHours()).slice(-2)
+                const minute = ('0' + date.getMinutes()).slice(-2)
+                return month + '/' + day + ' ' + hour + ':' + minute
+            },
+            formatChartAxisValue(value, percent) {
+                if (percent) {
+                    return Math.round(value) + '%'
+                }
+                return this.formatByteSize(value) + '/s'
+            },
+            formatChartSeriesValue(value, percent) {
+                if (value == null) {
+                    return '-'
+                }
+                return percent ? Math.round(value) + '%' : this.formatByteSize(value) + '/s'
+            },
+            secondToDate(s) {
+                var d = Math.floor(s / 3600 / 24)
+                if (d > 0) {
+                    return d + '天'
+                }
+                var h = Math.floor(s / 3600 % 24)
+                var m = Math.floor(s / 60 % 60)
+                var sec = Math.floor(s % 60)
+                return h + ':' + ('0' + m).slice(-2) + ':' + ('0' + sec).slice(-2)
+            },
+            formatDate(t) {
+                const date = new Date(t)
+                if (!Number.isFinite(date.getTime())) {
+                    return '-'
+                }
+                return date.toLocaleString()
+            },
+            formatShortDate(t) {
+                const date = new Date(t)
+                if (!Number.isFinite(date.getTime()) || date.getFullYear() < 2000) {
+                    return '-'
+                }
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            },
+            formatUnixDate(t) {
+                const timestamp = Number(t) || 0
+                if (!timestamp) {
+                    return '-'
+                }
+                return new Date(timestamp * 1000).toLocaleString()
+            },
+            formatCPUInfo(cpu) {
+                const items = Array.isArray(cpu) ? cpu : [cpu]
+                const formatted = items
+                    .map(item => String(item || '').trim())
+                    .filter(Boolean)
+                    .map(item => item.replace(/^\[\s*"?|"?\s*\]$/g, '').trim())
+                return formatted.length ? formatted.join(' / ') : '-'
+            },
+            formatByteSize(bs) {
+                const x = readableBytes(bs)
+                return x != 'NaN undefined' ? x : '0 KB'
+            },
+        }
+    })
+
+    const wsProtocol = window.location.protocol == 'https:' ? 'wss' : 'ws'
+    const ws = new WebSocket(wsProtocol + '://' + window.location.host + '/ws')
+    ws.onmessage = function (evt) {
+        const servers = JSON.parse(evt.data)
+        const server = servers.find(item => item.ID === nodeID)
+        if (server) {
+            nodeDetail.refreshServer(server)
+        }
+    }
+</script>
+{{end}}

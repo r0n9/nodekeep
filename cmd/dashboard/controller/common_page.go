@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,8 @@ func (cp *commonPage) serve() {
 	cr.Use(cp.checkViewPassword) // 前端查看密码鉴权
 	cr.GET("/", cp.home)
 	cr.GET("/service", cp.service)
+	cr.GET("/node/:id", cp.node)
+	cr.GET("/node/:id/metrics", cp.nodeMetrics)
 	cr.GET("/ws", cp.ws)
 }
 
@@ -168,6 +171,58 @@ func (cp *commonPage) home(c *gin.Context) {
 		"Servers":    servers,
 		"CustomCode": dao.Conf.Site.CustomCode,
 	}))
+}
+
+func (cp *commonPage) node(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		mygin.ShowErrorPage(c, mygin.ErrInfo{
+			Code:  http.StatusBadRequest,
+			Title: "节点不存在",
+			Msg:   "无效的节点 ID。",
+			Link:  "/",
+			Btn:   "返回节点概览",
+		}, true)
+		return
+	}
+	server, ok := dao.PublicServerSnapshot(id)
+	if !ok {
+		mygin.ShowErrorPage(c, mygin.ErrInfo{
+			Code:  http.StatusNotFound,
+			Title: "节点不存在",
+			Msg:   "没有找到对应的节点。",
+			Link:  "/",
+			Btn:   "返回节点概览",
+		}, true)
+		return
+	}
+	metrics := dao.ServerMetricSnapshot(id, time.Now().AddDate(0, 0, -7))
+	c.HTML(http.StatusOK, "theme-default/node", mygin.CommonEnvironment(c, gin.H{
+		"Title":      server.Name,
+		"Server":     server,
+		"Metrics":    metrics,
+		"UseUPlot":   true,
+		"CustomCode": dao.Conf.Site.CustomCode,
+	}))
+}
+
+func (cp *commonPage) nodeMetrics(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "无效的节点 ID",
+		})
+		return
+	}
+	if _, ok := dao.PublicServerSnapshot(id); !ok {
+		c.JSON(http.StatusNotFound, model.Response{
+			Code:    http.StatusNotFound,
+			Message: "节点不存在",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, dao.ServerMetricSnapshot(id, time.Now().AddDate(0, 0, -7)))
 }
 
 var upgrader = websocket.Upgrader{}

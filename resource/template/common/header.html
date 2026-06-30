@@ -30,8 +30,11 @@
     </script>
     <title>{{.Title}}</title>
     <link rel="stylesheet" type="text/css" href="/static/vendor/semantic-ui/semantic.min.css">
+    {{if .UseUPlot}}
+    <link rel="stylesheet" type="text/css" href="/static/vendor/uplot/uPlot.min.css">
+    {{end}}
     <link rel="stylesheet" type="text/css" href="/static/semantic-ui-alerts.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/main.css?v2026063009">
+    <link rel="stylesheet" type="text/css" href="/static/main.css?v2026063011">
     <link rel="shortcut icon" type="image/svg+xml" href="/static/favicon.svg" />
 </head>
 

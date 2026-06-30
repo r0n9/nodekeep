@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/r0n9/nodekeep/model"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestSortedPublicServerSnapshotRedactsSensitiveFields(t *testing.T) {
@@ -110,6 +112,99 @@ func TestSortedServerSnapshotOrdersByGroupDisplayIndexAndID(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("sorted server ids = %v, want %v", got, want)
 		}
+	}
+}
+
+func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
+	previousDB := DB
+	defer func() {
+		DB = previousDB
+	}()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.ServerMetric{}); err != nil {
+		t.Fatalf("auto migrate server metric: %v", err)
+	}
+	DB = db
+	InitServerRuntimeState()
+
+	host := &model.Host{
+		MemTotal:  1000,
+		SwapTotal: 2000,
+		DiskTotal: 3000,
+	}
+	start := time.Date(2026, 6, 30, 12, 0, 2, 0, time.UTC)
+	ObserveServerMetric(1, model.HostState{
+		CPU:            10,
+		MemUsed:        100,
+		SwapUsed:       200,
+		DiskUsed:       300,
+		NetInTransfer:  1000,
+		NetOutTransfer: 2000,
+		NetInSpeed:     100,
+		NetOutSpeed:    200,
+		Uptime:         10,
+	}, host, start)
+	ObserveServerMetric(1, model.HostState{
+		CPU:            20,
+		MemUsed:        300,
+		SwapUsed:       400,
+		DiskUsed:       500,
+		NetInTransfer:  1500,
+		NetOutTransfer: 2600,
+		NetInSpeed:     300,
+		NetOutSpeed:    500,
+		Uptime:         38,
+	}, host, start.Add(28*time.Second))
+	ObserveServerMetric(1, model.HostState{
+		CPU:            40,
+		MemUsed:        700,
+		SwapUsed:       800,
+		DiskUsed:       900,
+		NetInTransfer:  2100,
+		NetOutTransfer: 3300,
+		NetInSpeed:     700,
+		NetOutSpeed:    900,
+		Uptime:         61,
+	}, host, start.Add(61*time.Second))
+
+	var stored model.ServerMetric
+	if err := db.First(&stored, "server_id = ? AND bucket_at = ?", 1, start.Truncate(time.Minute)).Error; err != nil {
+		t.Fatalf("first flushed metric: %v", err)
+	}
+	if stored.SampleCount != 2 {
+		t.Fatalf("sample count = %d, want 2", stored.SampleCount)
+	}
+	if stored.CPUAvg != 15 || stored.CPUMax != 20 {
+		t.Fatalf("cpu avg/max = %.2f/%.2f, want 15/20", stored.CPUAvg, stored.CPUMax)
+	}
+	if stored.MemUsedAvg != 200 || stored.SwapUsedAvg != 300 || stored.DiskUsedAvg != 400 {
+		t.Fatalf("usage avg = mem %d swap %d disk %d, want 200/300/400", stored.MemUsedAvg, stored.SwapUsedAvg, stored.DiskUsedAvg)
+	}
+	if stored.MemTotal != 1000 || stored.SwapTotal != 2000 || stored.DiskTotal != 3000 {
+		t.Fatalf("totals = mem %d swap %d disk %d, want 1000/2000/3000", stored.MemTotal, stored.SwapTotal, stored.DiskTotal)
+	}
+	if stored.NetInSpeedAvg != 200 || stored.NetOutSpeedAvg != 350 ||
+		stored.NetInSpeedMax != 300 || stored.NetOutSpeedMax != 500 {
+		t.Fatalf("network speed = in avg/max %d/%d out avg/max %d/%d, want 200/300 350/500",
+			stored.NetInSpeedAvg, stored.NetInSpeedMax, stored.NetOutSpeedAvg, stored.NetOutSpeedMax)
+	}
+	if stored.NetInBytes != 500 || stored.NetOutBytes != 600 {
+		t.Fatalf("network bytes = %d/%d, want 500/600", stored.NetInBytes, stored.NetOutBytes)
+	}
+
+	snapshot := ServerMetricSnapshot(1, start.Add(-time.Minute))
+	if len(snapshot) != 2 {
+		t.Fatalf("metric snapshot length = %d, want 2: %#v", len(snapshot), snapshot)
+	}
+	if !snapshot[1].BucketAt.Equal(start.Add(61 * time.Second).Truncate(time.Minute)) {
+		t.Fatalf("current bucket time = %s, want %s", snapshot[1].BucketAt, start.Add(61*time.Second).Truncate(time.Minute))
+	}
+	if snapshot[1].SampleCount != 1 || snapshot[1].NetInBytes != 600 || snapshot[1].NetOutBytes != 700 {
+		t.Fatalf("current bucket sample/bytes = %d %d/%d, want 1 600/700",
+			snapshot[1].SampleCount, snapshot[1].NetInBytes, snapshot[1].NetOutBytes)
 	}
 }
 

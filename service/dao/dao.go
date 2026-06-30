@@ -11,6 +11,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/r0n9/nodekeep/model"
 	"github.com/r0n9/nodekeep/pkg/geoip"
@@ -33,6 +34,9 @@ var (
 
 	sortedServerList []*serverSession
 	sortedServerLock sync.RWMutex
+
+	serverMetricBuckets map[uint64]*serverMetricBucket
+	serverMetricLock    sync.Mutex
 )
 
 var errTaskStreamReplaced = errors.New("task stream replaced")
@@ -49,6 +53,13 @@ type TaskTarget struct {
 	ServerID uint64
 	stream   pb.ProbeService_RequestTaskServer
 	sendLock *sync.Mutex
+}
+
+type serverMetricBucket struct {
+	metric          model.ServerMetric
+	lastInTransfer  uint64
+	lastOutTransfer uint64
+	hasLastTransfer bool
 }
 
 func (t TaskTarget) Send(task *pb.Task) error {
@@ -73,6 +84,9 @@ func InitServerRuntimeState() {
 	sortedServerLock.Lock()
 	sortedServerList = nil
 	sortedServerLock.Unlock()
+	serverMetricLock.Lock()
+	serverMetricBuckets = make(map[uint64]*serverMetricBucket)
+	serverMetricLock.Unlock()
 }
 
 func cloneHost(h *model.Host) *model.Host {
@@ -137,6 +151,16 @@ func publicServerRuntimeSnapshot(s *model.ServerRuntime) *model.PublicServerRunt
 		State:      cloneState(s.State),
 		LastActive: s.LastActive,
 	}
+}
+
+func PublicServerSnapshot(id uint64) (*model.PublicServerRuntime, bool) {
+	serverLock.RLock()
+	defer serverLock.RUnlock()
+	s := serverList[id]
+	if s == nil {
+		return nil, false
+	}
+	return publicServerRuntimeSnapshot(&s.runtime), true
 }
 
 func UpsertServerRuntime(s model.Server, isEdit bool) {
@@ -223,11 +247,19 @@ func DetachTaskStream(clientID uint64, stream pb.ProbeService_RequestTaskServer)
 
 func UpdateServerState(clientID uint64, state model.HostState, now time.Time) {
 	serverLock.Lock()
-	defer serverLock.Unlock()
+	var host *model.Host
+	var found bool
 	if s := serverList[clientID]; s != nil {
 		s.runtime.LastActive = now
 		s.runtime.State = &state
+		host = cloneHost(s.runtime.Host)
+		found = true
 	}
+	serverLock.Unlock()
+	if !found {
+		return
+	}
+	ObserveServerMetric(clientID, state, host, now)
 }
 
 func UpdateServerHost(clientID uint64, host model.Host, enableIPChangeNotification bool) (name, oldIP, newIP string, changed bool) {
@@ -311,6 +343,163 @@ func ServerSnapshot() []*model.ServerRuntime {
 		servers = append(servers, cloneServerRuntime(&s.runtime))
 	}
 	return servers
+}
+
+func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Host, now time.Time) {
+	if serverID == 0 || now.IsZero() {
+		return
+	}
+	bucketAt := now.Truncate(time.Minute)
+	serverMetricLock.Lock()
+	defer serverMetricLock.Unlock()
+	if serverMetricBuckets == nil {
+		serverMetricBuckets = make(map[uint64]*serverMetricBucket)
+	}
+
+	bucket := serverMetricBuckets[serverID]
+	if bucket == nil {
+		bucket = newServerMetricBucket(serverID, bucketAt)
+		serverMetricBuckets[serverID] = bucket
+	}
+	if !bucket.metric.BucketAt.Equal(bucketAt) {
+		flushServerMetricLocked(bucket.metric)
+		next := newServerMetricBucket(serverID, bucketAt)
+		next.lastInTransfer = bucket.lastInTransfer
+		next.lastOutTransfer = bucket.lastOutTransfer
+		next.hasLastTransfer = bucket.hasLastTransfer
+		bucket = next
+		serverMetricBuckets[serverID] = bucket
+	}
+
+	netInBytes, netOutBytes := uint64(0), uint64(0)
+	if bucket.hasLastTransfer {
+		netInBytes = positiveCounterDelta(state.NetInTransfer, bucket.lastInTransfer)
+		netOutBytes = positiveCounterDelta(state.NetOutTransfer, bucket.lastOutTransfer)
+	}
+	addServerMetricSample(&bucket.metric, state, host, netInBytes, netOutBytes)
+	bucket.lastInTransfer = state.NetInTransfer
+	bucket.lastOutTransfer = state.NetOutTransfer
+	bucket.hasLastTransfer = true
+}
+
+func ServerMetricSnapshot(serverID uint64, since time.Time) []model.ServerMetric {
+	byBucket := make(map[int64]model.ServerMetric)
+	if DB != nil {
+		var metrics []model.ServerMetric
+		DB.Where("server_id = ? AND bucket_at >= ?", serverID, since).
+			Order("bucket_at ASC").
+			Find(&metrics)
+		for _, metric := range metrics {
+			byBucket[metric.BucketAt.Unix()] = metric
+		}
+	}
+
+	serverMetricLock.Lock()
+	if bucket := serverMetricBuckets[serverID]; bucket != nil &&
+		!bucket.metric.BucketAt.Before(since) &&
+		bucket.metric.SampleCount > 0 {
+		byBucket[bucket.metric.BucketAt.Unix()] = bucket.metric
+	}
+	serverMetricLock.Unlock()
+
+	keys := make([]int64, 0, len(byBucket))
+	for key := range byBucket {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	metrics := make([]model.ServerMetric, 0, len(keys))
+	for _, key := range keys {
+		metrics = append(metrics, byBucket[key])
+	}
+	return metrics
+}
+
+func newServerMetricBucket(serverID uint64, bucketAt time.Time) *serverMetricBucket {
+	return &serverMetricBucket{
+		metric: model.ServerMetric{
+			ServerID: serverID,
+			BucketAt: bucketAt,
+		},
+	}
+}
+
+func addServerMetricSample(metric *model.ServerMetric, state model.HostState, host *model.Host, netInBytes, netOutBytes uint64) {
+	sampleCount := metric.SampleCount
+	metric.CPUAvg = avgFloat64(metric.CPUAvg, sampleCount, state.CPU)
+	if state.CPU > metric.CPUMax {
+		metric.CPUMax = state.CPU
+	}
+	metric.MemUsedAvg = avgUint64(metric.MemUsedAvg, sampleCount, state.MemUsed)
+	metric.SwapUsedAvg = avgUint64(metric.SwapUsedAvg, sampleCount, state.SwapUsed)
+	metric.DiskUsedAvg = avgUint64(metric.DiskUsedAvg, sampleCount, state.DiskUsed)
+	metric.NetInSpeedAvg = avgUint64(metric.NetInSpeedAvg, sampleCount, state.NetInSpeed)
+	metric.NetOutSpeedAvg = avgUint64(metric.NetOutSpeedAvg, sampleCount, state.NetOutSpeed)
+	if state.NetInSpeed > metric.NetInSpeedMax {
+		metric.NetInSpeedMax = state.NetInSpeed
+	}
+	if state.NetOutSpeed > metric.NetOutSpeedMax {
+		metric.NetOutSpeedMax = state.NetOutSpeed
+	}
+	metric.NetInBytes += netInBytes
+	metric.NetOutBytes += netOutBytes
+	metric.Uptime = state.Uptime
+	if host != nil {
+		metric.MemTotal = host.MemTotal
+		metric.SwapTotal = host.SwapTotal
+		metric.DiskTotal = host.DiskTotal
+	}
+	metric.SampleCount++
+}
+
+func flushServerMetricLocked(metric model.ServerMetric) {
+	if DB == nil || metric.SampleCount == 0 {
+		return
+	}
+	DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "server_id"}, {Name: "bucket_at"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"sample_count",
+			"cpu_avg",
+			"cpu_max",
+			"mem_used_avg",
+			"mem_total",
+			"swap_used_avg",
+			"swap_total",
+			"disk_used_avg",
+			"disk_total",
+			"net_in_speed_avg",
+			"net_out_speed_avg",
+			"net_in_speed_max",
+			"net_out_speed_max",
+			"net_in_bytes",
+			"net_out_bytes",
+			"uptime",
+			"updated_at",
+		}),
+	}).Create(&metric)
+}
+
+func positiveCounterDelta(current, previous uint64) uint64 {
+	if current <= previous {
+		return 0
+	}
+	return current - previous
+}
+
+func avgFloat64(current float64, sampleCount uint32, next float64) float64 {
+	if sampleCount == 0 {
+		return next
+	}
+	return (current*float64(sampleCount) + next) / float64(sampleCount+1)
+}
+
+func avgUint64(current uint64, sampleCount uint32, next uint64) uint64 {
+	if sampleCount == 0 {
+		return next
+	}
+	return uint64((float64(current)*float64(sampleCount) + float64(next)) / float64(sampleCount+1))
 }
 
 func SortedTaskTargetsSnapshot() []TaskTarget {

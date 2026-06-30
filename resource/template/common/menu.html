@@ -14,7 +14,7 @@
             <a class='{{if eq .MatchedPath "/notification"}}active{{end}}' href="/notification"><i class="bell icon"></i>告警通知</a>
             <a class='{{if eq .MatchedPath "/setting"}}active{{end}}' href="/setting"><i class="setting icon"></i>系统设置</a>
             {{else}}
-            <a class='{{if eq .MatchedPath "/"}}active{{end}}' href="/"><i class="server icon"></i>节点概览</a>
+            <a class='{{if or (eq .MatchedPath "/") (eq .MatchedPath "/node/:id")}}active{{end}}' href="/"><i class="server icon"></i>节点概览</a>
             <a class='{{if eq .MatchedPath "/service"}}active{{end}}' href="/service"><i class="rss icon"></i>服务状态</a>
             {{end}}
         </nav>
