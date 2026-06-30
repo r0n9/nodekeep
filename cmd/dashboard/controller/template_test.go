@@ -83,6 +83,14 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 		NetOutSpeed:    400,
 		Uptime:         60,
 	}, time.Now())
+	if err := db.Create(&model.ServerMetric{
+		ServerID:    1,
+		BucketAt:    time.Now().AddDate(0, 0, -1).Truncate(time.Minute),
+		SampleCount: 1,
+		CPUAvg:      99,
+	}).Error; err != nil {
+		t.Fatalf("create old server metric: %v", err)
+	}
 
 	r := ServeWeb()
 
@@ -96,10 +104,15 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	for _, expected := range []string{
 		"node-detail-app",
 		"node-a",
-		"近 7 天监控指标",
+		"监控指标",
+		"今天",
+		"近 3 天",
+		"近 7 天",
+		"const initMetricRange = 'today';",
 		"/static/vendor/uplot/uPlot.min.css",
 		"/static/vendor/uplot/uPlot.iife.min.js",
 		"new window.uPlot",
+		"nk-chart-tooltip",
 	} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("node detail body missing %q", expected)
@@ -114,6 +127,19 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"CPUAvg":12`) {
 		t.Fatalf("node metrics body missing CPUAvg: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), `"CPUAvg":99`) {
+		t.Fatalf("default node metrics should only include today: %s", w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/node/1/metrics?range=3d", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("node metrics 3d status = %d, want 200", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `"CPUAvg":99`) {
+		t.Fatalf("node metrics 3d body missing older CPUAvg: %s", w.Body.String())
 	}
 }
 

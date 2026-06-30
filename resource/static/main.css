@@ -1325,6 +1325,64 @@ html[data-theme="dark"] .nk-theme-icon-light {
   margin-top: 1rem;
 }
 
+.nk-history-toolbar {
+  align-items: flex-end;
+}
+
+.nk-history-title {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.nk-history-title span {
+  color: var(--nk-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nk-range-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16rem;
+  flex: 0 0 auto;
+  padding: 0.16rem;
+  border: 1px solid var(--nk-border);
+  border-radius: var(--nk-radius);
+  background: var(--nk-control-bg);
+}
+
+.nk-range-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  height: 28px;
+  padding: 0 0.54rem;
+  border: 0;
+  border-radius: 6px;
+  color: var(--nk-muted);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.nk-range-switch button.active,
+.nk-range-switch button:hover,
+.nk-range-switch button:focus-visible {
+  color: var(--nk-accent-strong);
+  background: var(--nk-accent-soft);
+}
+
+.nk-range-switch button:focus-visible {
+  outline: 2px solid var(--nk-accent-soft);
+  outline-offset: 2px;
+}
+
 .nk-history-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1418,6 +1476,76 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
 .nk-history-chart .uplot .u-axis {
   color: var(--nk-muted);
+}
+
+.nk-history-chart .uplot .u-cursor-pt {
+  border-width: 2px !important;
+  border-color: var(--nk-surface) !important;
+  box-shadow: 0 0 0 2px var(--nk-accent-soft);
+}
+
+.nk-chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  min-width: 132px;
+  max-width: min(220px, calc(100vw - 56px));
+  padding: 0.54rem 0.6rem;
+  border: 1px solid var(--nk-tooltip-border);
+  border-radius: var(--nk-radius);
+  color: var(--nk-tooltip-text);
+  background: var(--nk-tooltip-bg);
+  box-shadow: var(--nk-tooltip-shadow);
+  font-size: 0.74rem;
+  line-height: 1.25;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.nk-chart-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nk-chart-tooltip-time {
+  margin-bottom: 0.4rem;
+  color: var(--nk-tooltip-text);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.nk-chart-tooltip-row {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.nk-chart-tooltip-row + .nk-chart-tooltip-row {
+  margin-top: 0.24rem;
+}
+
+.nk-chart-tooltip-row i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+}
+
+.nk-chart-tooltip-row span {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-chart-tooltip-row strong {
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .nk-history-legend {
@@ -2890,6 +3018,21 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 
   .nk-section-title > span {
     white-space: nowrap;
+  }
+
+  .nk-history-toolbar {
+    align-items: stretch;
+  }
+
+  .nk-range-switch {
+    width: 100%;
+  }
+
+  .nk-range-switch button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-right: 0.34rem;
+    padding-left: 0.34rem;
   }
 
   .nk-node-top,

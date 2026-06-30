@@ -138,9 +138,21 @@
             </section>
 
             <section class="nk-history-section">
-                <div class="nk-section-title">
-                    <h2>近 7 天监控指标</h2>
-                    <span>@#historyLabel#@</span>
+                <div class="nk-section-title nk-history-toolbar">
+                    <div class="nk-history-title">
+                        <h2>监控指标</h2>
+                        <span>@#historyLabel#@</span>
+                    </div>
+                    <div class="nk-range-switch" role="group" aria-label="监控指标时间范围">
+                        <button
+                            v-for="range in metricRanges"
+                            type="button"
+                            :key="range.value"
+                            :class="{ active: metricRange === range.value }"
+                            :aria-pressed="metricRange === range.value ? 'true' : 'false'"
+                            @click="setMetricRange(range.value)"
+                        >@#range.label#@</button>
+                    </div>
                 </div>
                 <div v-if="hasMetrics" class="nk-history-grid">
                     <article class="nk-history-card">
@@ -202,6 +214,7 @@
     const nodeID = {{.Server.ID}};
     const initServer = {{.Server}};
     const initMetrics = {{.Metrics}};
+    const initMetricRange = '{{.MetricRange}}';
 
     var nodeDetail = new Vue({
         el: '#node-detail-app',
@@ -209,6 +222,14 @@
         data: {
             server: initServer,
             metrics: initMetrics || [],
+            metricRange: initMetricRange || 'today',
+            metricLoading: false,
+            metricRequestID: 0,
+            metricRanges: [
+                { value: 'today', label: '今天' },
+                { value: '3d', label: '近 3 天' },
+                { value: '7d', label: '近 7 天' },
+            ],
         },
         computed: {
             hasReport() {
@@ -228,11 +249,18 @@
                 }
                 return this.metrics[this.metrics.length - 1]
             },
+            currentRangeLabel() {
+                const range = this.metricRanges.find(item => item.value === this.metricRange)
+                return range ? range.label : '今天'
+            },
             historyLabel() {
-                if (!this.metrics.length) {
-                    return '暂无数据'
+                if (this.metricLoading) {
+                    return this.currentRangeLabel + ' · 加载中'
                 }
-                return this.metrics.length + ' 个分钟点'
+                if (!this.metrics.length) {
+                    return this.currentRangeLabel + ' · 暂无数据'
+                }
+                return this.currentRangeLabel + ' · ' + this.metrics.length + ' 个分钟点'
             },
         },
         mounted() {
@@ -271,7 +299,9 @@
                 this.server = server
             },
             refreshMetrics() {
-                fetch('/node/' + nodeID + '/metrics', {
+                this.metricLoading = true
+                const requestID = ++this.metricRequestID
+                fetch('/node/' + nodeID + '/metrics?range=' + encodeURIComponent(this.metricRange), {
                     headers: { 'X-NodeKeep-Request': '1' },
                 }).then(resp => {
                     if (!resp.ok) {
@@ -279,12 +309,28 @@
                     }
                     return resp.json()
                 }).then(metrics => {
+                    if (requestID !== this.metricRequestID) {
+                        return
+                    }
                     if (Array.isArray(metrics)) {
                         this.metrics = metrics
                         this.$nextTick(() => this.renderCharts())
                     }
                 }).catch(() => {
+                }).finally(() => {
+                    if (requestID === this.metricRequestID) {
+                        this.metricLoading = false
+                    }
                 })
+            },
+            setMetricRange(range) {
+                if (this.metricRange === range) {
+                    return
+                }
+                this.metricRange = range
+                this.metrics = []
+                this.destroyCharts()
+                this.refreshMetrics()
             },
             liveMetric(type) {
                 if (!this.hasReport) {
@@ -488,7 +534,8 @@
                             stroke: muted,
                             grid: { stroke: grid, width: 1 },
                             ticks: { stroke: grid, width: 1 },
-                            values: (u, values) => values.map(value => this.formatChartTime(value)),
+                            values: (u, values) => this.chartAxisValues(values, u && u.width ? u.width : size.width),
+                            space: this.chartAxisSpace(),
                             size: 32,
                         },
                         {
@@ -510,6 +557,14 @@
                             value: (u, value) => this.formatChartSeriesValue(value, definition.percent),
                         })),
                     ],
+                    hooks: {
+                        ready: [
+                            u => this.attachChartTooltip(definition, u),
+                        ],
+                        setCursor: [
+                            u => this.updateChartTooltip(definition, u),
+                        ],
+                    },
                 }
             },
             resizeCharts() {
@@ -538,6 +593,102 @@
                     width: Math.max(Math.round(el.clientWidth || 280), 240),
                     height: Math.max(Math.round(el.clientHeight || 132), 96),
                 }
+            },
+            chartAxisSpace() {
+                return this.metricRange === 'today' ? 58 : 92
+            },
+            chartAxisValues(values, width) {
+                const limit = this.chartAxisLabelLimit(width)
+                if (!values.length || values.length <= limit) {
+                    return values.map(value => this.formatChartTime(value))
+                }
+                const lastIndex = values.length - 1
+                const step = Math.max(1, Math.ceil(lastIndex / Math.max(limit - 1, 1)))
+                return values.map((value, index) => {
+                    if (index === 0 || index === lastIndex || index % step === 0) {
+                        return this.formatChartTime(value)
+                    }
+                    return ''
+                })
+            },
+            chartAxisLabelLimit(width) {
+                const minSpace = this.chartAxisSpace()
+                return Math.max(2, Math.floor((Number(width) || 280) / minSpace))
+            },
+            attachChartTooltip(definition, chart) {
+                const tooltip = this.ensureChartTooltip(chart)
+                if (!tooltip) {
+                    return
+                }
+                chart.over.addEventListener('mouseleave', () => this.hideChartTooltip(chart))
+                chart.over.addEventListener('blur', () => this.hideChartTooltip(chart))
+            },
+            ensureChartTooltip(chart) {
+                if (!chart || !chart.over) {
+                    return null
+                }
+                let tooltip = chart.over.querySelector('.nk-chart-tooltip')
+                if (!tooltip) {
+                    tooltip = document.createElement('div')
+                    tooltip.className = 'nk-chart-tooltip'
+                    chart.over.appendChild(tooltip)
+                }
+                return tooltip
+            },
+            updateChartTooltip(definition, chart) {
+                const index = chart && chart.cursor ? chart.cursor.idx : null
+                const point = Number.isInteger(index) ? this.metrics[index] : null
+                if (!point) {
+                    this.hideChartTooltip(chart)
+                    return
+                }
+                const tooltip = this.ensureChartTooltip(chart)
+                if (!tooltip) {
+                    return
+                }
+                tooltip.innerHTML = this.chartTooltipHTML(definition, point)
+                tooltip.classList.add('visible')
+                this.positionChartTooltip(chart, tooltip)
+            },
+            hideChartTooltip(chart) {
+                const tooltip = chart && chart.over ? chart.over.querySelector('.nk-chart-tooltip') : null
+                if (tooltip) {
+                    tooltip.classList.remove('visible')
+                }
+            },
+            chartTooltipHTML(definition, point) {
+                const rows = definition.series.map(series => {
+                    return '<div class="nk-chart-tooltip-row">' +
+                        '<i style="background:' + series.color + '"></i>' +
+                        '<span>' + series.label + '</span>' +
+                        '<strong>' + this.formatChartTooltipSeriesValue(point, series.type, definition.percent) + '</strong>' +
+                        '</div>'
+                }).join('')
+                return '<div class="nk-chart-tooltip-time">' + this.formatChartTooltipTime(point.BucketAt) + '</div>' + rows
+            },
+            positionChartTooltip(chart, tooltip) {
+                const cursorLeft = Number(chart.cursor.left)
+                const cursorTop = Number(chart.cursor.top)
+                if (!Number.isFinite(cursorLeft) || !Number.isFinite(cursorTop)) {
+                    tooltip.classList.remove('visible')
+                    return
+                }
+                const gap = 10
+                const edge = 6
+                const width = tooltip.offsetWidth
+                const height = tooltip.offsetHeight
+                const overWidth = chart.over.clientWidth || 0
+                const overHeight = chart.over.clientHeight || 0
+                let left = cursorLeft + gap
+                if (left + width + edge > overWidth) {
+                    left = cursorLeft - width - gap
+                }
+                let top = cursorTop - height - gap
+                if (top < edge) {
+                    top = cursorTop + gap
+                }
+                tooltip.style.left = Math.max(edge, Math.min(left, Math.max(edge, overWidth - width - edge))) + 'px'
+                tooltip.style.top = Math.max(edge, Math.min(top, Math.max(edge, overHeight - height - edge))) + 'px'
             },
             metricValue(point, type) {
                 if (type === 'cpu') {
@@ -583,7 +734,25 @@
                 const day = date.getDate()
                 const hour = ('0' + date.getHours()).slice(-2)
                 const minute = ('0' + date.getMinutes()).slice(-2)
+                if (this.metricRange === 'today') {
+                    return hour + ':' + minute
+                }
+                if (hour === '00' && minute === '00') {
+                    return month + '/' + day
+                }
                 return month + '/' + day + ' ' + hour + ':' + minute
+            },
+            formatChartTooltipTime(value) {
+                const date = new Date(value)
+                if (!Number.isFinite(date.getTime())) {
+                    return '-'
+                }
+                const year = date.getFullYear()
+                const month = ('0' + (date.getMonth() + 1)).slice(-2)
+                const day = ('0' + date.getDate()).slice(-2)
+                const hour = ('0' + date.getHours()).slice(-2)
+                const minute = ('0' + date.getMinutes()).slice(-2)
+                return year + '-' + month + '-' + day + ' ' + hour + ':' + minute
             },
             formatChartAxisValue(value, percent) {
                 if (percent) {
@@ -596,6 +765,16 @@
                     return '-'
                 }
                 return percent ? Math.round(value) + '%' : this.formatByteSize(value) + '/s'
+            },
+            formatChartTooltipSeriesValue(point, type, percent) {
+                const value = this.metricValue(point, type)
+                if (type === 'mem') {
+                    return Math.round(value) + '% · ' + this.formatByteSize(point.MemUsedAvg)
+                }
+                if (type === 'disk') {
+                    return Math.round(value) + '% · ' + this.formatByteSize(point.DiskUsedAvg)
+                }
+                return this.formatChartSeriesValue(value, percent)
             },
             secondToDate(s) {
                 var d = Math.floor(s / 3600 / 24)

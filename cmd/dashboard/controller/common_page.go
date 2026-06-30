@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -196,13 +197,19 @@ func (cp *commonPage) node(c *gin.Context) {
 		}, true)
 		return
 	}
-	metrics := dao.ServerMetricSnapshot(id, time.Now().AddDate(0, 0, -7))
+	rangeKey := c.Query("range")
+	if rangeKey == "" {
+		rangeKey = c.Query("days")
+	}
+	metricRange, metricSince := nodeMetricRange(rangeKey, time.Now())
+	metrics := dao.ServerMetricSnapshot(id, metricSince)
 	c.HTML(http.StatusOK, "theme-default/node", mygin.CommonEnvironment(c, gin.H{
-		"Title":      server.Name,
-		"Server":     server,
-		"Metrics":    metrics,
-		"UseUPlot":   true,
-		"CustomCode": dao.Conf.Site.CustomCode,
+		"Title":       server.Name,
+		"Server":      server,
+		"Metrics":     metrics,
+		"MetricRange": metricRange,
+		"UseUPlot":    true,
+		"CustomCode":  dao.Conf.Site.CustomCode,
 	}))
 }
 
@@ -222,7 +229,24 @@ func (cp *commonPage) nodeMetrics(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, dao.ServerMetricSnapshot(id, time.Now().AddDate(0, 0, -7)))
+	rangeKey := c.Query("range")
+	if rangeKey == "" {
+		rangeKey = c.Query("days")
+	}
+	_, since := nodeMetricRange(rangeKey, time.Now())
+	c.JSON(http.StatusOK, dao.ServerMetricSnapshot(id, since))
+}
+
+func nodeMetricRange(rangeKey string, now time.Time) (string, time.Time) {
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	switch strings.ToLower(strings.TrimSpace(rangeKey)) {
+	case "3", "3d", "3day", "3days":
+		return "3d", dayStart.AddDate(0, 0, -2)
+	case "7", "7d", "7day", "7days":
+		return "7d", dayStart.AddDate(0, 0, -6)
+	default:
+		return "today", dayStart
+	}
 }
 
 var upgrader = websocket.Upgrader{}
