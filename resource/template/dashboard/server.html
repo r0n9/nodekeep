@@ -22,6 +22,7 @@
                             <th>分组</th>
                             <th>IPv4</th>
                             <th>IPv6</th>
+                            <th>Agent版本</th>
                             <th>密钥</th>
                             <th>备注</th>
                             <th>管理</th>
@@ -47,6 +48,13 @@
                                     {{if $ipv6}}<code class="nk-ip-code">{{$ipv6}}</code>{{else}}<span class="nk-muted-text">-</span>{{end}}
                                 {{else}}
                                     <span class="nk-muted-text">-</span>
+                                {{end}}
+                            </td>
+                            <td>
+                                {{if and $server.Host (ts $server.Host.Version)}}
+                                    <code>{{$server.Host.Version}}</code>
+                                {{else}}
+                                    <span class="ui tiny orange label">未上报</span>
                                 {{end}}
                             </td>
                             <td><code>{{$server.Secret}}</code></td>

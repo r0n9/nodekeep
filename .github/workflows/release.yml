@@ -76,6 +76,10 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest
 
+      - name: Generate Release Info
+        id: release_info
+        run: echo "release_date=$(TZ=Asia/Shanghai date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
       - name: Build and Push Dashboard Image
         uses: docker/build-push-action@v5
         with:
@@ -87,3 +91,4 @@ jobs:
           build-args: |
             GO_VERSION=1.25.4
             VERSION=${{ github.ref_name }}
+            RELEASE_DATE=${{ steps.release_info.outputs.release_date }}

@@ -54,7 +54,7 @@
                                 </div>
                                 <div class="nk-node-meta" v-if="server.Host">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
-                                    <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@ · @#server.Host.Version || '-'#@</span>
+                                    <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
                             </div>

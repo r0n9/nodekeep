@@ -2,6 +2,8 @@ ARG GO_VERSION=1.25.4
 ARG ALPINE_VERSION=3.22
 
 FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder
+ARG VERSION=v1.0.0
+ARG RELEASE_DATE=
 RUN apk add --no-cache --no-progress \
     gcc git musl-dev
 WORKDIR /src
@@ -16,7 +18,7 @@ COPY model ./model
 COPY pkg ./pkg
 COPY proto ./proto
 COPY service ./service
-RUN go build -trimpath -ldflags="-s -w" -o /out/nodekeep-dashboard ./cmd/dashboard
+RUN go build -trimpath -ldflags="-s -w -X github.com/r0n9/nodekeep/service/dao.Version=${VERSION} -X github.com/r0n9/nodekeep/service/dao.ReleaseDate=${RELEASE_DATE}" -o /out/nodekeep-dashboard ./cmd/dashboard
 
 FROM alpine:${ALPINE_VERSION}
 ENV TZ="Asia/Shanghai"

@@ -17,8 +17,6 @@ import (
 	pb "github.com/r0n9/nodekeep/proto"
 )
 
-var Version = "v1.0.0"
-
 const (
 	SnapshotDelay = 3
 	ReportDelay   = 2
@@ -120,7 +118,6 @@ func publicHostSnapshot(h *model.Host) *model.PublicHost {
 		Virtualization:  h.Virtualization,
 		BootTime:        h.BootTime,
 		CountryCode:     h.CountryCode,
-		Version:         h.Version,
 	}
 	if h.CPU != nil {
 		host.CPU = append([]string(nil), h.CPU...)

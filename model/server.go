@@ -34,7 +34,6 @@ type PublicHost struct {
 	Virtualization  string
 	BootTime        uint64
 	CountryCode     string
-	Version         string
 }
 
 type PublicServerRuntime struct {

@@ -48,7 +48,7 @@ func TestSortedPublicServerSnapshotRedactsSensitiveFields(t *testing.T) {
 		t.Fatalf("marshal public snapshot: %v", err)
 	}
 	payload := string(data)
-	for _, sensitive := range []string{"203.0.113.10", "secret-token", "private-note", `"IP"`, `"Secret"`, `"Note"`} {
+	for _, sensitive := range []string{"203.0.113.10", "secret-token", "private-note", "1.0.0", `"IP"`, `"Secret"`, `"Note"`, `"Version"`} {
 		if strings.Contains(payload, sensitive) {
 			t.Fatalf("public snapshot JSON leaked %q: %s", sensitive, payload)
 		}
