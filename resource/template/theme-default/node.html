@@ -154,7 +154,7 @@
                         >@#range.label#@</button>
                     </div>
                 </div>
-                <div v-if="hasMetrics" class="nk-history-grid">
+                <div v-if="hasMetrics" class="nk-history-grid" :class="{ 'is-loading': metricLoading }">
                     <article class="nk-history-card">
                         <div class="nk-history-head">
                             <div>
@@ -172,7 +172,7 @@
                                 <span>内存</span>
                                 <strong>@#chartCurrent('mem')#@%</strong>
                             </div>
-                            <small>@#formatByteSize(latestMetric.MemUsedAvg)#@</small>
+                            <small>@#formatByteSize(latestMetric.memUsed)#@</small>
                         </div>
                         <div class="nk-history-chart" ref="memChart" aria-label="内存使用率趋势"></div>
                     </article>
@@ -183,7 +183,7 @@
                                 <span>硬盘</span>
                                 <strong>@#chartCurrent('disk')#@%</strong>
                             </div>
-                            <small>@#formatByteSize(latestMetric.DiskUsedAvg)#@</small>
+                            <small>@#formatByteSize(latestMetric.diskUsed)#@</small>
                         </div>
                         <div class="nk-history-chart" ref="diskChart" aria-label="硬盘使用率趋势"></div>
                     </article>
@@ -192,9 +192,9 @@
                         <div class="nk-history-head">
                             <div>
                                 <span>网络</span>
-                                <strong>@#formatByteSize(latestMetric.NetInSpeedAvg)#@/s</strong>
+                                <strong>@#formatByteSize(latestMetric.netIn)#@/s</strong>
                             </div>
-                            <small>出站 @#formatByteSize(latestMetric.NetOutSpeedAvg)#@/s</small>
+                            <small>出站 @#formatByteSize(latestMetric.netOut)#@/s</small>
                         </div>
                         <div class="nk-history-chart" ref="netChart" aria-label="网络速率趋势"></div>
                         <div class="nk-history-legend">
@@ -203,7 +203,7 @@
                         </div>
                     </article>
                 </div>
-                <div v-else class="nk-empty-node nk-history-empty">暂无历史指标。</div>
+                <div v-else class="nk-empty-node nk-history-empty">@#metricLoading ? '指标加载中…' : '暂无历史指标。'#@</div>
             </section>
         </section>
     </div>
@@ -213,18 +213,36 @@
 <script>
     const nodeID = {{.Server.ID}};
     const initServer = {{.Server}};
-    const initMetrics = {{.Metrics}};
     const initMetricRange = '{{.MetricRange}}';
+
+    function emptyMetricSeries(range) {
+        return {
+            range: range || 'today',
+            stepSec: 60,
+            from: 0,
+            to: 0,
+            count: 0,
+            t: [],
+            cpu: [],
+            mem: [],
+            memUsed: [],
+            disk: [],
+            diskUsed: [],
+            netIn: [],
+            netOut: [],
+        }
+    }
 
     var nodeDetail = new Vue({
         el: '#node-detail-app',
         delimiters: ['@#', '#@'],
         data: {
             server: initServer,
-            metrics: initMetrics || [],
+            metricSeries: emptyMetricSeries(initMetricRange || 'today'),
             metricRange: initMetricRange || 'today',
             metricLoading: false,
             metricRequestID: 0,
+            metricMaxPoints: 720,
             metricRanges: [
                 { value: 'today', label: '今天' },
                 { value: '3d', label: '近 3 天' },
@@ -241,13 +259,23 @@
                 ))
             },
             hasMetrics() {
-                return this.metrics.length > 0
+                return !!(this.metricSeries && this.metricSeries.count > 0)
             },
             latestMetric() {
-                if (!this.metrics.length) {
-                    return {}
+                if (!this.hasMetrics) {
+                    return { memUsed: 0, diskUsed: 0, netIn: 0, netOut: 0 }
                 }
-                return this.metrics[this.metrics.length - 1]
+                const last = this.metricSeries.count - 1
+                return {
+                    t: this.metricSeries.t[last],
+                    cpu: this.metricSeries.cpu[last],
+                    mem: this.metricSeries.mem[last],
+                    memUsed: this.metricSeries.memUsed[last],
+                    disk: this.metricSeries.disk[last],
+                    diskUsed: this.metricSeries.diskUsed[last],
+                    netIn: this.metricSeries.netIn[last],
+                    netOut: this.metricSeries.netOut[last],
+                }
             },
             currentRangeLabel() {
                 const range = this.metricRanges.find(item => item.value === this.metricRange)
@@ -257,18 +285,20 @@
                 if (this.metricLoading) {
                     return this.currentRangeLabel + ' · 加载中'
                 }
-                if (!this.metrics.length) {
+                if (!this.hasMetrics) {
                     return this.currentRangeLabel + ' · 暂无数据'
                 }
-                return this.currentRangeLabel + ' · ' + this.metrics.length + ' 个分钟点'
+                const stepSec = Number(this.metricSeries.stepSec) || 60
+                const stepLabel = stepSec >= 60 ? (stepSec / 60) + ' 分钟' : stepSec + ' 秒'
+                return this.currentRangeLabel + ' · ' + this.metricSeries.count + ' 点 · ' + stepLabel + ' 粒度'
             },
         },
         mounted() {
             this.chartInstances = {}
             this.refreshServer(this.server)
-            this.$nextTick(() => this.renderCharts())
-            this.refreshMetrics()
-            this.metricRefreshTimer = window.setInterval(this.refreshMetrics, 60 * 1000)
+            this.updateMetricMaxPoints()
+            this.refreshMetrics(false)
+            this.metricRefreshTimer = window.setInterval(() => this.refreshMetrics(true), 60 * 1000)
             this.resizeChartsHandler = () => this.resizeCharts()
             window.addEventListener('resize', this.resizeChartsHandler)
             this.themeObserver = new MutationObserver(() => this.renderCharts(true))
@@ -298,24 +328,33 @@
                 server.live = Number.isFinite(lastActive) && Date.now() - lastActive <= 20 * 1000
                 this.server = server
             },
-            refreshMetrics() {
+            refreshMetrics(incremental) {
                 this.metricLoading = true
                 const requestID = ++this.metricRequestID
-                fetch('/node/' + nodeID + '/metrics?range=' + encodeURIComponent(this.metricRange), {
+                const params = new URLSearchParams()
+                params.set('range', this.metricRange)
+                params.set('max', String(this.metricMaxPoints || 720))
+                const canIncremental = !!(incremental && this.hasMetrics && this.metricSeries.to)
+                if (canIncremental) {
+                    params.set('after', String(this.metricSeries.to))
+                }
+                fetch('/node/' + nodeID + '/metrics?' + params.toString(), {
                     headers: { 'X-NodeKeep-Request': '1' },
                 }).then(resp => {
                     if (!resp.ok) {
-                        return []
+                        return null
                     }
                     return resp.json()
-                }).then(metrics => {
-                    if (requestID !== this.metricRequestID) {
+                }).then(series => {
+                    if (requestID !== this.metricRequestID || !series || !Array.isArray(series.t)) {
                         return
                     }
-                    if (Array.isArray(metrics)) {
-                        this.metrics = metrics
-                        this.$nextTick(() => this.renderCharts())
+                    if (canIncremental) {
+                        this.mergeMetricSeries(series)
+                    } else {
+                        this.metricSeries = this.normalizeMetricSeries(series)
                     }
+                    this.$nextTick(() => this.renderCharts())
                 }).catch(() => {
                 }).finally(() => {
                     if (requestID === this.metricRequestID) {
@@ -328,9 +367,104 @@
                     return
                 }
                 this.metricRange = range
-                this.metrics = []
+                this.metricSeries = emptyMetricSeries(range)
                 this.destroyCharts()
-                this.refreshMetrics()
+                this.refreshMetrics(false)
+            },
+            updateMetricMaxPoints() {
+                const width = window.innerWidth || 1200
+                this.metricMaxPoints = Math.max(360, Math.min(1200, Math.round(width * 0.75)))
+            },
+            normalizeMetricSeries(series) {
+                const next = emptyMetricSeries(series.range || this.metricRange)
+                next.stepSec = Number(series.stepSec) || 60
+                next.t = Array.isArray(series.t) ? series.t.map(Number) : []
+                next.cpu = Array.isArray(series.cpu) ? series.cpu.map(Number) : []
+                next.mem = Array.isArray(series.mem) ? series.mem.map(Number) : []
+                next.memUsed = Array.isArray(series.memUsed) ? series.memUsed.map(Number) : []
+                next.disk = Array.isArray(series.disk) ? series.disk.map(Number) : []
+                next.diskUsed = Array.isArray(series.diskUsed) ? series.diskUsed.map(Number) : []
+                next.netIn = Array.isArray(series.netIn) ? series.netIn.map(Number) : []
+                next.netOut = Array.isArray(series.netOut) ? series.netOut.map(Number) : []
+                next.count = next.t.length
+                next.from = next.count ? next.t[0] : 0
+                next.to = next.count ? next.t[next.count - 1] : 0
+                return next
+            },
+            mergeMetricSeries(delta) {
+                if (!delta || !Array.isArray(delta.t) || !delta.t.length) {
+                    return
+                }
+                if ((Number(delta.stepSec) || 0) && this.metricSeries.stepSec && Number(delta.stepSec) !== Number(this.metricSeries.stepSec)) {
+                    this.metricSeries = this.normalizeMetricSeries(delta)
+                    return
+                }
+                const next = this.normalizeMetricSeries({
+                    range: this.metricSeries.range,
+                    stepSec: this.metricSeries.stepSec,
+                    t: this.metricSeries.t.slice(),
+                    cpu: this.metricSeries.cpu.slice(),
+                    mem: this.metricSeries.mem.slice(),
+                    memUsed: this.metricSeries.memUsed.slice(),
+                    disk: this.metricSeries.disk.slice(),
+                    diskUsed: this.metricSeries.diskUsed.slice(),
+                    netIn: this.metricSeries.netIn.slice(),
+                    netOut: this.metricSeries.netOut.slice(),
+                })
+                for (let i = 0; i < delta.t.length; i++) {
+                    const ts = Number(delta.t[i])
+                    if (!Number.isFinite(ts)) {
+                        continue
+                    }
+                    const point = {
+                        cpu: Number(delta.cpu && delta.cpu[i]) || 0,
+                        mem: Number(delta.mem && delta.mem[i]) || 0,
+                        memUsed: Number(delta.memUsed && delta.memUsed[i]) || 0,
+                        disk: Number(delta.disk && delta.disk[i]) || 0,
+                        diskUsed: Number(delta.diskUsed && delta.diskUsed[i]) || 0,
+                        netIn: Number(delta.netIn && delta.netIn[i]) || 0,
+                        netOut: Number(delta.netOut && delta.netOut[i]) || 0,
+                    }
+                    const lastIndex = next.t.length - 1
+                    if (lastIndex >= 0 && next.t[lastIndex] === ts) {
+                        next.cpu[lastIndex] = point.cpu
+                        next.mem[lastIndex] = point.mem
+                        next.memUsed[lastIndex] = point.memUsed
+                        next.disk[lastIndex] = point.disk
+                        next.diskUsed[lastIndex] = point.diskUsed
+                        next.netIn[lastIndex] = point.netIn
+                        next.netOut[lastIndex] = point.netOut
+                        continue
+                    }
+                    if (lastIndex >= 0 && ts < next.t[lastIndex]) {
+                        continue
+                    }
+                    next.t.push(ts)
+                    next.cpu.push(point.cpu)
+                    next.mem.push(point.mem)
+                    next.memUsed.push(point.memUsed)
+                    next.disk.push(point.disk)
+                    next.diskUsed.push(point.diskUsed)
+                    next.netIn.push(point.netIn)
+                    next.netOut.push(point.netOut)
+                }
+                // Keep roughly maxPoints on the client after long-running sessions.
+                const maxPoints = this.metricMaxPoints || 720
+                if (next.t.length > maxPoints + 60) {
+                    const start = next.t.length - maxPoints
+                    next.t = next.t.slice(start)
+                    next.cpu = next.cpu.slice(start)
+                    next.mem = next.mem.slice(start)
+                    next.memUsed = next.memUsed.slice(start)
+                    next.disk = next.disk.slice(start)
+                    next.diskUsed = next.diskUsed.slice(start)
+                    next.netIn = next.netIn.slice(start)
+                    next.netOut = next.netOut.slice(start)
+                }
+                next.count = next.t.length
+                next.from = next.count ? next.t[0] : 0
+                next.to = next.count ? next.t[next.count - 1] : 0
+                this.metricSeries = next
             },
             liveMetric(type) {
                 if (!this.hasReport) {
@@ -391,21 +525,22 @@
                 return { width: percent + '%' }
             },
             chartValues(type) {
-                return this.metrics.map(point => {
-                    if (type === 'cpu') {
-                        return Number(point.CPUAvg) || 0
-                    }
-                    if (type === 'mem') {
-                        return this.percent(point.MemUsedAvg, point.MemTotal)
-                    }
-                    if (type === 'disk') {
-                        return this.percent(point.DiskUsedAvg, point.DiskTotal)
-                    }
-                    if (type === 'net_out') {
-                        return Number(point.NetOutSpeedAvg) || 0
-                    }
-                    return Number(point.NetInSpeedAvg) || 0
-                })
+                if (!this.hasMetrics) {
+                    return []
+                }
+                if (type === 'cpu') {
+                    return this.metricSeries.cpu
+                }
+                if (type === 'mem') {
+                    return this.metricSeries.mem
+                }
+                if (type === 'disk') {
+                    return this.metricSeries.disk
+                }
+                if (type === 'net_out') {
+                    return this.metricSeries.netOut
+                }
+                return this.metricSeries.netIn
             },
             chartCurrent(type) {
                 const values = this.chartValues(type)
@@ -486,16 +621,12 @@
                 this.chartInstances[definition.key] = new window.uPlot(this.chartOptions(definition, size), data, el)
             },
             chartData(definition) {
-                const rows = this.metrics.map(point => {
-                    const time = new Date(point.BucketAt).getTime()
-                    return {
-                        point: point,
-                        timestamp: Number.isFinite(time) ? Math.floor(time / 1000) : 0,
-                    }
-                }).filter(row => row.timestamp > 0)
+                if (!this.hasMetrics) {
+                    return [[]]
+                }
                 return [
-                    rows.map(row => row.timestamp),
-                    ...definition.series.map(series => rows.map(row => this.metricValue(row.point, series.type))),
+                    this.metricSeries.t,
+                    ...definition.series.map(series => this.chartValues(series.type)),
                 ]
             },
             chartOptions(definition, size) {
@@ -637,7 +768,7 @@
             },
             updateChartTooltip(definition, chart) {
                 const index = chart && chart.cursor ? chart.cursor.idx : null
-                const point = Number.isInteger(index) ? this.metrics[index] : null
+                const point = Number.isInteger(index) ? this.metricPointAt(index) : null
                 if (!point) {
                     this.hideChartTooltip(chart)
                     return
@@ -664,7 +795,7 @@
                         '<strong>' + this.formatChartTooltipSeriesValue(point, series.type, definition.percent) + '</strong>' +
                         '</div>'
                 }).join('')
-                return '<div class="nk-chart-tooltip-time">' + this.formatChartTooltipTime(point.BucketAt) + '</div>' + rows
+                return '<div class="nk-chart-tooltip-time">' + this.formatChartTooltipTime(point.t * 1000) + '</div>' + rows
             },
             positionChartTooltip(chart, tooltip) {
                 const cursorLeft = Number(chart.cursor.left)
@@ -690,21 +821,40 @@
                 tooltip.style.left = Math.max(edge, Math.min(left, Math.max(edge, overWidth - width - edge))) + 'px'
                 tooltip.style.top = Math.max(edge, Math.min(top, Math.max(edge, overHeight - height - edge))) + 'px'
             },
+            metricPointAt(index) {
+                if (!this.hasMetrics || !Number.isInteger(index) || index < 0 || index >= this.metricSeries.count) {
+                    return null
+                }
+                return {
+                    t: this.metricSeries.t[index],
+                    cpu: this.metricSeries.cpu[index],
+                    mem: this.metricSeries.mem[index],
+                    memUsed: this.metricSeries.memUsed[index],
+                    disk: this.metricSeries.disk[index],
+                    diskUsed: this.metricSeries.diskUsed[index],
+                    netIn: this.metricSeries.netIn[index],
+                    netOut: this.metricSeries.netOut[index],
+                }
+            },
             metricValue(point, type) {
+                if (!point) {
+                    return 0
+                }
                 if (type === 'cpu') {
-                    return Number(point.CPUAvg) || 0
+                    return Number(point.cpu) || 0
                 }
                 if (type === 'mem') {
-                    return this.percent(point.MemUsedAvg, point.MemTotal)
+                    return Number(point.mem) || 0
                 }
                 if (type === 'disk') {
-                    return this.percent(point.DiskUsedAvg, point.DiskTotal)
+                    return Number(point.disk) || 0
                 }
                 if (type === 'net_out') {
-                    return Number(point.NetOutSpeedAvg) || 0
+                    return Number(point.netOut) || 0
                 }
-                return Number(point.NetInSpeedAvg) || 0
+                return Number(point.netIn) || 0
             },
+
             cssVar(name) {
                 return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
             },
@@ -769,10 +919,10 @@
             formatChartTooltipSeriesValue(point, type, percent) {
                 const value = this.metricValue(point, type)
                 if (type === 'mem') {
-                    return Math.round(value) + '% · ' + this.formatByteSize(point.MemUsedAvg)
+                    return Math.round(value) + '% · ' + this.formatByteSize(point.memUsed)
                 }
                 if (type === 'disk') {
-                    return Math.round(value) + '% · ' + this.formatByteSize(point.DiskUsedAvg)
+                    return Math.round(value) + '% · ' + this.formatByteSize(point.diskUsed)
                 }
                 return this.formatChartSeriesValue(value, percent)
             },

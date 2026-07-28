@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"compress/gzip"
 	"fmt"
 	"html/template"
+	"io"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ func ServeWeb() *gin.Engine {
 	}
 	r := gin.Default()
 	r.Use(mygin.RecordPath)
+	r.Use(gzipJSON())
 	r.SetFuncMap(template.FuncMap{
 		"tf": func(t time.Time) string {
 			return t.Format("2006年 1月2日 15:04:05")
@@ -137,5 +140,57 @@ func routers(r *gin.Engine) {
 	{
 		ma := &memberAPI{api}
 		ma.serve()
+	}
+}
+
+// gzipJSON compresses JSON API responses when the client accepts gzip.
+func gzipJSON() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
+			c.Next()
+			return
+		}
+		// Only wrap once we know the response is JSON-ish; decide after handlers via writer proxy
+		// that activates on first Write when content-type is json.
+		writer := &lazyGzipWriter{ResponseWriter: c.Writer, gz: gzip.NewWriter(io.Discard)}
+		c.Writer = writer
+		defer writer.Close()
+		c.Next()
+	}
+}
+
+type lazyGzipWriter struct {
+	gin.ResponseWriter
+	gz       *gzip.Writer
+	enabled  bool
+	disabled bool
+}
+
+func (w *lazyGzipWriter) Write(data []byte) (int, error) {
+	if !w.enabled && !w.disabled {
+		contentType := w.Header().Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			w.enabled = true
+			w.Header().Set("Content-Encoding", "gzip")
+			w.Header().Add("Vary", "Accept-Encoding")
+			w.Header().Del("Content-Length")
+			w.gz.Reset(w.ResponseWriter)
+		} else {
+			w.disabled = true
+		}
+	}
+	if w.enabled {
+		return w.gz.Write(data)
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+func (w *lazyGzipWriter) WriteString(s string) (int, error) {
+	return w.Write([]byte(s))
+}
+
+func (w *lazyGzipWriter) Close() {
+	if w.enabled {
+		_ = w.gz.Close()
 	}
 }

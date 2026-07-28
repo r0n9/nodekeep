@@ -201,12 +201,11 @@ func (cp *commonPage) node(c *gin.Context) {
 	if rangeKey == "" {
 		rangeKey = c.Query("days")
 	}
-	metricRange, metricSince := nodeMetricRange(rangeKey, time.Now())
-	metrics := dao.ServerMetricSnapshot(id, metricSince)
+	metricRange, _ := nodeMetricRange(rangeKey, time.Now())
+	// Keep the HTML payload lean; charts load compact series over /metrics.
 	c.HTML(http.StatusOK, "theme-default/node", mygin.CommonEnvironment(c, gin.H{
 		"Title":       server.Name,
 		"Server":      server,
-		"Metrics":     metrics,
 		"MetricRange": metricRange,
 		"UseUPlot":    true,
 		"CustomCode":  dao.Conf.Site.CustomCode,
@@ -233,8 +232,10 @@ func (cp *commonPage) nodeMetrics(c *gin.Context) {
 	if rangeKey == "" {
 		rangeKey = c.Query("days")
 	}
-	_, since := nodeMetricRange(rangeKey, time.Now())
-	c.JSON(http.StatusOK, dao.ServerMetricSnapshot(id, since))
+	metricRange, since := nodeMetricRange(rangeKey, time.Now())
+	afterUnix, _ := strconv.ParseInt(strings.TrimSpace(c.Query("after")), 10, 64)
+	maxPoints, _ := strconv.Atoi(strings.TrimSpace(c.Query("max")))
+	c.JSON(http.StatusOK, dao.ServerMetricSeriesSnapshot(id, metricRange, since, afterUnix, maxPoints))
 }
 
 func nodeMetricRange(rangeKey string, now time.Time) (string, time.Time) {

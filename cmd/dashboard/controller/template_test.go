@@ -91,6 +91,20 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("create old server metric: %v", err)
 	}
+	if err := db.Create(&model.ServerMetric{
+		ServerID:       1,
+		BucketAt:       time.Now().Truncate(time.Minute),
+		SampleCount:    1,
+		CPUAvg:         12,
+		MemUsedAvg:     256,
+		MemTotal:       1024,
+		DiskUsedAvg:    512,
+		DiskTotal:      2048,
+		NetInSpeedAvg:  300,
+		NetOutSpeedAvg: 400,
+	}).Error; err != nil {
+		t.Fatalf("create today server metric: %v", err)
+	}
 
 	r := ServeWeb()
 
@@ -109,6 +123,8 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 		"近 3 天",
 		"近 7 天",
 		"const initMetricRange = 'today';",
+		"emptyMetricSeries",
+		"metricSeries",
 		"/static/vendor/uplot/uPlot.min.css",
 		"/static/vendor/uplot/uPlot.iife.min.js",
 		"new window.uPlot",
@@ -125,11 +141,18 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("node metrics status = %d, want 200", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), `"CPUAvg":12`) {
-		t.Fatalf("node metrics body missing CPUAvg: %s", w.Body.String())
+	body = w.Body.String()
+	if !strings.Contains(body, `"range":"today"`) {
+		t.Fatalf("node metrics body missing today range: %s", body)
 	}
-	if strings.Contains(w.Body.String(), `"CPUAvg":99`) {
-		t.Fatalf("default node metrics should only include today: %s", w.Body.String())
+	if !strings.Contains(body, `"cpu":[12]`) && !strings.Contains(body, `"cpu":[12.`) {
+		t.Fatalf("node metrics body missing cpu series: %s", body)
+	}
+	if strings.Contains(body, `"cpu":[99]`) || strings.Contains(body, `"cpu":[99.`) {
+		t.Fatalf("default node metrics should only include today: %s", body)
+	}
+	if strings.Contains(body, `"CPUAvg"`) {
+		t.Fatalf("node metrics should use compact series payload: %s", body)
 	}
 
 	w = httptest.NewRecorder()
@@ -138,8 +161,12 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("node metrics 3d status = %d, want 200", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), `"CPUAvg":99`) {
-		t.Fatalf("node metrics 3d body missing older CPUAvg: %s", w.Body.String())
+	body = w.Body.String()
+	if !strings.Contains(body, `"range":"3d"`) {
+		t.Fatalf("node metrics 3d body missing range: %s", body)
+	}
+	if !strings.Contains(body, "99") {
+		t.Fatalf("node metrics 3d body missing older cpu: %s", body)
 	}
 }
 

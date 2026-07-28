@@ -383,12 +383,148 @@ func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Hos
 }
 
 func ServerMetricSnapshot(serverID uint64, since time.Time) []model.ServerMetric {
+	return serverMetricSnapshot(serverID, since, 0)
+}
+
+// ServerMetricSeriesSnapshot returns a compact downsampled series for charts.
+// afterUnix > 0 returns buckets at/after that unix second so the open step can refresh.
+// maxPoints caps series length by increasing step when needed (default 720).
+func ServerMetricSeriesSnapshot(serverID uint64, rangeKey string, since time.Time, afterUnix int64, maxPoints int) model.ServerMetricSeries {
+	stepSec := serverMetricStepSec(rangeKey)
+	if maxPoints <= 0 {
+		maxPoints = 720
+	}
+	if maxPoints < 60 {
+		maxPoints = 60
+	}
+	if maxPoints > 2000 {
+		maxPoints = 2000
+	}
+
+	windowSec := serverMetricWindowSec(rangeKey)
+	if windowSec < stepSec {
+		windowSec = stepSec
+	}
+	dynamicStep := windowSec / int64(maxPoints)
+	if dynamicStep > stepSec {
+		stepSec = ((dynamicStep + 59) / 60) * 60
+	}
+	if stepSec < 60 {
+		stepSec = 60
+	}
+
+	// For incremental polls, read raw minutes after cursor then downsample so the
+	// latest partial step bucket can still update.
+	queryAfter := int64(0)
+	if afterUnix > 0 {
+		queryAfter = afterUnix - stepSec
+		if queryAfter < 0 {
+			queryAfter = 0
+		}
+	}
+	metrics := serverMetricSnapshot(serverID, since, queryAfter)
+	series := downsampleServerMetrics(metrics, stepSec)
+	series.Range = normalizeMetricRangeKey(rangeKey)
+	series.StepSec = stepSec
+
+	if afterUnix > 0 {
+		filtered := emptyMetricSeries(series.Range, stepSec, len(series.T))
+		for i, ts := range series.T {
+			// Keep the open bucket (ts == afterUnix) so the latest step can refresh.
+			if ts < afterUnix {
+				continue
+			}
+			filtered.T = append(filtered.T, ts)
+			filtered.CPU = append(filtered.CPU, series.CPU[i])
+			filtered.Mem = append(filtered.Mem, series.Mem[i])
+			filtered.MemUsed = append(filtered.MemUsed, series.MemUsed[i])
+			filtered.Disk = append(filtered.Disk, series.Disk[i])
+			filtered.DiskUsed = append(filtered.DiskUsed, series.DiskUsed[i])
+			filtered.NetIn = append(filtered.NetIn, series.NetIn[i])
+			filtered.NetOut = append(filtered.NetOut, series.NetOut[i])
+		}
+		series = filtered
+	}
+
+	series.Count = len(series.T)
+	if series.Count > 0 {
+		series.From = series.T[0]
+		series.To = series.T[series.Count-1]
+	}
+	return series
+}
+
+func normalizeMetricRangeKey(rangeKey string) string {
+	switch strings.ToLower(strings.TrimSpace(rangeKey)) {
+	case "3", "3d", "3day", "3days":
+		return "3d"
+	case "7", "7d", "7day", "7days":
+		return "7d"
+	default:
+		return "today"
+	}
+}
+
+func serverMetricStepSec(rangeKey string) int64 {
+	switch normalizeMetricRangeKey(rangeKey) {
+	case "3d":
+		return 5 * 60
+	case "7d":
+		return 15 * 60
+	default:
+		return 60
+	}
+}
+
+func serverMetricWindowSec(rangeKey string) int64 {
+	switch normalizeMetricRangeKey(rangeKey) {
+	case "3d":
+		return 3 * 24 * 60 * 60
+	case "7d":
+		return 7 * 24 * 60 * 60
+	default:
+		return 24 * 60 * 60
+	}
+}
+
+func emptyMetricSeries(rangeKey string, stepSec int64, capacity int) model.ServerMetricSeries {
+	if capacity < 0 {
+		capacity = 0
+	}
+	return model.ServerMetricSeries{
+		Range:    rangeKey,
+		StepSec:  stepSec,
+		T:        make([]int64, 0, capacity),
+		CPU:      make([]float64, 0, capacity),
+		Mem:      make([]float64, 0, capacity),
+		MemUsed:  make([]uint64, 0, capacity),
+		Disk:     make([]float64, 0, capacity),
+		DiskUsed: make([]uint64, 0, capacity),
+		NetIn:    make([]float64, 0, capacity),
+		NetOut:   make([]float64, 0, capacity),
+	}
+}
+
+func serverMetricSnapshot(serverID uint64, since time.Time, afterUnix int64) []model.ServerMetric {
 	byBucket := make(map[int64]model.ServerMetric)
 	if DB != nil {
 		var metrics []model.ServerMetric
-		DB.Where("server_id = ? AND bucket_at >= ?", serverID, since).
-			Order("bucket_at ASC").
-			Find(&metrics)
+		query := DB.Select(
+			"bucket_at",
+			"sample_count",
+			"cpu_avg",
+			"cpu_max",
+			"mem_used_avg",
+			"mem_total",
+			"disk_used_avg",
+			"disk_total",
+			"net_in_speed_avg",
+			"net_out_speed_avg",
+		).Where("server_id = ? AND bucket_at >= ?", serverID, since)
+		if afterUnix > 0 {
+			query = query.Where("bucket_at > ?", time.Unix(afterUnix, 0))
+		}
+		query.Order("bucket_at ASC").Find(&metrics)
 		for _, metric := range metrics {
 			byBucket[metric.BucketAt.Unix()] = metric
 		}
@@ -397,7 +533,8 @@ func ServerMetricSnapshot(serverID uint64, since time.Time) []model.ServerMetric
 	serverMetricLock.Lock()
 	if bucket := serverMetricBuckets[serverID]; bucket != nil &&
 		!bucket.metric.BucketAt.Before(since) &&
-		bucket.metric.SampleCount > 0 {
+		bucket.metric.SampleCount > 0 &&
+		(afterUnix <= 0 || bucket.metric.BucketAt.Unix() > afterUnix) {
 		byBucket[bucket.metric.BucketAt.Unix()] = bucket.metric
 	}
 	serverMetricLock.Unlock()
@@ -414,6 +551,99 @@ func ServerMetricSnapshot(serverID uint64, since time.Time) []model.ServerMetric
 		metrics = append(metrics, byBucket[key])
 	}
 	return metrics
+}
+
+func downsampleServerMetrics(metrics []model.ServerMetric, stepSec int64) model.ServerMetricSeries {
+	series := emptyMetricSeries("", stepSec, len(metrics))
+	if len(metrics) == 0 {
+		return series
+	}
+	if stepSec <= 60 {
+		for _, metric := range metrics {
+			appendMetricPoint(&series, metric.BucketAt.Unix(), metric)
+		}
+		return series
+	}
+
+	type agg struct {
+		bucket    int64
+		count     float64
+		cpu       float64
+		memUsed   float64
+		memTotal  uint64
+		diskUsed  float64
+		diskTotal uint64
+		netIn     float64
+		netOut    float64
+	}
+	var current *agg
+	flush := func() {
+		if current == nil || current.count == 0 {
+			return
+		}
+		point := model.ServerMetric{
+			CPUAvg:         current.cpu / current.count,
+			MemUsedAvg:     uint64(current.memUsed/current.count + 0.5),
+			MemTotal:       current.memTotal,
+			DiskUsedAvg:    uint64(current.diskUsed/current.count + 0.5),
+			DiskTotal:      current.diskTotal,
+			NetInSpeedAvg:  uint64(current.netIn/current.count + 0.5),
+			NetOutSpeedAvg: uint64(current.netOut/current.count + 0.5),
+		}
+		appendMetricPoint(&series, current.bucket, point)
+		current = nil
+	}
+	for _, metric := range metrics {
+		ts := metric.BucketAt.Unix()
+		bucket := ts - (ts % stepSec)
+		if current == nil || current.bucket != bucket {
+			flush()
+			current = &agg{bucket: bucket}
+		}
+		weight := float64(metric.SampleCount)
+		if weight <= 0 {
+			weight = 1
+		}
+		current.count += weight
+		current.cpu += metric.CPUAvg * weight
+		current.memUsed += float64(metric.MemUsedAvg) * weight
+		if metric.MemTotal > 0 {
+			current.memTotal = metric.MemTotal
+		}
+		current.diskUsed += float64(metric.DiskUsedAvg) * weight
+		if metric.DiskTotal > 0 {
+			current.diskTotal = metric.DiskTotal
+		}
+		current.netIn += float64(metric.NetInSpeedAvg) * weight
+		current.netOut += float64(metric.NetOutSpeedAvg) * weight
+	}
+	flush()
+	return series
+}
+
+func appendMetricPoint(series *model.ServerMetricSeries, ts int64, metric model.ServerMetric) {
+	series.T = append(series.T, ts)
+	series.CPU = append(series.CPU, metric.CPUAvg)
+	series.Mem = append(series.Mem, usagePercent(metric.MemUsedAvg, metric.MemTotal))
+	series.MemUsed = append(series.MemUsed, metric.MemUsedAvg)
+	series.Disk = append(series.Disk, usagePercent(metric.DiskUsedAvg, metric.DiskTotal))
+	series.DiskUsed = append(series.DiskUsed, metric.DiskUsedAvg)
+	series.NetIn = append(series.NetIn, float64(metric.NetInSpeedAvg))
+	series.NetOut = append(series.NetOut, float64(metric.NetOutSpeedAvg))
+}
+
+func usagePercent(used, total uint64) float64 {
+	if total == 0 {
+		return 0
+	}
+	percent := float64(used) / float64(total) * 100
+	if percent < 0 {
+		return 0
+	}
+	if percent > 100 {
+		return 100
+	}
+	return percent
 }
 
 func newServerMetricBucket(serverID uint64, bucketAt time.Time) *serverMetricBucket {
