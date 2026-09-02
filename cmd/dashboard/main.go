@@ -50,7 +50,8 @@ func init() {
 func initSystem() {
 	dao.DB.AutoMigrate(model.Server{}, model.User{},
 		model.Notification{}, model.AlertRule{}, model.Monitor{},
-		model.MonitorHistory{}, model.Cron{}, model.ServerMetric{})
+		model.MonitorHistory{}, model.Cron{}, model.ServerMetric{},
+		model.ServerBilling{}, model.ServerPayment{})
 
 	loadServers() //加载服务器列表
 	loadCrons()   //加载计划任务

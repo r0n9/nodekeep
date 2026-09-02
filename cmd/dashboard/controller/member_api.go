@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
+	"gorm.io/gorm"
 
 	"github.com/r0n9/nodekeep/model"
 	"github.com/r0n9/nodekeep/pkg/mygin"
@@ -58,6 +60,9 @@ func (ma *memberAPI) delete(c *gin.Context) {
 	switch c.Param("model") {
 	case "server":
 		err = dao.DB.Delete(&model.Server{}, "id = ?", id).Error
+		if err == nil {
+			err = dao.DeleteServerBillingData(id)
+		}
 		if err == nil {
 			dao.DeleteServerRuntime(id)
 		}
@@ -138,14 +143,143 @@ type serverForm struct {
 	Secret       string
 	Tag          string
 	Note         string
+
+	// 计费信息
+	Provider      string
+	ProductPlan   string
+	PanelURL      string
+	OrderNo       string
+	Currency      string
+	Amount        string // 十进制金额，如 12.50；服务端转成最小单位存储
+	Cycle         string
+	CycleCount    int
+	AutoRenew     string // checkbox，选中时为 "on"
+	StartDate     string // YYYY-MM-DD
+	NextDueDate   string
+	EndDate       string
+	Status        uint8
+	RemindDaysRaw string
+	Muted         string
+	HideBilling   string
+
+	// 套餐规格
+	Bandwidth    string
+	TrafficVol   string
+	TrafficType  uint8
+	TrafficReset int
+	IPv4Count    int
+	IPv6Count    int
+	NetworkRoute string
+	Location     string
+	CPUSpec      string
+	MemSpec      string
+	DiskSpec     string
+}
+
+// hasBillingData 判断计费表单是否被填写过。整体留空表示这台机器没有计费信息，
+// 保存时会清掉已有的订阅记录（付费流水属于历史，不删）。
+func (sf *serverForm) hasBillingData() bool {
+	texts := []string{
+		sf.Provider, sf.ProductPlan, sf.PanelURL, sf.OrderNo,
+		sf.Amount, sf.Cycle, sf.StartDate, sf.NextDueDate, sf.EndDate,
+		sf.RemindDaysRaw, sf.Bandwidth, sf.TrafficVol, sf.NetworkRoute,
+		sf.Location, sf.CPUSpec, sf.MemSpec, sf.DiskSpec,
+	}
+	for _, text := range texts {
+		if strings.TrimSpace(text) != "" {
+			return true
+		}
+	}
+	if sf.TrafficType != 0 || sf.TrafficReset != 0 || sf.IPv4Count != 0 || sf.IPv6Count != 0 {
+		return true
+	}
+	return sf.AutoRenew == "on" || sf.Muted == "on" || sf.HideBilling == "on"
+}
+
+var validBillingCycles = map[string]bool{
+	"":                             true,
+	model.BillingCycleMonthly:      true,
+	model.BillingCycleQuarterly:    true,
+	model.BillingCycleSemiannually: true,
+	model.BillingCycleAnnually:     true,
+	model.BillingCycleBiennially:   true,
+	model.BillingCycleTriennially:  true,
+	model.BillingCycleOnetime:      true,
+}
+
+// buildServerBilling 校验并组装订阅信息。所有校验都在写库之前完成，
+// 这样事务里只剩下真正的写操作。
+func (sf *serverForm) buildServerBilling() (*model.ServerBilling, error) {
+	if !validBillingCycles[sf.Cycle] {
+		return nil, fmt.Errorf("未知的计费周期：%s", sf.Cycle)
+	}
+	amount, err := model.ParseAmount(sf.Amount)
+	if err != nil {
+		return nil, err
+	}
+	startDate, err := model.ParseBillingDate(sf.StartDate)
+	if err != nil {
+		return nil, err
+	}
+	nextDueDate, err := model.ParseBillingDate(sf.NextDueDate)
+	if err != nil {
+		return nil, err
+	}
+	endDate, err := model.ParseBillingDate(sf.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	status := sf.Status
+	if status != model.BillingStatusCancelled {
+		status = model.BillingStatusActive
+	}
+	cycleCount := sf.CycleCount
+	if cycleCount < 1 {
+		cycleCount = 1
+	}
+	return &model.ServerBilling{
+		Provider:      strings.TrimSpace(sf.Provider),
+		ProductPlan:   strings.TrimSpace(sf.ProductPlan),
+		PanelURL:      strings.TrimSpace(sf.PanelURL),
+		OrderNo:       strings.TrimSpace(sf.OrderNo),
+		Currency:      strings.ToUpper(strings.TrimSpace(sf.Currency)),
+		AmountCents:   amount,
+		Cycle:         sf.Cycle,
+		CycleCount:    cycleCount,
+		AutoRenew:     sf.AutoRenew == "on",
+		StartDate:     startDate,
+		NextDueDate:   nextDueDate,
+		EndDate:       endDate,
+		Status:        status,
+		RemindDaysRaw: strings.TrimSpace(sf.RemindDaysRaw),
+		Muted:         sf.Muted == "on",
+		HideBilling:   sf.HideBilling == "on",
+		Extra: model.BillingExtra{
+			Bandwidth:    strings.TrimSpace(sf.Bandwidth),
+			TrafficVol:   strings.TrimSpace(sf.TrafficVol),
+			TrafficType:  sf.TrafficType,
+			TrafficReset: sf.TrafficReset,
+			IPv4Count:    sf.IPv4Count,
+			IPv6Count:    sf.IPv6Count,
+			NetworkRoute: strings.TrimSpace(sf.NetworkRoute),
+			Location:     strings.TrimSpace(sf.Location),
+			CPUSpec:      strings.TrimSpace(sf.CPUSpec),
+			MemSpec:      strings.TrimSpace(sf.MemSpec),
+			DiskSpec:     strings.TrimSpace(sf.DiskSpec),
+		},
+	}, nil
 }
 
 func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 	admin := c.MustGet(model.CtxKeyAuthorizedUser).(*model.User)
 	var sf serverForm
 	var s model.Server
+	var billing *model.ServerBilling
 	var isEdit bool
 	err := c.ShouldBindJSON(&sf)
+	if err == nil && sf.hasBillingData() {
+		billing, err = sf.buildServerBilling()
+	}
 	if err == nil {
 		s.Name = sf.Name
 		s.Secret = sf.Secret
@@ -156,11 +290,26 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 		if sf.ID == 0 {
 			s.Secret = utils.MD5(fmt.Sprintf("%s%s%d", time.Now(), sf.Name, admin.ID))
 			s.Secret = s.Secret[:18]
-			err = dao.DB.Create(&s).Error
 		} else {
 			isEdit = true
-			err = dao.DB.Save(&s).Error
 		}
+		// 服务器和计费信息一起成败，避免出现只写了一半的记录。
+		err = dao.DB.Transaction(func(tx *gorm.DB) error {
+			var txErr error
+			if isEdit {
+				txErr = tx.Save(&s).Error
+			} else {
+				txErr = tx.Create(&s).Error
+			}
+			if txErr != nil {
+				return txErr
+			}
+			if billing == nil {
+				return dao.DeleteServerBillingWith(tx, s.ID)
+			}
+			billing.ServerID = s.ID
+			return dao.SaveServerBillingWith(tx, billing)
+		})
 	}
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
@@ -169,11 +318,7 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 		})
 		return
 	}
-	if isEdit {
-		dao.UpsertServerRuntime(s, true)
-	} else {
-		dao.UpsertServerRuntime(s, false)
-	}
+	dao.UpsertServerRuntime(s, isEdit)
 	c.JSON(http.StatusOK, model.Response{
 		Code: http.StatusOK,
 	})

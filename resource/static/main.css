@@ -1832,6 +1832,23 @@ html[data-theme="dark"] .nk-theme-icon-light {
   color: var(--nk-subtle);
 }
 
+/* 已过期比 7 天内到期更严重，用更深的红把两者区分开 */
+.ui.label.nk-due-expired {
+  background-color: #9f2020 !important;
+  border-color: #9f2020 !important;
+  color: #fff !important;
+}
+
+.nk-form-hint {
+  margin-top: 0.75rem;
+  color: var(--nk-subtle);
+  font-size: 0.85em;
+}
+
+.ui.modal .nk-server-tabs {
+  margin-bottom: 0;
+}
+
 .ui.table.nk-table td:last-child {
   width: 1%;
   white-space: nowrap;

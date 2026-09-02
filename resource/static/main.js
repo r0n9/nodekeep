@@ -59,6 +59,15 @@ function showConfirm(title, content, callFn, extData) {
     }).modal('show')
 }
 
+const numericFormFields = [
+    'ID', 'RequestType', 'RequestMethod', 'DisplayIndex', 'Type',
+    'CycleCount', 'Status', 'TrafficType', 'TrafficReset', 'IPv4Count', 'IPv6Count'
+]
+
+function isNumericFormField(name) {
+    return name === 'id' || name.endsWith('_id') || numericFormFields.indexOf(name) !== -1
+}
+
 function showFormModal(modelSelector, formID, URL, getData) {
     $(modelSelector).modal({
         closable: true,
@@ -73,10 +82,7 @@ function showFormModal(modelSelector, formID, URL, getData) {
             btn.toggleClass('loading')
             const data = getData ? getData() : $(formID).serializeArray().reduce(function (obj, item) {
                 // ID 类的数据
-                if ((item.name.endsWith('_id') ||
-                    item.name === 'id' || item.name === 'ID' ||
-                    item.name === 'RequestType' || item.name === 'RequestMethod' ||
-                    item.name === 'DisplayIndex' || item.name === 'Type')) {
+                if (isNumericFormField(item.name)) {
                     obj[item.name] = parseInt(item.value);
                 } else {
                     obj[item.name] = item.value;
@@ -148,7 +154,48 @@ function addOrEditNotification(notification) {
     showFormModal('.notification.modal', '#notificationForm', '/api/notification')
 }
 
-function addOrEditServer(server) {
+// 服务器弹窗的分栏切换。只切 active 类，Semantic 的 .ui.tab 靠它控制显隐，
+// 不引入 tab 模块，避免弹窗反复开关时的初始化问题。
+function bindServerTabs(modal) {
+    const items = modal.find('.nk-server-tabs .item')
+    items.off('click.nkServerTab').on('click.nkServerTab', function () {
+        const tab = $(this).data('tab')
+        items.removeClass('active')
+        $(this).addClass('active')
+        modal.find('.tab.segment').removeClass('active')
+            .filter('[data-tab="' + tab + '"]').addClass('active')
+    })
+}
+
+function resetServerTabs(modal) {
+    modal.find('.nk-server-tabs .item').removeClass('active').first().addClass('active')
+    modal.find('.tab.segment').removeClass('active').first().addClass('active')
+}
+
+// 按 name 回填计费和套餐两栏。字段名与后端 serverForm 一一对应，
+// 以后加字段只要改模板和结构体，这里不用动。
+function fillServerBillingForm(modal, billing) {
+    const data = billing || {}
+    modal.find('[data-tab="server-billing"], [data-tab="server-plan"]')
+        .find('input, select, textarea').each(function () {
+            const el = $(this)
+            const name = el.attr('name')
+            if (!name) {
+                return
+            }
+            if (el.attr('type') === 'checkbox') {
+                el.closest('.ui.checkbox').checkbox(data[name] ? 'set checked' : 'set unchecked')
+                return
+            }
+            const value = data[name]
+            el.val(value === undefined || value === null ? '' : value)
+        })
+    if (!data.Status) {
+        modal.find('select[name=Status]').val('1')
+    }
+}
+
+function addOrEditServer(server, billing) {
     const modal = $('.server.modal')
     modal.children('.header').text((server ? '修改' : '添加') + '服务器')
     modal.find('.positive.button').html(server ? '修改<i class="edit icon"></i>' : '添加<i class="add icon"></i>')
@@ -164,6 +211,9 @@ function addOrEditServer(server) {
         modal.find('.secret.field').attr('style', 'display:none')
         modal.find('input[name=secret]').val('')
     }
+    fillServerBillingForm(modal, billing)
+    bindServerTabs(modal)
+    resetServerTabs(modal)
     showFormModal('.server.modal', '#serverForm', '/api/server')
 }
 

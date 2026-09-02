@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/r0n9/nodekeep/model"
@@ -31,9 +32,12 @@ func (mp *memberPage) serve() {
 
 func (mp *memberPage) server(c *gin.Context) {
 	servers := dao.SortedServerSnapshot()
+	// 一次取回全部计费信息再按 ID 关联，避免模板 range 里逐台查库。
+	views := billingViewsForServers(servers, dao.ServerBillingMap(), time.Now())
 	c.HTML(http.StatusOK, "dashboard/server", mygin.CommonEnvironment(c, gin.H{
-		"Title":   "服务器管理",
-		"Servers": servers,
+		"Title":        "服务器管理",
+		"Servers":      servers,
+		"BillingViews": views,
 	}))
 }
 

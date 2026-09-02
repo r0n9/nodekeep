@@ -1,28 +1,204 @@
 {{define "component/server"}}
-<div class="ui tiny server modal transition hidden">
+<div class="ui small server modal transition hidden">
     <div class="header">添加服务器</div>
-    <div class="content">
+    <div class="scrolling content">
         <form id="serverForm" class="ui form">
             <input type="hidden" name="id">
-            <div class="field">
-                <label>名称</label>
-                <input type="text" name="name" placeholder="上海-联通">
+            <div class="ui top attached tabular menu nk-server-tabs">
+                <a class="item active" data-tab="server-basic">基本信息</a>
+                <a class="item" data-tab="server-billing">计费信息</a>
+                <a class="item" data-tab="server-plan">套餐规格</a>
             </div>
-            <div class="field">
-                <label>分组</label>
-                <input type="text" name="Tag" placeholder="华东数据中心">
+
+            <div class="ui bottom attached tab segment active" data-tab="server-basic">
+                <div class="field">
+                    <label>名称</label>
+                    <input type="text" name="name" placeholder="上海-联通">
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <label>分组</label>
+                        <input type="text" name="Tag" placeholder="华东数据中心">
+                    </div>
+                    <div class="field">
+                        <label>排序</label>
+                        <input type="number" name="DisplayIndex" placeholder="数值越大越靠前">
+                    </div>
+                </div>
+                <div class="secret field">
+                    <label>密钥</label>
+                    <input type="text" name="secret">
+                </div>
+                <div class="field">
+                    <label>备注</label>
+                    <textarea name="Note" rows="2"></textarea>
+                </div>
             </div>
-            <div class="field">
-                <label>排序</label>
-                <input type="number" name="DisplayIndex" placeholder="数值越大越靠前">
+
+            <div class="ui bottom attached tab segment" data-tab="server-billing">
+                <div class="two fields">
+                    <div class="field">
+                        <label>服务商</label>
+                        <input type="text" name="Provider" placeholder="BandwagonHost">
+                    </div>
+                    <div class="field">
+                        <label>套餐名</label>
+                        <input type="text" name="ProductPlan" placeholder="THE DUCK PLAN">
+                    </div>
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <label>管理面板</label>
+                        <input type="text" name="PanelURL" placeholder="https://bwh81.net/clientarea.php">
+                    </div>
+                    <div class="field">
+                        <label>订单编号</label>
+                        <input type="text" name="OrderNo" placeholder="对账用，可留空">
+                    </div>
+                </div>
+                <div class="three fields">
+                    <div class="field">
+                        <label>货币</label>
+                        <select name="Currency" class="ui dropdown">
+                            <option value="">未设置</option>
+                            <option value="CNY">CNY 人民币</option>
+                            <option value="USD">USD 美元</option>
+                            <option value="EUR">EUR 欧元</option>
+                            <option value="GBP">GBP 英镑</option>
+                            <option value="HKD">HKD 港币</option>
+                            <option value="JPY">JPY 日元</option>
+                            <option value="SGD">SGD 新加坡元</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>金额</label>
+                        <input type="text" name="Amount" placeholder="49.99">
+                    </div>
+                    <div class="field">
+                        <label>计费周期</label>
+                        <select name="Cycle" class="ui dropdown">
+                            <option value="">未设置</option>
+                            <option value="monthly">月付</option>
+                            <option value="quarterly">季付</option>
+                            <option value="semiannually">半年付</option>
+                            <option value="annually">年付</option>
+                            <option value="biennially">两年付</option>
+                            <option value="triennially">三年付</option>
+                            <option value="onetime">一次性</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="three fields">
+                    <div class="field">
+                        <label>开通日</label>
+                        <input type="date" name="StartDate">
+                    </div>
+                    <div class="field">
+                        <label>下次到期日</label>
+                        <input type="date" name="NextDueDate">
+                    </div>
+                    <div class="field">
+                        <label>终止日</label>
+                        <input type="date" name="EndDate">
+                    </div>
+                </div>
+                <div class="three fields">
+                    <div class="field">
+                        <label>状态</label>
+                        <select name="Status" class="ui dropdown">
+                            <option value="1">在用</option>
+                            <option value="2">已退订</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>周期数</label>
+                        <input type="number" name="CycleCount" min="1" placeholder="1">
+                    </div>
+                    <div class="field">
+                        <label>提前提醒（天）</label>
+                        <input type="text" name="RemindDaysRaw" placeholder="30,7,3,1">
+                    </div>
+                </div>
+                <div class="inline fields">
+                    <div class="field">
+                        <div class="ui checkbox nk-auto-renew">
+                            <input type="checkbox" name="AutoRenew">
+                            <label>自动续费</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="ui checkbox nk-billing-muted">
+                            <input type="checkbox" name="Muted">
+                            <label>静音到期提醒</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="ui checkbox nk-billing-hide">
+                            <input type="checkbox" name="HideBilling">
+                            <label>不向游客展示</label>
+                        </div>
+                    </div>
+                </div>
+                <p class="nk-form-hint">金额、订单编号和管理面板地址仅管理员可见，不会出现在前台。</p>
             </div>
-            <div class="secret field">
-                <label>密钥</label>
-                <input type="text" name="secret">
-            </div>
-            <div class="field">
-                <label>备注</label>
-                <textarea name="Note"></textarea>
+
+            <div class="ui bottom attached tab segment" data-tab="server-plan">
+                <div class="three fields">
+                    <div class="field">
+                        <label>CPU</label>
+                        <input type="text" name="CPUSpec" placeholder="2 vCPU">
+                    </div>
+                    <div class="field">
+                        <label>内存</label>
+                        <input type="text" name="MemSpec" placeholder="2 GB">
+                    </div>
+                    <div class="field">
+                        <label>硬盘</label>
+                        <input type="text" name="DiskSpec" placeholder="40 GB NVMe">
+                    </div>
+                </div>
+                <div class="three fields">
+                    <div class="field">
+                        <label>带宽</label>
+                        <input type="text" name="Bandwidth" placeholder="1Gbps">
+                    </div>
+                    <div class="field">
+                        <label>流量</label>
+                        <input type="text" name="TrafficVol" placeholder="1TB/月">
+                    </div>
+                    <div class="field">
+                        <label>流量计算</label>
+                        <select name="TrafficType" class="ui dropdown">
+                            <option value="">未设置</option>
+                            <option value="1">单向</option>
+                            <option value="2">双向</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="three fields">
+                    <div class="field">
+                        <label>流量重置日</label>
+                        <input type="number" name="TrafficReset" min="1" max="31" placeholder="1">
+                    </div>
+                    <div class="field">
+                        <label>IPv4 数量</label>
+                        <input type="number" name="IPv4Count" min="0" placeholder="1">
+                    </div>
+                    <div class="field">
+                        <label>IPv6 数量</label>
+                        <input type="number" name="IPv6Count" min="0" placeholder="0">
+                    </div>
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <label>线路</label>
+                        <input type="text" name="NetworkRoute" placeholder="CN2GIA">
+                    </div>
+                    <div class="field">
+                        <label>机房位置</label>
+                        <input type="text" name="Location" placeholder="洛杉矶 DC9">
+                    </div>
+                </div>
             </div>
         </form>
     </div>
