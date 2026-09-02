@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -91,6 +92,8 @@ func loadCrons() {
 }
 
 func main() {
+	logViewPassword()
+
 	webHandler := controller.ServeWeb()
 	grpcHandler := rpc.ServeRPC()
 
@@ -101,6 +104,16 @@ func main() {
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", dao.Conf.HTTPPort), handler); err != nil {
 		panic(err)
 	}
+}
+
+// logViewPassword 启动时打印前台查看密码，方便自建部署时直接从容器日志里翻出来。
+// 未设置时明确提示前台是公开的，避免以为有密码保护。
+func logViewPassword() {
+	if password := strings.TrimSpace(dao.Conf.Site.ViewPassword); password != "" {
+		log.Printf("前台查看密码：%s", password)
+		return
+	}
+	log.Println("前台查看密码未设置，任何人都能查看节点状态")
 }
 
 func httpAndGRPCMux(webHandler http.Handler, grpcHandler http.Handler) http.Handler {
