@@ -184,6 +184,26 @@ func (b *ServerBilling) Active() bool {
 	return b != nil && b.Status != BillingStatusCancelled
 }
 
+// Ended 判断订阅是否已经走到终止日：决定不再续费的机器不必再提醒。
+func (b *ServerBilling) Ended(now time.Time) bool {
+	if b == nil || b.EndDate == nil || b.EndDate.IsZero() {
+		return false
+	}
+	return !truncateToLocalDate(*b.EndDate).After(truncateToLocalDate(now))
+}
+
+// RemindedOn 判断给定日期当天是否已经提醒过，用于每日去重。
+func (b *ServerBilling) RemindedOn(now time.Time) bool {
+	return b != nil && b.LastRemindedOn != nil && SameLocalDate(*b.LastRemindedOn, now)
+}
+
+// SameLocalDate 判断两个时刻是否落在同一个本地日期。
+func SameLocalDate(a, b time.Time) bool {
+	ay, am, ad := a.In(time.Local).Date()
+	by, bm, bd := b.In(time.Local).Date()
+	return ay == by && am == bm && ad == bd
+}
+
 // AmountText 把金额格式化成两位小数，金额为 0 时返回空串（视为免费）。
 func (b *ServerBilling) AmountText() string {
 	if b == nil || b.AmountCents == 0 {

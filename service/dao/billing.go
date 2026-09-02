@@ -2,6 +2,9 @@ package dao
 
 import (
 	"errors"
+	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -136,4 +139,131 @@ func DeleteServerPayment(id uint64) error {
 		return errors.New("错误的流水 ID")
 	}
 	return DB.Delete(&model.ServerPayment{}, "id = ?", id).Error
+}
+
+// billingDueItem 是一条待提醒的到期记录。
+type billingDueItem struct {
+	billing model.ServerBilling
+	name    string
+	days    int
+}
+
+// CheckBillingDue 是每日到期检查的 cron 入口。
+func CheckBillingDue() {
+	checkBillingDueAt(time.Now())
+}
+
+func checkBillingDueAt(now time.Time) {
+	var billings []model.ServerBilling
+	if err := DB.Find(&billings).Error; err != nil {
+		return
+	}
+	items := collectBillingDue(billings, serverNameMap(), now)
+	if len(items) == 0 {
+		return
+	}
+
+	// 聚合成一条：20 台机器同一天到期时，20 条消息会把通知渠道刷屏
+	SendNotification(billingDueMessage(items), false)
+
+	ids := make([]uint64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.billing.ID)
+	}
+	DB.Model(&model.ServerBilling{}).Where("id IN ?", ids).
+		Update("last_reminded_on", now)
+}
+
+// collectBillingDue 挑出今天需要提醒的订阅，按紧迫程度排序。
+func collectBillingDue(billings []model.ServerBilling, names map[uint64]string, now time.Time) []billingDueItem {
+	var items []billingDueItem
+	for i := range billings {
+		billing := billings[i]
+		if !billing.Active() || billing.Muted || billing.Ended(now) {
+			continue
+		}
+		days, ok := billing.DaysUntilDue(now)
+		if !ok || !shouldRemindBillingDue(days, billing.EffectiveRemindDays()) {
+			continue
+		}
+		if billing.RemindedOn(now) {
+			continue
+		}
+		name := names[billing.ServerID]
+		if name == "" {
+			name = fmt.Sprintf("ID:%d", billing.ServerID)
+		}
+		items = append(items, billingDueItem{billing: billing, name: name, days: days})
+	}
+	sort.Slice(items, func(a, b int) bool {
+		if items[a].days != items[b].days {
+			return items[a].days < items[b].days
+		}
+		return items[a].billing.ServerID < items[b].billing.ServerID
+	})
+	return items
+}
+
+// shouldRemindBillingDue 判断剩余天数是否命中提醒档位。
+// 已过期的每天提醒一次，直到续费或标记退订。
+//
+// 档位是精确匹配：面板整天没运行会漏掉那一档，下一档仍会提醒。
+func shouldRemindBillingDue(days int, remindDays []int) bool {
+	if days < 0 {
+		return true
+	}
+	for _, remindDay := range remindDays {
+		if remindDay == days {
+			return true
+		}
+	}
+	return false
+}
+
+func billingDueMessage(items []billingDueItem) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "[到期提醒]\n共 %d 台服务器需要处理\n", len(items))
+	for _, item := range items {
+		buf.WriteString("\n")
+		buf.WriteString(billingDueLine(item))
+	}
+	return buf.String()
+}
+
+func billingDueLine(item billingDueItem) string {
+	label := item.name
+	if provider := strings.TrimSpace(item.billing.Provider); provider != "" {
+		label += "（" + provider + "）"
+	}
+
+	var when string
+	switch {
+	case item.days < 0:
+		when = fmt.Sprintf("已过期 %d 天", -item.days)
+	case item.days == 0:
+		when = "今天到期"
+	default:
+		when = fmt.Sprintf("%d 天后到期", item.days)
+	}
+
+	// 自动续费的风险是余额不足而不是忘记续费，提示语要不一样
+	action := "请及时续费"
+	if item.billing.AutoRenew {
+		action = "将自动续费，请确认余额"
+	}
+	if price := item.billing.PriceText(); price != "" {
+		action = price + "，" + action
+	}
+	return fmt.Sprintf("%s %s：%s，%s", label, when,
+		model.FormatBillingDate(item.billing.NextDueDate), action)
+}
+
+func serverNameMap() map[uint64]string {
+	var servers []model.Server
+	DB.Select("id, name").Find(&servers)
+	names := make(map[uint64]string, len(servers))
+	for _, server := range servers {
+		names[server.ID] = server.Name
+	}
+	return names
 }
