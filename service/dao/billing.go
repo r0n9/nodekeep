@@ -2,6 +2,7 @@ package dao
 
 import (
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -95,4 +96,44 @@ func ServerPaymentsOf(serverID uint64) []model.ServerPayment {
 	}
 	DB.Where("server_id = ?", serverID).Order("paid_at DESC").Order("id DESC").Find(&payments)
 	return payments
+}
+
+// RenewServerBilling 记一笔续费：插入付费流水，同时把订阅的到期日推进到本期期末。
+//
+// 两件事必须一起成败。只记流水不推到期日，会当天再次触发到期提醒；
+// 只推到期日不记流水，这笔钱就从支出统计里消失了。
+//
+// 同时清掉 LastRemindedOn：它是「今天已提醒过」的去重标记，续费后应当作废，
+// 否则新周期里当天的提醒会被误判为重复而吞掉。
+func RenewServerBilling(payment *model.ServerPayment, nextDueDate time.Time) error {
+	if payment == nil || payment.ServerID == 0 {
+		return errors.New("缺少服务器 ID")
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(payment).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&model.ServerBilling{}).
+			Where("server_id = ?", payment.ServerID).
+			Updates(map[string]interface{}{
+				"next_due_date":    nextDueDate,
+				"last_reminded_on": nil,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("该服务器还没有计费信息")
+		}
+		return nil
+	})
+}
+
+// DeleteServerPayment 删除一条付费流水，用于订正录错的记录。
+// 不改动到期日：改错金额和改到期日是两件事，后者在编辑弹窗里改。
+func DeleteServerPayment(id uint64) error {
+	if id == 0 {
+		return errors.New("错误的流水 ID")
+	}
+	return DB.Delete(&model.ServerPayment{}, "id = ?", id).Error
 }

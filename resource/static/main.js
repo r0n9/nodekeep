@@ -217,6 +217,83 @@ function addOrEditServer(server, billing) {
     showFormModal('.server.modal', '#serverForm', '/api/server')
 }
 
+// 续费弹窗。默认值（含推进后的到期日）全部由服务端算好，
+// 前端不重复实现一遍月末截断的规则。
+function showBillingModal(serverID, serverName) {
+    const modal = $('.billing.modal')
+    const blocked = modal.find('.nk-renew-blocked')
+    const submitBtn = modal.find('.positive.button')
+
+    modal.children('.header').text('续费与账单 - ' + serverName)
+    blocked.hide().text('')
+    submitBtn.addClass('disabled')
+    modal.find('.nk-payment-table tbody').empty()
+
+    $.get('/api/server/' + serverID + '/payments').done(function (resp) {
+        if (resp.code !== 200) {
+            blocked.text(resp.message || '读取账单失败').show()
+            return
+        }
+        const renew = resp.result.renew || {}
+        fillRenewForm(modal, renew)
+        renderPaymentHistory(modal, resp.result.payments || [])
+        if (renew.Renewable) {
+            submitBtn.removeClass('disabled')
+        } else {
+            blocked.text(renew.Reason || '当前无法续费').show()
+        }
+    }).fail(function (err) {
+        blocked.text('网络错误：' + err.responseText).show()
+    })
+
+    showFormModal('.billing.modal', '#billingForm', '/api/server/' + serverID + '/renew')
+}
+
+function fillRenewForm(modal, renew) {
+    modal.find('#billingForm').find('input, select, textarea').each(function () {
+        const el = $(this)
+        const name = el.attr('name')
+        if (!name) {
+            return
+        }
+        const value = renew[name]
+        el.val(value === undefined || value === null ? '' : value)
+    })
+}
+
+function renderPaymentHistory(modal, payments) {
+    const tbody = modal.find('.nk-payment-table tbody').empty()
+    if (!payments.length) {
+        const empty = $('<td>').attr('colspan', 7).addClass('nk-muted-text').text('还没有付费记录')
+        tbody.append($('<tr>').append(empty))
+        return
+    }
+    payments.forEach(function (payment) {
+        const row = $('<tr>')
+        const amount = (payment.Currency ? payment.Currency + ' ' : '') + payment.Amount
+        const columns = [payment.PaidAt, amount, payment.CycleName, payment.Period, payment.Method, payment.Note]
+        columns.forEach(function (text) {
+            // 用 text() 而不是拼 HTML：备注和支付方式是自由输入
+            row.append($('<td>').text(text || '-'))
+        })
+        const removeBtn = $('<button>')
+            .addClass('ui mini icon button')
+            .attr('type', 'button')
+            .append($('<i>').addClass('trash alternate outline icon'))
+            .on('click', function () {
+                confirmDeletePayment(payment.ID)
+            })
+        row.append($('<td>').append(removeBtn))
+        tbody.append(row)
+    })
+}
+
+// 先关掉账单弹窗再弹确认框：Semantic 的模态默认不支持叠加。
+function confirmDeletePayment(paymentID) {
+    $('.billing.modal').modal('hide')
+    showConfirm('删除付费记录', '确认删除这条流水？到期日不会跟着回退。', deleteRequest, '/api/payment/' + paymentID)
+}
+
 function serverSecretMask(secret) {
     const length = Math.max(String(secret || '').length, 8)
     return new Array(length + 1).join('*')

@@ -35,7 +35,9 @@ func (ma *memberAPI) serve() {
 	mr.Use(mygin.RequireSameOriginForUnsafeRequests())
 
 	mr.GET("/search-server", ma.searchServer)
+	mr.GET("/server/:id/payments", ma.serverPayments)
 	mr.POST("/server", ma.addOrEditServer)
+	mr.POST("/server/:id/renew", ma.renewServer)
 	mr.POST("/monitor", ma.addOrEditMonitor)
 	mr.POST("/cron", ma.addOrEditCron)
 	mr.POST("/cron/:id/manual", ma.manualTrigger)
@@ -92,6 +94,8 @@ func (ma *memberAPI) delete(c *gin.Context) {
 		if err == nil {
 			dao.OnDeleteAlert(id)
 		}
+	case "payment":
+		err = dao.DeleteServerPayment(id)
 	}
 	if err != nil {
 		c.JSON(http.StatusOK, model.Response{
@@ -322,6 +326,155 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 	c.JSON(http.StatusOK, model.Response{
 		Code: http.StatusOK,
 	})
+}
+
+// serverPayments 返回续费弹窗需要的全部数据：预填的续费默认值和该服务器的付费流水。
+// 合成一个接口，弹窗打开时只发一次请求。
+func (ma *memberAPI) serverPayments(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if id < 1 {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "错误的 Server ID",
+		})
+		return
+	}
+	billing, _ := dao.ServerBillingOf(id)
+	c.JSON(http.StatusOK, model.Response{
+		Code: http.StatusOK,
+		Result: gin.H{
+			"renew":    newRenewDefaults(billing, time.Now()),
+			"payments": newPaymentViews(dao.ServerPaymentsOf(id)),
+		},
+	})
+}
+
+type renewForm struct {
+	Amount      string
+	Currency    string
+	Cycle       string
+	PaidAt      string // YYYY-MM-DD
+	PeriodStart string
+	PeriodEnd   string
+	Method      string
+	InvoiceNo   string
+	Note        string
+}
+
+// renewServer 记一笔续费。表单留空的字段回落到订阅信息里的默认值，
+// 所以「金额和上次一样、日期按周期推」的常规情况可以一路确认过去。
+func (ma *memberAPI) renewServer(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if id < 1 {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "错误的 Server ID",
+		})
+		return
+	}
+	billing, ok := dao.ServerBillingOf(id)
+	if !ok {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "该服务器还没有计费信息，请先在编辑里录入",
+		})
+		return
+	}
+
+	var rf renewForm
+	if err := c.ShouldBindJSON(&rf); err != nil {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("请求错误：%s", err),
+		})
+		return
+	}
+
+	now := time.Now()
+	payment, nextDueDate, err := buildRenewal(billing, &rf, now)
+	if err != nil {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("请求错误：%s", err),
+		})
+		return
+	}
+	if err := dao.RenewServerBilling(payment, nextDueDate); err != nil {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("数据库错误：%s", err),
+		})
+		return
+	}
+
+	message := fmt.Sprintf("已续费到 %s", model.FormatBillingDate(&nextDueDate))
+	// 漏付多期时一次续费推不到未来，明确说出来，否则用户以为已经处理完了
+	if remaining, _ := (&model.ServerBilling{NextDueDate: &nextDueDate}).DaysUntilDue(now); remaining < 0 {
+		message += "，仍在过去，可能还有未记录的续费"
+	}
+	c.JSON(http.StatusOK, model.Response{
+		Code:    http.StatusOK,
+		Message: message,
+	})
+}
+
+// buildRenewal 组装付费流水和推进后的到期日。所有校验都在写库之前完成。
+func buildRenewal(billing *model.ServerBilling, rf *renewForm, now time.Time) (*model.ServerPayment, time.Time, error) {
+	defaults := newRenewDefaults(billing, now)
+
+	cycle := firstNonEmpty(rf.Cycle, defaults.Cycle)
+	if !validBillingCycles[cycle] {
+		return nil, time.Time{}, fmt.Errorf("未知的计费周期：%s", cycle)
+	}
+
+	paidAt, err := model.ParseBillingDate(firstNonEmpty(rf.PaidAt, defaults.PaidAt))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	periodStart, err := model.ParseBillingDate(firstNonEmpty(rf.PeriodStart, defaults.PeriodStart))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	periodEnd, err := model.ParseBillingDate(firstNonEmpty(rf.PeriodEnd, defaults.PeriodEnd))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	if periodStart == nil || periodEnd == nil {
+		return nil, time.Time{}, errors.New("请填写本期的起止日期")
+	}
+	if !periodEnd.After(*periodStart) {
+		return nil, time.Time{}, errors.New("本期结束日必须晚于开始日")
+	}
+	if paidAt == nil {
+		paidAt = &now
+	}
+
+	amount, err := model.ParseAmount(firstNonEmpty(rf.Amount, defaults.Amount))
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+
+	return &model.ServerPayment{
+		ServerID:    billing.ServerID,
+		PaidAt:      *paidAt,
+		AmountCents: amount,
+		Currency:    strings.ToUpper(strings.TrimSpace(firstNonEmpty(rf.Currency, defaults.Currency))),
+		Cycle:       cycle,
+		PeriodStart: *periodStart,
+		PeriodEnd:   *periodEnd,
+		Method:      strings.TrimSpace(rf.Method),
+		InvoiceNo:   strings.TrimSpace(rf.InvoiceNo),
+		Note:        strings.TrimSpace(rf.Note),
+	}, *periodEnd, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 type monitorForm struct {

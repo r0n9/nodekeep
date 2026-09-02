@@ -120,3 +120,96 @@ func billingViewsForServers(servers []*model.ServerRuntime, billings map[uint64]
 	}
 	return views
 }
+
+// renewDefaults 是续费弹窗的预填数据。日期推进放在服务端算，
+// 前端不重复实现一遍月末截断的规则。
+type renewDefaults struct {
+	Renewable   bool   `json:"Renewable"`
+	Reason      string `json:"Reason"`
+	Currency    string `json:"Currency"`
+	Amount      string `json:"Amount"`
+	Cycle       string `json:"Cycle"`
+	CycleName   string `json:"CycleName"`
+	PaidAt      string `json:"PaidAt"`
+	PeriodStart string `json:"PeriodStart"`
+	PeriodEnd   string `json:"PeriodEnd"`
+}
+
+func newRenewDefaults(billing *model.ServerBilling, now time.Time) renewDefaults {
+	defaults := renewDefaults{PaidAt: model.FormatBillingDate(&now)}
+	if billing == nil {
+		defaults.Reason = "请先在服务器编辑里录入计费信息"
+		return defaults
+	}
+	defaults.Currency = billing.Currency
+	defaults.Amount = billing.AmountText()
+	defaults.Cycle = billing.Cycle
+	defaults.CycleName = billing.CycleText()
+
+	switch billing.Cycle {
+	case "":
+		defaults.Reason = "请先设置计费周期"
+		return defaults
+	case model.BillingCycleOnetime:
+		defaults.Reason = "一次性付费没有续费周期"
+		return defaults
+	}
+
+	// 锚点是上一次的到期日，不是今天：3/1 到期、3/5 才付款，
+	// 下一期仍应从 4/1 算起，否则账单日会逐期往后漂。
+	periodStart := now
+	if billing.NextDueDate != nil && !billing.NextDueDate.IsZero() {
+		periodStart = *billing.NextDueDate
+	}
+	periodEnd, ok := billing.NextDue(periodStart)
+	if !ok {
+		defaults.Reason = "无法根据当前周期推算到期日"
+		return defaults
+	}
+
+	defaults.Renewable = true
+	defaults.PeriodStart = model.FormatBillingDate(&periodStart)
+	defaults.PeriodEnd = model.FormatBillingDate(&periodEnd)
+	return defaults
+}
+
+// paymentView 是付费流水在弹窗里的展示形状。
+type paymentView struct {
+	ID        uint64 `json:"ID"`
+	PaidAt    string `json:"PaidAt"`
+	Amount    string `json:"Amount"`
+	Currency  string `json:"Currency"`
+	CycleName string `json:"CycleName"`
+	Period    string `json:"Period"`
+	Method    string `json:"Method"`
+	InvoiceNo string `json:"InvoiceNo"`
+	Note      string `json:"Note"`
+}
+
+func newPaymentViews(payments []model.ServerPayment) []paymentView {
+	views := make([]paymentView, 0, len(payments))
+	for i := range payments {
+		payment := payments[i]
+		views = append(views, paymentView{
+			ID:        payment.ID,
+			PaidAt:    model.FormatBillingDate(&payment.PaidAt),
+			Amount:    payment.AmountText(),
+			Currency:  payment.Currency,
+			CycleName: model.BillingCycleName(payment.Cycle),
+			Period:    paymentPeriodText(payment),
+			Method:    payment.Method,
+			InvoiceNo: payment.InvoiceNo,
+			Note:      payment.Note,
+		})
+	}
+	return views
+}
+
+func paymentPeriodText(payment model.ServerPayment) string {
+	start := model.FormatBillingDate(&payment.PeriodStart)
+	end := model.FormatBillingDate(&payment.PeriodEnd)
+	if start == "" && end == "" {
+		return ""
+	}
+	return start + " ~ " + end
+}

@@ -294,6 +294,63 @@ func (b *ServerBilling) Marshal() template.JS {
 
 const billingDateLayout = "2006-01-02"
 
+// AdvanceDue 从 from 推进 count 个 cycle 周期，返回新的到期日。
+// 一次性付费和未知周期无法推进，返回 (from, false)。
+//
+// anchorDay 是账单锚定的「日」，通常取开通日的 Day()。给出后按它定位，
+// 而不是按 from 自身的日，否则经过 2 月这类短月后到期日会永久前移：
+// 1/31 -> 2/28 -> 3/28 -> ...，而正确结果是 1/31 -> 2/28 -> 3/31。
+// 传 0 表示没有锚点，退回用 from 的日。
+//
+// 目标月没有这一天时取该月最后一天：Go 的 AddDate 是规范化而不是截断，
+// 直接 AddDate(0,1,0) 会把 1/31 变成 3/3。
+func AdvanceDue(from time.Time, cycle string, count int, anchorDay int) (time.Time, bool) {
+	months := BillingCycleMonths(cycle)
+	if months == 0 {
+		return from, false
+	}
+	if count < 1 {
+		count = 1
+	}
+	return addMonthsClamped(from, months*count, anchorDay), true
+}
+
+func addMonthsClamped(t time.Time, months int, anchorDay int) time.Time {
+	year, month, day := t.Date()
+	hour, minute, sec := t.Clock()
+	if anchorDay > 0 {
+		day = anchorDay
+	}
+
+	// 先定位到目标月的 1 号，让 time.Date 处理跨年进位，再决定「日」
+	target := time.Date(year, month+time.Month(months), 1, hour, minute, sec, t.Nanosecond(), t.Location())
+	if last := daysInMonth(target.Year(), target.Month()); day > last {
+		day = last
+	}
+	return time.Date(target.Year(), target.Month(), day, hour, minute, sec, t.Nanosecond(), t.Location())
+}
+
+// daysInMonth 返回某年某月的天数。下个月的第 0 天就是本月最后一天。
+func daysInMonth(year int, month time.Month) int {
+	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+// AnchorDay 返回账单锚定的日，未填开通日时返回 0。
+func (b *ServerBilling) AnchorDay() int {
+	if b == nil || b.StartDate == nil || b.StartDate.IsZero() {
+		return 0
+	}
+	return b.StartDate.In(time.Local).Day()
+}
+
+// NextDue 按本订阅的周期从 from 推进一期。
+func (b *ServerBilling) NextDue(from time.Time) (time.Time, bool) {
+	if b == nil {
+		return from, false
+	}
+	return AdvanceDue(from, b.Cycle, b.CycleCount, b.AnchorDay())
+}
+
 // ParseBillingDate 解析 YYYY-MM-DD，空串返回 nil 表示未设置。
 // 按本地时区解析成当天零点，与 DaysUntilDue 的日期口径一致。
 func ParseBillingDate(s string) (*time.Time, error) {

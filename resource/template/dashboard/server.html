@@ -88,6 +88,10 @@
                                         onclick="copyAgentInstallCommand(this)">
                                         <i class="copy outline icon"></i>
                                     </button>
+                                    <button class="ui button" data-tooltip="续费与账单" data-position="top center"
+                                        onclick="showBillingModal({{$server.ID}}, {{$server.Name}})">
+                                        <i class="dollar sign icon"></i>
+                                    </button>
                                     <button class="ui button" onclick="addOrEditServer({{$server.Marshal}}, {{$billing.Payload}})">
                                         <i class="edit icon"></i>
                                     </button>
@@ -106,6 +110,7 @@
     </div>
 </main>
 {{template "component/server"}}
+{{template "component/billing"}}
 {{template "common/footer" .}}
 <script>
     $('.checkbox').checkbox()

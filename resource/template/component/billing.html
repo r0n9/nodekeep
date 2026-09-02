@@ -1,0 +1,93 @@
+{{define "component/billing"}}
+<div class="ui small billing modal transition hidden">
+    <div class="header">续费与账单</div>
+    <div class="scrolling content">
+        <div class="ui warning message nk-renew-blocked" style="display:none"></div>
+        <form id="billingForm" class="ui form">
+            <div class="three fields">
+                <div class="field">
+                    <label>付款日</label>
+                    <input type="date" name="PaidAt">
+                </div>
+                <div class="field">
+                    <label>金额</label>
+                    <input type="text" name="Amount" placeholder="留空沿用订阅金额">
+                </div>
+                <div class="field">
+                    <label>货币</label>
+                    <select name="Currency" class="ui dropdown">
+                        <option value="">未设置</option>
+                        <option value="CNY">CNY 人民币</option>
+                        <option value="USD">USD 美元</option>
+                        <option value="EUR">EUR 欧元</option>
+                        <option value="GBP">GBP 英镑</option>
+                        <option value="HKD">HKD 港币</option>
+                        <option value="JPY">JPY 日元</option>
+                        <option value="SGD">SGD 新加坡元</option>
+                    </select>
+                </div>
+            </div>
+            <div class="three fields">
+                <div class="field">
+                    <label>本期周期</label>
+                    <select name="Cycle" class="ui dropdown">
+                        <option value="">未设置</option>
+                        <option value="monthly">月付</option>
+                        <option value="quarterly">季付</option>
+                        <option value="semiannually">半年付</option>
+                        <option value="annually">年付</option>
+                        <option value="biennially">两年付</option>
+                        <option value="triennially">三年付</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>本期开始</label>
+                    <input type="date" name="PeriodStart">
+                </div>
+                <div class="field">
+                    <label>本期结束（新到期日）</label>
+                    <input type="date" name="PeriodEnd">
+                </div>
+            </div>
+            <div class="three fields">
+                <div class="field">
+                    <label>支付方式</label>
+                    <input type="text" name="Method" placeholder="PayPal">
+                </div>
+                <div class="field">
+                    <label>发票号</label>
+                    <input type="text" name="InvoiceNo">
+                </div>
+                <div class="field">
+                    <label>备注</label>
+                    <input type="text" name="Note">
+                </div>
+            </div>
+            <p class="nk-form-hint">确认后会记一笔流水，并把到期日推进到「本期结束」。默认按上一次的到期日推进一期。</p>
+        </form>
+
+        <h4 class="ui dividing header">付费历史</h4>
+        <div class="nk-table-wrap">
+            <table class="ui very basic table nk-table nk-payment-table">
+                <thead>
+                    <tr>
+                        <th>付款日</th>
+                        <th>金额</th>
+                        <th>周期</th>
+                        <th>覆盖区间</th>
+                        <th>方式</th>
+                        <th>备注</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui negative button">取消</div>
+        <button class="ui positive right labeled icon button">确认续费<i class="checkmark icon"></i>
+        </button>
+    </div>
+</div>
+{{end}}
