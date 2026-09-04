@@ -58,7 +58,7 @@ func initSystem() {
 	loadCrons()   //加载计划任务
 
 	// 清理旧数据
-	dao.Cron.AddFunc("* 3 * * *", cleanMonitorHistory)
+	dao.Cron.AddFunc("0 3 * * *", cleanMonitorHistory)
 	// 每天早上检查订阅到期，聚合成一条通知发出
 	dao.Cron.AddFunc("3 9 * * *", dao.CheckBillingDue)
 }
