@@ -37,6 +37,8 @@
   --nk-speed-high-ring: rgba(220, 38, 38, 0.2);
   --nk-success-text: #166534;
   --nk-success-soft: #dcfce7;
+  --nk-online: #16a34a;
+  --nk-online-soft: #dcfce7;
   --nk-info-text: #075985;
   --nk-info-soft: #e0f2fe;
   --nk-tooltip-bg: #0f1b2d;
@@ -85,6 +87,8 @@ html[data-theme="dark"] {
   --nk-speed-high-ring: rgba(252, 165, 165, 0.22);
   --nk-success-text: #bbf7d0;
   --nk-success-soft: #12351f;
+  --nk-online: #4ade80;
+  --nk-online-soft: #12351f;
   --nk-info-text: #bae6fd;
   --nk-info-soft: #0d3148;
   --nk-tooltip-bg: #f8fbff;
@@ -691,11 +695,6 @@ html[data-theme="dark"] .nk-theme-icon-light {
   width: 150px;
 }
 
-.nk-node-list th:nth-child(7),
-.nk-node-list td:nth-child(7) {
-  width: 176px;
-}
-
 .nk-node-list th {
   color: var(--nk-muted);
   background: var(--nk-table-head-bg);
@@ -732,6 +731,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 /* 在线状态只用一个圆点表示，位置统一在主机名之前。
+   三态：默认绿 = 在线，.offline 红 = 离线，.pending 灰 = 从未上报。
    外圈用 box-shadow 而不是 border，圆点本身的直径才不会被边框吃掉。 */
 .nk-status-dot {
   display: inline-block;
@@ -740,11 +740,17 @@ html[data-theme="dark"] .nk-theme-icon-light {
   height: 0.7rem;
   margin-right: 0.12rem;
   border-radius: 999px;
-  background: var(--nk-accent);
-  box-shadow: 0 0 0 3px var(--nk-accent-soft);
+  background: var(--nk-online);
+  box-shadow: 0 0 0 3px var(--nk-online-soft);
 }
 
 .nk-status-dot.offline {
+  background: var(--nk-danger);
+  box-shadow: 0 0 0 3px var(--nk-danger-soft);
+}
+
+/* 从未上报：比离线再轻一档的灰，不跟「真故障」抢视线 */
+.nk-status-dot.pending {
   background: var(--nk-offline);
   box-shadow: 0 0 0 3px var(--nk-track);
 }
@@ -753,10 +759,14 @@ html[data-theme="dark"] .nk-theme-icon-light {
   width: 0.85rem;
   height: 0.85rem;
   margin-right: 0.2rem;
-  box-shadow: 0 0 0 4px var(--nk-accent-soft);
+  box-shadow: 0 0 0 4px var(--nk-online-soft);
 }
 
 .nk-status-dot-lg.offline {
+  box-shadow: 0 0 0 4px var(--nk-danger-soft);
+}
+
+.nk-status-dot-lg.pending {
   box-shadow: 0 0 0 4px var(--nk-track);
 }
 
@@ -1307,7 +1317,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   min-width: 0;
 }
 
-.nk-node-hero h1 span:first-child {
+.nk-node-hero h1 .nk-node-hero-title {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2926,18 +2936,9 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   transform: translateY(-0.02em);
 }
 
-.nk-country-flag-placeholder {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 17px;
-  height: 12px;
-  border: 1px solid var(--nk-border-strong);
-  border-radius: 2px;
+.nk-country-flag-none {
   color: var(--nk-subtle);
-  background: var(--nk-surface-soft);
-  font-size: 0.48rem;
-  font-weight: 900;
+  font-size: 0.95rem;
   line-height: 1;
 }
 
@@ -3347,11 +3348,6 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-node-list th:nth-child(6),
   .nk-node-list td:nth-child(6) {
     width: 136px;
-  }
-
-  .nk-node-list th:nth-child(7),
-  .nk-node-list td:nth-child(7) {
-    width: 164px;
   }
 
   .nk-list-meter .nk-meter-track {

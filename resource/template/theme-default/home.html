@@ -25,6 +25,10 @@
                             <span>离线节点</span>
                             <strong>@#offlineCount#@</strong>
                         </div>
+                        <div class="nk-summary-item">
+                            <span>未上报</span>
+                            <strong>@#pendingCount#@</strong>
+                        </div>
                     </div>
                     <div class="nk-view-switch" role="group" aria-label="节点展示模式">
                         <button type="button" :class="{ active: viewMode === 'card' }" @click="setViewMode('card')" aria-label="卡片视图">
@@ -44,19 +48,19 @@
                 </div>
 
                 <div v-if="viewMode === 'card'" class="nk-node-grid">
-                    <article v-for="server in group.data" :id="server.ID" class="nk-node-card" :class="{ offline: !server.live }">
+                    <article v-for="server in group.data" :id="server.ID" class="nk-node-card" :class="{ offline: server.reported && !server.live }">
                         <div class="nk-node-top">
                             <div>
                                 <div class="nk-node-name">
-                                    <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
-                                        :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
-                                    <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
+                                    <span :class="statusClass(server)" role="img"
+                                        :title="statusText(server)" :aria-label="statusText(server)"></span>
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                    <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                    <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                                    <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                     <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                     <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                 </div>
-                                <div class="nk-node-meta" v-if="server.Host">
+                                <div class="nk-node-meta" v-if="server.reported">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
                                     <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@</span>
                                 </div>
@@ -64,7 +68,7 @@
                             </div>
                         </div>
 
-                        <template v-if="server.Host">
+                        <template v-if="server.reported">
                             <div class="nk-metrics">
                                 <div class="nk-meter">
                                     <span>CPU</span>
@@ -158,22 +162,21 @@
                                 <th>硬盘</th>
                                 <th>网络</th>
                                 <th>累计流量</th>
-                                <th>最近活动</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: !server.live }">
+                            <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: server.reported && !server.live }">
                                 <td>
                                     <div class="nk-list-node-name">
-                                        <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
-                                            :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
-                                        <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
+                                        <span :class="statusClass(server)" role="img"
+                                            :title="statusText(server)" :aria-label="statusText(server)"></span>
                                         <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                        <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                        <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                                        <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                         <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                         <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                     </div>
-                                    <div class="nk-list-node-meta" v-if="server.Host">
+                                    <div class="nk-list-node-meta" v-if="server.reported">
                                         运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
@@ -197,20 +200,19 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="nk-list-network" v-if="server.Host">
+                                    <div class="nk-list-network" v-if="server.reported">
                                         <span class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetInSpeed)"><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInSpeed)#@/s</span>
                                         <span class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetOutSpeed)"><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutSpeed)#@/s</span>
                                     </div>
                                     <span v-else class="nk-list-node-meta">-</span>
                                 </td>
                                 <td>
-                                    <div class="nk-list-traffic" v-if="server.Host">
+                                    <div class="nk-list-traffic" v-if="server.reported">
                                         <span><i class="arrow down icon"></i>@#formatByteSize(server.State.NetInTransfer)#@</span>
                                         <span><i class="arrow up icon"></i>@#formatByteSize(server.State.NetOutTransfer)#@</span>
                                     </div>
                                     <span v-else class="nk-list-node-meta">-</span>
                                 </td>
-                                <td><span class="nk-list-node-meta">@#server.Host ? formatDate(server.LastActive) : '-'#@</span></td>
                             </tr>
                         </tbody>
                     </table>
@@ -225,6 +227,23 @@
     // 计费信息不随 /ws 推送：那条快照每 2 秒下发一次全量数据并整个替换 servers，
     // 一年不变的字段跟着走纯属浪费。首屏渲染一份，ws 回调里按 ID 合并回来。
     const billingData = {{.Billings}};
+
+    // 判断这台机器有没有真正上报过。
+    //
+    // 不能用 `!!server.Host` —— dao.UpsertServerRuntime 建 runtime 时写的是
+    // &model.Host{}，一个非 nil 的空结构体，序列化出来永远是个对象，恒为 truthy。
+    // 只能按字段内容判断，node.html 的 hasReport 用的也是这个口径。
+    //
+    // 另外 Host 是内存态（gorm:"-"），面板重启后会清空，所以这里的语义是
+    // 「自面板启动以来未上报」，不是「从未装过 agent」。
+    function isReported(server) {
+        const host = server && server.Host
+        if (!host) {
+            return false
+        }
+        return !!(host.Platform || host.MemTotal || host.DiskTotal ||
+            (host.CPU && host.CPU.length))
+    }
     var statusCards = new Vue({
         el: '#app',
         delimiters: ['@#', '#@'],
@@ -238,7 +257,11 @@
                 return this.servers.filter(server => server.live).length
             },
             offlineCount() {
-                return this.servers.length - this.onlineCount
+                // 上报过但已失联；从未上报的单独算，不混进这里
+                return this.servers.filter(server => server.reported && !server.live).length
+            },
+            pendingCount() {
+                return this.servers.filter(server => !server.reported).length
             },
         },
         created() {
@@ -257,7 +280,8 @@
                     // 每次刷新都要重新挂计费信息：ws 推来的对象是全新的，
                     // 不合并的话首屏渲染的字段 2 秒后就没了
                     server.Billing = billingData[server.ID] || null
-                    if (!server.Host) {
+                    server.reported = isReported(server)
+                    if (!server.reported) {
                         server.live = false
                         return server
                     }
@@ -266,6 +290,18 @@
                     return server
                 })
                 this.group()
+            },
+            statusText(server) {
+                if (!server.reported) {
+                    return '未上报'
+                }
+                return server.live ? '在线' : '离线'
+            },
+            statusClass(server) {
+                if (!server.reported) {
+                    return 'nk-status-dot pending'
+                }
+                return server.live ? 'nk-status-dot' : 'nk-status-dot offline'
             },
             dueLabel(server) {
                 const billing = server.Billing
@@ -400,7 +436,12 @@
                 return h + ":" + ("0" + m).slice(-2) + ":" + ("0" + sec).slice(-2);
             },
             formatDate(t) {
-                return new Date(t).toLocaleString()
+                const d = new Date(t)
+                // Go 的零值时间序列化成 0001-01-01T00:00:00Z，直接格式化会显示成 1/1/1
+                if (!t || isNaN(d.getTime()) || d.getFullYear() < 1970) {
+                    return '-'
+                }
+                return d.toLocaleString()
             },
             formatCPUInfo(cpu) {
                 const items = Array.isArray(cpu) ? cpu : [cpu]

@@ -11,11 +11,11 @@
                 <div>
                     <p class="nk-eyebrow">Node Detail</p>
                     <h1>
-                        <span class="nk-status-dot nk-status-dot-lg" :class="{ offline: !server.live }" role="img"
-                            :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
-                        <span>@#server.Name#@</span>
+                        <span class="nk-status-dot nk-status-dot-lg" :class="statusState()" role="img"
+                            :title="statusText()" :aria-label="statusText()"></span>
                         <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                        <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                        <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                        <span class="nk-node-hero-title">@#server.Name#@</span>
                     </h1>
                     <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · @#hasReport ? (server.Host.Platform || 'unknown') + ' ' + (server.Host.Arch || '-') : '等待 Agent 上报'#@</p>
                 </div>
@@ -23,7 +23,7 @@
                     <div class="nk-summary-grid">
                         <div class="nk-summary-item">
                             <span>状态</span>
-                            <strong>@#server.live ? '在线' : '离线'#@</strong>
+                            <strong>@#statusText()#@</strong>
                         </div>
                         <div class="nk-summary-item">
                             <span>运行</span>
@@ -38,12 +38,12 @@
             </header>
 
             <section class="nk-node-detail-layout">
-                <article class="nk-node-card nk-node-live-panel" :class="{ offline: !server.live }">
+                <article class="nk-node-card nk-node-live-panel" :class="{ offline: hasReport && !server.live }">
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
-                                <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
-                                    :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
+                                <span class="nk-status-dot" :class="statusState()" role="img"
+                                    :title="statusText()" :aria-label="statusText()"></span>
                                 <span>实时状态</span>
                             </div>
                             <div class="nk-node-meta">@#hasReport ? formatDate(server.LastActive) : '暂无上报数据'#@</div>
@@ -316,6 +316,18 @@
                     this.server.Host.DiskTotal ||
                     this.server.Host.CPU && this.server.Host.CPU.length
                 ))
+            },
+            statusState() {
+                if (!this.hasReport) {
+                    return 'pending'
+                }
+                return this.server.live ? '' : 'offline'
+            },
+            statusText() {
+                if (!this.hasReport) {
+                    return '未上报'
+                }
+                return this.server.live ? '在线' : '离线'
             },
             hasMetrics() {
                 return !!(this.metricSeries && this.metricSeries.count > 0)
@@ -1051,7 +1063,8 @@
             },
             formatDate(t) {
                 const date = new Date(t)
-                if (!Number.isFinite(date.getTime())) {
+                // Go 的零值时间序列化成 0001-01-01T00:00:00Z，需要拦在 1970 之前
+                if (!t || !Number.isFinite(date.getTime()) || date.getFullYear() < 1970) {
                     return '-'
                 }
                 return date.toLocaleString()
