@@ -93,6 +93,55 @@ func TestPublicBillingJSONEmpty(t *testing.T) {
 	}
 }
 
+// TestPublicBillingLifetime 覆盖买断机器：没有到期日也要有标签可显示。
+func TestPublicBillingLifetime(t *testing.T) {
+	now := time.Now()
+
+	lifetime := (&model.ServerBilling{
+		Cycle:  model.BillingCycleOnetime,
+		Status: model.BillingStatusActive,
+		Extra:  model.BillingExtra{Location: "圣何塞"},
+	}).PublicSnapshot(now)
+	if lifetime == nil || !lifetime.Lifetime {
+		t.Fatalf("一次性且无到期日应标记为永久：%+v", lifetime)
+	}
+	if lifetime.HasDue {
+		t.Error("永久不应带到期倒计时")
+	}
+
+	// 填了到期日的一次性付费是录错了，此时按到期日展示而不是永久
+	due := now.AddDate(0, 0, 10)
+	withDue := (&model.ServerBilling{
+		Cycle:       model.BillingCycleOnetime,
+		Status:      model.BillingStatusActive,
+		NextDueDate: &due,
+	}).PublicSnapshot(now)
+	if withDue.Lifetime {
+		t.Error("填了到期日就不该再标永久")
+	}
+	if !withDue.HasDue || withDue.DueDays != 10 {
+		t.Errorf("应按到期日展示：%+v", withDue)
+	}
+
+	// 周期性套餐没填到期日时，两个标记都不该亮
+	monthly := (&model.ServerBilling{
+		Cycle:  model.BillingCycleMonthly,
+		Status: model.BillingStatusActive,
+	}).PublicSnapshot(now)
+	if monthly.Lifetime || monthly.HasDue {
+		t.Errorf("月付未填到期日不应有任何到期标记：%+v", monthly)
+	}
+
+	// 已退订的买断机器不该显示永久
+	cancelled := (&model.ServerBilling{
+		Cycle:  model.BillingCycleOnetime,
+		Status: model.BillingStatusCancelled,
+	}).PublicSnapshot(now)
+	if cancelled.Lifetime {
+		t.Error("已退订不应标记为永久")
+	}
+}
+
 func setupBillingPageDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})

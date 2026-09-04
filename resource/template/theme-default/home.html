@@ -48,21 +48,20 @@
                         <div class="nk-node-top">
                             <div>
                                 <div class="nk-node-name">
+                                    <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
+                                        :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
                                     <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                     <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                    <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
+                                    <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-if="server.Host">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
                                     <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
-                                <div class="nk-node-meta" v-if="server.Billing && (server.Billing.Provider || dueLabel(server))">
-                                    <span v-if="server.Billing.Provider">@#server.Billing.Provider#@</span>
-                                    <span v-if="dueLabel(server)" :class="dueClass(server)">@#dueLabel(server)#@</span>
-                                </div>
                             </div>
-                            <span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
                         </div>
 
                         <template v-if="server.Host">
@@ -166,19 +165,18 @@
                             <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: !server.live }">
                                 <td>
                                     <div class="nk-list-node-name">
-                                        <span class="nk-status-pill nk-list-status" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
+                                        <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
+                                            :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
                                         <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                         <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                         <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
+                                        <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
+                                        <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                     </div>
                                     <div class="nk-list-node-meta" v-if="server.Host">
                                         运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
-                                    <div class="nk-list-node-meta" v-if="server.Billing && (server.Billing.Provider || dueLabel(server))">
-                                        <span v-if="server.Billing.Provider">@#server.Billing.Provider#@</span>
-                                        <span v-if="dueLabel(server)" :class="dueClass(server)">@#dueLabel(server)#@</span>
-                                    </div>
                                 </td>
                                 <td>
                                     <div class="nk-list-meter">
@@ -271,20 +269,33 @@
             },
             dueLabel(server) {
                 const billing = server.Billing
-                if (!billing || !billing.HasDue) {
+                if (!billing) {
                     return ''
                 }
+                if (billing.Lifetime) {
+                    return '永久'
+                }
+                if (!billing.HasDue) {
+                    return ''
+                }
+                // 标签跟在主机名后面，位置紧张，完整日期放进 title
                 if (billing.DueDays < 0) {
                     return '已过期 ' + (-billing.DueDays) + ' 天'
                 }
                 if (billing.DueDays === 0) {
                     return '今天到期'
                 }
-                return billing.DueDays + ' 天后到期'
+                return '剩 ' + billing.DueDays + ' 天'
             },
             dueClass(server) {
                 const billing = server.Billing
-                if (!billing || !billing.HasDue) {
+                if (!billing) {
+                    return ''
+                }
+                if (billing.Lifetime) {
+                    return 'nk-due-tag is-lifetime'
+                }
+                if (!billing.HasDue) {
                     return ''
                 }
                 if (billing.DueDays < 0) {
@@ -297,6 +308,24 @@
                     return 'nk-due-tag is-soon'
                 }
                 return 'nk-due-tag'
+            },
+            dueTitle(server) {
+                const billing = server.Billing
+                if (!billing) {
+                    return ''
+                }
+                if (billing.Lifetime) {
+                    return '一次性付费，无到期日'
+                }
+                return billing.NextDueDate ? '到期日 ' + billing.NextDueDate : ''
+            },
+            providerTitle(server) {
+                const billing = server.Billing
+                if (!billing) {
+                    return ''
+                }
+                return [billing.Provider, billing.ProductPlan, billing.Location]
+                    .filter(Boolean).join(' · ')
             },
             percent(live, used, total) {
                 if (!live || !total) {

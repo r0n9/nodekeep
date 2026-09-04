@@ -731,16 +731,39 @@ html[data-theme="dark"] .nk-theme-icon-light {
   font-weight: 800;
 }
 
-.nk-list-status {
-  min-height: 20px;
-  padding-right: 0.38rem;
-  padding-left: 0.36rem;
-  font-size: 0.68rem;
+/* 在线状态只用一个圆点表示，位置统一在主机名之前。
+   外圈用 box-shadow 而不是 border，圆点本身的直径才不会被边框吃掉。 */
+.nk-status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.12rem;
+  border-radius: 999px;
+  background: var(--nk-accent);
+  box-shadow: 0 0 0 3px var(--nk-accent-soft);
 }
 
-.nk-list-status::before {
-  width: 0.38rem;
-  height: 0.38rem;
+.nk-status-dot.offline {
+  background: var(--nk-offline);
+  box-shadow: 0 0 0 3px var(--nk-track);
+}
+
+.nk-status-dot-lg {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.2rem;
+  box-shadow: 0 0 0 4px var(--nk-accent-soft);
+}
+
+.nk-status-dot-lg.offline {
+  box-shadow: 0 0 0 4px var(--nk-track);
+}
+
+/* .nk-node-name span 带了 flex:1 1 auto，权重比单类名高，这里压回去 */
+.nk-node-name .nk-status-dot,
+.nk-list-node-name .nk-status-dot {
+  flex: 0 0 auto;
 }
 
 .nk-list-node-label {
@@ -1907,28 +1930,92 @@ html[data-theme="dark"] .nk-theme-icon-light {
 .nk-due-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0 0.45rem;
-  border: 1px solid var(--nk-border);
+  gap: 0.3rem;
+  flex: 0 0 auto;
+  min-height: 20px;
+  padding: 0 0.44rem;
   border-radius: 999px;
-  color: var(--nk-subtle);
-  font-size: 0.75rem;
-  line-height: 1.5;
+  color: var(--nk-muted);
+  background: var(--nk-surface-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* 前导圆点，与 .nk-status-pill 是同一套视觉语言 */
+.nk-due-tag::before {
+  content: "";
+  width: 0.34rem;
+  height: 0.34rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.nk-due-tag.is-lifetime {
+  color: var(--nk-accent-strong);
+  background: var(--nk-accent-soft);
 }
 
 .nk-due-tag.is-soon {
-  border-color: #d9822b;
-  color: #d9822b;
+  color: var(--nk-warning-text);
+  background: var(--nk-warning-soft);
 }
 
-.nk-due-tag.is-urgent {
-  border-color: #d64545;
-  color: #d64545;
-}
-
+.nk-due-tag.is-urgent,
 .nk-due-tag.is-expired {
-  border-color: #9f2020;
-  background: #9f2020;
+  color: var(--nk-danger-text);
+  background: var(--nk-danger-soft);
+}
+
+/* 已过期比 7 天内更严重，用实心反白拉开层次 */
+.nk-due-tag.is-expired {
   color: #fff;
+  background: var(--nk-danger);
+}
+
+.nk-due-tag.is-expired::before {
+  opacity: 1;
+}
+
+/* 服务商是中性信息，比到期标签更轻，不与状态色争视线 */
+.nk-provider-tag {
+  flex: 0 0 auto;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nk-subtle);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nk-provider-tag::before {
+  content: "·";
+  margin-right: 0.3rem;
+  color: var(--nk-border-strong);
+}
+
+.nk-node-name .nk-provider-tag,
+.nk-list-node-name .nk-provider-tag {
+  flex: 0 0 auto;
+}
+
+/* .nk-node-name span 里带了 flex:1 1 auto，选择器权重比 .nk-due-tag 高，
+   不在这里显式压回去的话标签会被拉伸，把主机名挤没 */
+.nk-node-name .nk-due-tag,
+.nk-list-node-name .nk-due-tag {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+@media (max-width: 640px) {
+  /* 窄屏优先保证主机名可读，服务商先让位 */
+  .nk-provider-tag {
+    display: none;
+  }
 }
 
 .ui.modal .nk-server-tabs {
@@ -3370,10 +3457,6 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-node-top {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .nk-node-top .nk-status-pill {
-    align-self: flex-start;
   }
 
   .nk-meter {

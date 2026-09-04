@@ -11,6 +11,8 @@
                 <div>
                     <p class="nk-eyebrow">Node Detail</p>
                     <h1>
+                        <span class="nk-status-dot nk-status-dot-lg" :class="{ offline: !server.live }" role="img"
+                            :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
                         <span>@#server.Name#@</span>
                         <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                         <span v-else class="nk-country-flag nk-country-flag-placeholder" title="未知地区">--</span>
@@ -40,11 +42,12 @@
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
+                                <span class="nk-status-dot" :class="{ offline: !server.live }" role="img"
+                                    :title="server.live ? '在线' : '离线'" :aria-label="server.live ? '在线' : '离线'"></span>
                                 <span>实时状态</span>
                             </div>
                             <div class="nk-node-meta">@#hasReport ? formatDate(server.LastActive) : '暂无上报数据'#@</div>
                         </div>
-                        <span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
                     </div>
 
                     <div class="nk-metrics">
@@ -182,6 +185,10 @@
                         <p v-if="server.Billing.NextDueDate">
                             <span>到期日</span>
                             <strong>@#server.Billing.NextDueDate#@</strong>
+                        </p>
+                        <p v-if="server.Billing.Lifetime">
+                            <span>到期日</span>
+                            <strong>永久有效</strong>
                         </p>
                     </div>
                 </article>
@@ -321,11 +328,18 @@
                 // 只有服务商名而没有任何规格时不值得单开一块
                 return !!(billing.ProductPlan || billing.Location || billing.CPUSpec ||
                     billing.MemSpec || billing.DiskSpec || billing.Bandwidth ||
-                    billing.TrafficVol || billing.NetworkRoute || billing.HasDue)
+                    billing.TrafficVol || billing.NetworkRoute || billing.HasDue ||
+                    billing.Lifetime)
             },
             dueLabel() {
                 const billing = this.server && this.server.Billing
-                if (!billing || !billing.HasDue) {
+                if (!billing) {
+                    return ''
+                }
+                if (billing.Lifetime) {
+                    return '永久'
+                }
+                if (!billing.HasDue) {
                     return ''
                 }
                 if (billing.DueDays < 0) {
@@ -334,11 +348,17 @@
                 if (billing.DueDays === 0) {
                     return '今天到期'
                 }
-                return billing.DueDays + ' 天后到期'
+                return '剩 ' + billing.DueDays + ' 天'
             },
             dueClass() {
                 const billing = this.server && this.server.Billing
-                if (!billing || !billing.HasDue) {
+                if (!billing) {
+                    return ''
+                }
+                if (billing.Lifetime) {
+                    return 'nk-due-tag is-lifetime'
+                }
+                if (!billing.HasDue) {
                     return ''
                 }
                 if (billing.DueDays < 0) {

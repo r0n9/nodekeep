@@ -323,6 +323,7 @@ type PublicBilling struct {
 	NextDueDate  string `json:"NextDueDate,omitempty"`
 	DueDays      int    `json:"DueDays"`
 	HasDue       bool   `json:"HasDue"`
+	Lifetime     bool   `json:"Lifetime"`
 	Location     string `json:"Location,omitempty"`
 	Bandwidth    string `json:"Bandwidth,omitempty"`
 	TrafficVol   string `json:"TrafficVol,omitempty"`
@@ -368,6 +369,10 @@ func (b *ServerBilling) PublicSnapshot(now time.Time) *PublicBilling {
 			public.DueDays = days
 			public.HasDue = true
 			public.NextDueDate = FormatBillingDate(b.NextDueDate)
+		} else if b.Cycle == BillingCycleOnetime {
+			// 买断且没填到期日：前台该显示「永久」而不是什么都不显示。
+			// 填了到期日的一次性付费是录错了，那时按到期倒计时展示。
+			public.Lifetime = true
 		}
 	}
 	return public
