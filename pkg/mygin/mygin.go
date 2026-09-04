@@ -12,6 +12,7 @@ import (
 
 var adminPage = map[string]bool{
 	"/server":       true,
+	"/billing":      true,
 	"/monitor":      true,
 	"/setting":      true,
 	"/notification": true,

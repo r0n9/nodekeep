@@ -24,6 +24,7 @@ func (mp *memberPage) serve() {
 		Redirect: "/login",
 	}))
 	mr.GET("/server", mp.server)
+	mr.GET("/billing", mp.billing)
 	mr.GET("/monitor", mp.monitor)
 	mr.GET("/cron", mp.cron)
 	mr.GET("/notification", mp.notification)
@@ -38,6 +39,30 @@ func (mp *memberPage) server(c *gin.Context) {
 		"Title":        "服务器管理",
 		"Servers":      servers,
 		"BillingViews": views,
+	}))
+}
+
+func (mp *memberPage) billing(c *gin.Context) {
+	now := time.Now()
+	servers := dao.SortedServerSnapshot()
+	overview := newBillingOverview(servers, dao.ServerBillingMap(), now)
+
+	names := make(map[uint64]string, len(servers))
+	for _, server := range servers {
+		if server != nil {
+			names[server.ID] = server.Name
+		}
+	}
+	allPayments := dao.AllServerPayments()
+	payments := newPaymentRows(allPayments, names)
+
+	c.HTML(http.StatusOK, "dashboard/billing", mygin.CommonEnvironment(c, gin.H{
+		"Title":      "计费总览",
+		"Overview":   overview,
+		"Spends":     newSpendRows(dao.BillingSpend(dao.AllServerBillings(), now)),
+		"YearSpends": newYearSpendRows(dao.PaymentYearSpend(allPayments)),
+		"Payments":   payments,
+		"Years":      paymentYears(payments),
 	}))
 }
 

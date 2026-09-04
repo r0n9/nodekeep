@@ -30,6 +30,18 @@
                         <input type="text" name="ViewPassword" placeholder="留空则公开访问" value="{{.Conf.Site.ViewPassword}}">
                     </div>
                     <div class="field nk-form-full">
+                        <div class="ui checkbox hide-billing">
+                            <input type="checkbox" name="HideBillingToGuest">
+                            <label>前台不展示计费信息</label>
+                        </div>
+                        {{if and (not .Conf.Site.HideBillingToGuest) (not (ts .Conf.Site.ViewPassword))}}
+                        <div class="ui warning message nk-billing-public-warning">
+                            当前<strong>没有设置前台查看密码</strong>，服务商、套餐规格和到期日对所有访问者可见。
+                            金额、订单编号和付费流水始终不会公开。
+                        </div>
+                        {{end}}
+                    </div>
+                    <div class="field nk-form-full">
                         <label>自定义代码</label>
                         <textarea name="CustomCode" placeholder="可填写 style 或 script">{{.Conf.Site.CustomCode}}</textarea>
                     </div>
@@ -224,6 +236,9 @@
     {{end}}
     {{if .Conf.Agent.TLS}}
     $('.agent-tls.checkbox').checkbox('set checked')
+    {{end}}
+    {{if .Conf.Site.HideBillingToGuest}}
+    $('.hide-billing.checkbox').checkbox('set checked')
     {{end}}
     $('#settingForm .ui.dropdown').dropdown()
 </script>

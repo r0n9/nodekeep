@@ -312,6 +312,67 @@ func (b *ServerBilling) Marshal() template.JS {
 	return template.JS(data)
 }
 
+// PublicBilling 是允许游客看到的计费信息子集。
+//
+// 这是一份白名单，不是「排除列表」：金额、货币、订单编号、面板地址、
+// 自动续费状态和付费流水永远不出现在这里，也不提供开关。
+// 新增 ServerBilling 字段时默认不会流到前台，要公开必须显式加进来。
+type PublicBilling struct {
+	Provider     string `json:"Provider,omitempty"`
+	ProductPlan  string `json:"ProductPlan,omitempty"`
+	NextDueDate  string `json:"NextDueDate,omitempty"`
+	DueDays      int    `json:"DueDays"`
+	HasDue       bool   `json:"HasDue"`
+	Location     string `json:"Location,omitempty"`
+	Bandwidth    string `json:"Bandwidth,omitempty"`
+	TrafficVol   string `json:"TrafficVol,omitempty"`
+	TrafficType  string `json:"TrafficType,omitempty"`
+	NetworkRoute string `json:"NetworkRoute,omitempty"`
+	CPUSpec      string `json:"CPUSpec,omitempty"`
+	MemSpec      string `json:"MemSpec,omitempty"`
+	DiskSpec     string `json:"DiskSpec,omitempty"`
+}
+
+// TrafficTypeName 返回流量计算方式的中文名。
+func TrafficTypeName(trafficType uint8) string {
+	switch trafficType {
+	case TrafficTypeSingle:
+		return "单向"
+	case TrafficTypeDouble:
+		return "双向"
+	default:
+		return ""
+	}
+}
+
+// PublicSnapshot 生成给游客看的计费信息。单独标记隐藏的返回 nil。
+// 已退订的仍展示套餐规格，但不给出到期倒计时——那会让人以为机器要没了。
+func (b *ServerBilling) PublicSnapshot(now time.Time) *PublicBilling {
+	if b == nil || b.HideBilling {
+		return nil
+	}
+	public := &PublicBilling{
+		Provider:     b.Provider,
+		ProductPlan:  b.ProductPlan,
+		Location:     b.Extra.Location,
+		Bandwidth:    b.Extra.Bandwidth,
+		TrafficVol:   b.Extra.TrafficVol,
+		TrafficType:  TrafficTypeName(b.Extra.TrafficType),
+		NetworkRoute: b.Extra.NetworkRoute,
+		CPUSpec:      b.Extra.CPUSpec,
+		MemSpec:      b.Extra.MemSpec,
+		DiskSpec:     b.Extra.DiskSpec,
+	}
+	if b.Active() {
+		if days, ok := b.DaysUntilDue(now); ok {
+			public.DueDays = days
+			public.HasDue = true
+			public.NextDueDate = FormatBillingDate(b.NextDueDate)
+		}
+	}
+	return public
+}
+
 const billingDateLayout = "2006-01-02"
 
 // AdvanceDue 从 from 推进 count 个 cycle 周期，返回新的到期日。

@@ -722,6 +722,7 @@ type settingForm struct {
 	Admin                      string
 	CustomCode                 string
 	ViewPassword               string
+	HideBillingToGuest         string
 	EnableIPChangeNotification string
 	Oauth2Type                 string
 	LocalAuthEnabled           string
@@ -744,6 +745,7 @@ func (ma *memberAPI) updateSetting(c *gin.Context) {
 	dao.Conf.Site.Brand = sf.Title
 	dao.Conf.Site.CustomCode = sf.CustomCode
 	dao.Conf.Site.ViewPassword = sf.ViewPassword
+	dao.Conf.Site.HideBillingToGuest = sf.HideBillingToGuest == "on"
 	dao.Conf.Oauth2.Type = sf.Oauth2Type
 	dao.Conf.Oauth2.Admin = sf.Admin
 	dao.Conf.Auth.Local.Enabled = sf.LocalAuthEnabled == "on"

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"strings"
@@ -212,4 +213,20 @@ func paymentPeriodText(payment model.ServerPayment) string {
 		return ""
 	}
 	return start + " ~ " + end
+}
+
+// publicBillingJSON 把公开计费信息序列化进前台页面。
+//
+// 计费信息走首屏而不是 /ws：那条推送每 2 秒下发一次全量快照，
+// 前端拿到后整个替换 servers，所以模板里还要在 ws 回调中按 ID 合并回来，
+// 否则 2 秒后这些字段就没了。
+func publicBillingJSON(billings map[uint64]*model.PublicBilling) template.JS {
+	if len(billings) == 0 {
+		return template.JS("{}")
+	}
+	data, err := json.Marshal(billings)
+	if err != nil {
+		return template.JS("{}")
+	}
+	return template.JS(data)
 }

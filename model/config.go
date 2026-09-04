@@ -22,6 +22,9 @@ type Config struct {
 		CookieName   string // 浏览器 Cookie 名称
 		CustomCode   string
 		ViewPassword string // 前台查看密码
+		// 前台是否隐藏计费信息。零值即公开，与「到期信息默认对游客可见」一致；
+		// 用「隐藏」而不是「公开」语义，老配置文件读不到这个键时也能保持默认公开。
+		HideBillingToGuest bool
 	}
 	Oauth2 struct {
 		Type         string

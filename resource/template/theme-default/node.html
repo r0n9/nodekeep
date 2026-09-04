@@ -135,10 +135,59 @@
                         </p>
                     </div>
                 </article>
+
+                <article v-if="hasBilling" class="nk-node-card nk-node-info-panel">
+                    <div class="nk-node-top">
+                        <div>
+                            <div class="nk-node-name">
+                                <span>套餐信息</span>
+                            </div>
+                            <div class="nk-node-meta">@#server.Billing.Provider || '未标注服务商'#@</div>
+                        </div>
+                        <span v-if="dueLabel" :class="dueClass">@#dueLabel#@</span>
+                    </div>
+                    <div class="nk-node-detail-grid nk-node-detail-grid-large">
+                        <p v-if="server.Billing.ProductPlan">
+                            <span>套餐</span>
+                            <strong>@#server.Billing.ProductPlan#@</strong>
+                        </p>
+                        <p v-if="server.Billing.Location">
+                            <span>机房</span>
+                            <strong>@#server.Billing.Location#@</strong>
+                        </p>
+                        <p v-if="server.Billing.CPUSpec">
+                            <span>CPU</span>
+                            <strong>@#server.Billing.CPUSpec#@</strong>
+                        </p>
+                        <p v-if="server.Billing.MemSpec">
+                            <span>内存</span>
+                            <strong>@#server.Billing.MemSpec#@</strong>
+                        </p>
+                        <p v-if="server.Billing.DiskSpec">
+                            <span>硬盘</span>
+                            <strong>@#server.Billing.DiskSpec#@</strong>
+                        </p>
+                        <p v-if="server.Billing.Bandwidth">
+                            <span>带宽</span>
+                            <strong>@#server.Billing.Bandwidth#@</strong>
+                        </p>
+                        <p v-if="server.Billing.TrafficVol">
+                            <span>流量</span>
+                            <strong>@#server.Billing.TrafficVol#@@#server.Billing.TrafficType ? '（' + server.Billing.TrafficType + '）' : ''#@</strong>
+                        </p>
+                        <p v-if="server.Billing.NetworkRoute">
+                            <span>线路</span>
+                            <strong>@#server.Billing.NetworkRoute#@</strong>
+                        </p>
+                        <p v-if="server.Billing.NextDueDate">
+                            <span>到期日</span>
+                            <strong>@#server.Billing.NextDueDate#@</strong>
+                        </p>
+                    </div>
+                </article>
             </section>
 
-            <section class="nk-history-section">
-                <div class="nk-section-title nk-history-toolbar">
+            <section class="nk-history-section">                <div class="nk-section-title nk-history-toolbar">
                     <div class="nk-history-title">
                         <h2>监控指标</h2>
                         <span>@#historyLabel#@</span>
@@ -213,6 +262,9 @@
 <script>
     const nodeID = {{.Server.ID}};
     const initServer = {{.Server}};
+    // 同 home.html：计费信息走首屏，不进每 2 秒一次的 ws 快照
+    const billingData = {{.Billings}};
+    initServer.Billing = billingData[initServer.ID] || null;
     const initMetricRange = '{{.MetricRange}}';
 
     function emptyMetricSeries(range) {
@@ -260,6 +312,45 @@
             },
             hasMetrics() {
                 return !!(this.metricSeries && this.metricSeries.count > 0)
+            },
+            hasBilling() {
+                const billing = this.server && this.server.Billing
+                if (!billing) {
+                    return false
+                }
+                // 只有服务商名而没有任何规格时不值得单开一块
+                return !!(billing.ProductPlan || billing.Location || billing.CPUSpec ||
+                    billing.MemSpec || billing.DiskSpec || billing.Bandwidth ||
+                    billing.TrafficVol || billing.NetworkRoute || billing.HasDue)
+            },
+            dueLabel() {
+                const billing = this.server && this.server.Billing
+                if (!billing || !billing.HasDue) {
+                    return ''
+                }
+                if (billing.DueDays < 0) {
+                    return '已过期 ' + (-billing.DueDays) + ' 天'
+                }
+                if (billing.DueDays === 0) {
+                    return '今天到期'
+                }
+                return billing.DueDays + ' 天后到期'
+            },
+            dueClass() {
+                const billing = this.server && this.server.Billing
+                if (!billing || !billing.HasDue) {
+                    return ''
+                }
+                if (billing.DueDays < 0) {
+                    return 'nk-due-tag is-expired'
+                }
+                if (billing.DueDays < 7) {
+                    return 'nk-due-tag is-urgent'
+                }
+                if (billing.DueDays <= 30) {
+                    return 'nk-due-tag is-soon'
+                }
+                return 'nk-due-tag'
             },
             latestMetric() {
                 if (!this.hasMetrics) {
@@ -324,6 +415,8 @@
                 if (!server) {
                     return
                 }
+                // ws 推来的是全新对象，计费信息要重新挂回去
+                server.Billing = billingData[server.ID] || null
                 const lastActive = new Date(server.LastActive).getTime()
                 server.live = Number.isFinite(lastActive) && Date.now() - lastActive <= 20 * 1000
                 this.server = server

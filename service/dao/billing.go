@@ -141,6 +141,26 @@ func DeleteServerPayment(id uint64) error {
 	return DB.Delete(&model.ServerPayment{}, "id = ?", id).Error
 }
 
+// PublicServerBillingMap 返回可以给游客看的计费信息，按 ServerID 建索引。
+// 全局开关关闭时返回空表；单机器的 HideBilling 由 PublicSnapshot 处理。
+//
+// 刻意不塞进 PublicServerRuntime：那份快照每 2 秒经 /ws 全量下发一次，
+// 而计费信息一年才变一次，跟着走纯属浪费带宽，还会放大 serverLock 的持有时间。
+func PublicServerBillingMap(now time.Time) map[uint64]*model.PublicBilling {
+	if Conf == nil || Conf.Site.HideBillingToGuest {
+		return nil
+	}
+	var list []model.ServerBilling
+	DB.Find(&list)
+	result := make(map[uint64]*model.PublicBilling, len(list))
+	for i := range list {
+		if public := list[i].PublicSnapshot(now); public != nil {
+			result[list[i].ServerID] = public
+		}
+	}
+	return result
+}
+
 // billingDueItem 是一条待提醒的到期记录。
 type billingDueItem struct {
 	billing model.ServerBilling

@@ -1845,6 +1845,92 @@ html[data-theme="dark"] .nk-theme-icon-light {
   font-size: 0.85em;
 }
 
+.nk-billing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.nk-billing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--nk-border);
+  border-radius: 12px;
+  background: var(--nk-surface);
+}
+
+.nk-billing-card-value {
+  font-size: 1.9rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.nk-billing-card-label {
+  color: var(--nk-subtle);
+  font-size: 0.85rem;
+}
+
+.nk-billing-card.is-warning {
+  border-color: #d9822b;
+}
+
+.nk-billing-card.is-warning .nk-billing-card-value {
+  color: #d9822b;
+}
+
+.nk-billing-card.is-danger {
+  border-color: #9f2020;
+}
+
+.nk-billing-card.is-danger .nk-billing-card-value {
+  color: #9f2020;
+}
+
+.nk-payment-filters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.nk-payment-filters select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--nk-border);
+  border-radius: 8px;
+  background: var(--nk-surface);
+  color: inherit;
+}
+
+/* 前台的到期标签，分级与后台列表保持一致 */
+.nk-due-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.45rem;
+  border: 1px solid var(--nk-border);
+  border-radius: 999px;
+  color: var(--nk-subtle);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.nk-due-tag.is-soon {
+  border-color: #d9822b;
+  color: #d9822b;
+}
+
+.nk-due-tag.is-urgent {
+  border-color: #d64545;
+  color: #d64545;
+}
+
+.nk-due-tag.is-expired {
+  border-color: #9f2020;
+  background: #9f2020;
+  color: #fff;
+}
+
 .ui.modal .nk-server-tabs {
   margin-bottom: 0;
 }

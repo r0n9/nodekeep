@@ -9,6 +9,7 @@
         <nav class="nk-nav" aria-label="主导航">
             {{if .IsAdminPage}}
             <a class='{{if eq .MatchedPath "/server"}}active{{end}}' href="/server"><i class="server icon"></i>服务器</a>
+            <a class='{{if eq .MatchedPath "/billing"}}active{{end}}' href="/billing"><i class="dollar sign icon"></i>计费总览</a>
             <a class='{{if eq .MatchedPath "/monitor"}}active{{end}}' href="/monitor"><i class="rss icon"></i>服务监控</a>
             <a class='{{if eq .MatchedPath "/cron"}}active{{end}}' href="/cron"><i class="clock icon"></i>计划任务</a>
             <a class='{{if eq .MatchedPath "/notification"}}active{{end}}' href="/notification"><i class="bell icon"></i>告警通知</a>

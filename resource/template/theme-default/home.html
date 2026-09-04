@@ -57,6 +57,10 @@
                                     <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
+                                <div class="nk-node-meta" v-if="server.Billing && (server.Billing.Provider || dueLabel(server))">
+                                    <span v-if="server.Billing.Provider">@#server.Billing.Provider#@</span>
+                                    <span v-if="dueLabel(server)" :class="dueClass(server)">@#dueLabel(server)#@</span>
+                                </div>
                             </div>
                             <span class="nk-status-pill" :class="{ offline: !server.live }">@#server.live ? '在线' : '离线'#@</span>
                         </div>
@@ -171,6 +175,10 @@
                                         运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
+                                    <div class="nk-list-node-meta" v-if="server.Billing && (server.Billing.Provider || dueLabel(server))">
+                                        <span v-if="server.Billing.Provider">@#server.Billing.Provider#@</span>
+                                        <span v-if="dueLabel(server)" :class="dueClass(server)">@#dueLabel(server)#@</span>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="nk-list-meter">
@@ -216,6 +224,9 @@
 {{template "common/footer" .}}
 <script>
     const initData = {{.Servers}};
+    // 计费信息不随 /ws 推送：那条快照每 2 秒下发一次全量数据并整个替换 servers，
+    // 一年不变的字段跟着走纯属浪费。首屏渲染一份，ws 回调里按 ID 合并回来。
+    const billingData = {{.Billings}};
     var statusCards = new Vue({
         el: '#app',
         delimiters: ['@#', '#@'],
@@ -245,6 +256,9 @@
             },
             refreshServers(servers) {
                 this.servers = servers.map(server => {
+                    // 每次刷新都要重新挂计费信息：ws 推来的对象是全新的，
+                    // 不合并的话首屏渲染的字段 2 秒后就没了
+                    server.Billing = billingData[server.ID] || null
                     if (!server.Host) {
                         server.live = false
                         return server
@@ -254,6 +268,35 @@
                     return server
                 })
                 this.group()
+            },
+            dueLabel(server) {
+                const billing = server.Billing
+                if (!billing || !billing.HasDue) {
+                    return ''
+                }
+                if (billing.DueDays < 0) {
+                    return '已过期 ' + (-billing.DueDays) + ' 天'
+                }
+                if (billing.DueDays === 0) {
+                    return '今天到期'
+                }
+                return billing.DueDays + ' 天后到期'
+            },
+            dueClass(server) {
+                const billing = server.Billing
+                if (!billing || !billing.HasDue) {
+                    return ''
+                }
+                if (billing.DueDays < 0) {
+                    return 'nk-due-tag is-expired'
+                }
+                if (billing.DueDays < 7) {
+                    return 'nk-due-tag is-urgent'
+                }
+                if (billing.DueDays <= 30) {
+                    return 'nk-due-tag is-soon'
+                }
+                return 'nk-due-tag'
             },
             percent(live, used, total) {
                 if (!live || !total) {

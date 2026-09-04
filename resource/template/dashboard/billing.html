@@ -1,0 +1,232 @@
+{{define "dashboard/billing"}}
+{{template "common/header" .}}
+{{template "common/menu" .}}
+<main class="nk-page nk-admin-page">
+    <div class="ui container">
+        <div class="nk-page-head">
+            <div>
+                <p class="nk-eyebrow">Billing</p>
+                <h1>计费总览</h1>
+                <p>订阅到期、支出汇总和付费流水。金额只在后台可见。</p>
+            </div>
+        </div>
+
+        <section class="nk-billing-cards">
+            <div class="nk-billing-card{{if .Overview.Expired}} is-danger{{end}}">
+                <span class="nk-billing-card-value">{{.Overview.Expired}}</span>
+                <span class="nk-billing-card-label">已过期</span>
+            </div>
+            <div class="nk-billing-card{{if .Overview.DueSoon}} is-warning{{end}}">
+                <span class="nk-billing-card-value">{{.Overview.DueSoon}}</span>
+                <span class="nk-billing-card-label">30 天内到期</span>
+            </div>
+            <div class="nk-billing-card">
+                <span class="nk-billing-card-value">{{.Overview.NoBilling}}</span>
+                <span class="nk-billing-card-label">未录入计费</span>
+            </div>
+        </section>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>支出汇总</h2>
+                    <p>按币种分别统计，不做汇率折算。一次性付费不计入月均和年度折算。</p>
+                </div>
+            </div>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table">
+                    <thead>
+                        <tr>
+                            <th>币种</th>
+                            <th>每月</th>
+                            <th>年度折算</th>
+                            <th>一次性</th>
+                            <th>机器数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $spend := .Spends}}
+                        <tr>
+                            <td><strong>{{$spend.Currency}}</strong></td>
+                            <td>{{$spend.Monthly}}</td>
+                            <td>{{$spend.Annual}}</td>
+                            <td>
+                                {{if $spend.Onetime}}{{$spend.Onetime}}（{{$spend.OnetimeCount}} 台）
+                                {{else}}<span class="nk-muted-text">-</span>{{end}}
+                            </td>
+                            <td>{{$spend.Count}}</td>
+                        </tr>
+                        {{else}}
+                        <tr>
+                            <td colspan="5" class="nk-muted-text">还没有计费数据</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>到期总览</h2>
+                    <p>按剩余天数升序，最紧迫的排在最前。</p>
+                </div>
+            </div>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table">
+                    <thead>
+                        <tr>
+                            <th>服务器</th>
+                            <th>分组</th>
+                            <th>服务商</th>
+                            <th>套餐</th>
+                            <th>价格</th>
+                            <th>到期日</th>
+                            <th>剩余</th>
+                            <th>管理</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $row := .Overview.Rows}}
+                        <tr>
+                            <td><strong>{{$row.Name}}</strong></td>
+                            <td>{{if $row.Tag}}{{$row.Tag}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>
+                                {{if $row.Provider}}
+                                    {{if $row.PanelURL}}
+                                    <a href="{{$row.PanelURL}}" target="_blank" rel="noopener noreferrer">{{$row.Provider}}</a>
+                                    {{else}}{{$row.Provider}}{{end}}
+                                {{else}}<span class="nk-muted-text">-</span>{{end}}
+                            </td>
+                            <td>{{if $row.Plan}}{{$row.Plan}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>
+                                {{if $row.Price}}{{$row.Price}}{{else}}<span class="nk-muted-text">-</span>{{end}}
+                                {{if $row.AutoRenew}}<span class="ui tiny basic label">自动</span>{{end}}
+                            </td>
+                            <td>{{if $row.NextDue}}{{$row.NextDue}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>
+                                {{if $row.Due.LabelClass}}
+                                <span class="{{$row.Due.LabelClass}}">{{$row.Due.Text}}</span>
+                                {{else}}<span class="nk-muted-text">-</span>{{end}}
+                            </td>
+                            <td>
+                                <div class="ui mini icon buttons">
+                                    <button class="ui button" data-tooltip="续费与账单" data-position="top center"
+                                        onclick="showBillingModal({{$row.ServerID}}, {{$row.Name}})">
+                                        <i class="dollar sign icon"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {{else}}
+                        <tr>
+                            <td colspan="8" class="nk-muted-text">还没有服务器</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>年度实付</h2>
+                    <p>直接来自付费流水，已退订机器当年花的钱也算在内。</p>
+                </div>
+            </div>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table">
+                    <thead>
+                        <tr>
+                            <th>年份</th>
+                            <th>币种</th>
+                            <th>合计</th>
+                            <th>笔数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $spend := .YearSpends}}
+                        <tr>
+                            <td><strong>{{$spend.Year}}</strong></td>
+                            <td>{{$spend.Currency}}</td>
+                            <td>{{$spend.Amount}}</td>
+                            <td>{{$spend.Count}}</td>
+                        </tr>
+                        {{else}}
+                        <tr>
+                            <td colspan="4" class="nk-muted-text">还没有付费记录</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="nk-panel">
+            <div class="nk-panel-head">
+                <div>
+                    <h2>付费流水</h2>
+                    <p>全部服务器的付费记录。</p>
+                </div>
+                <div class="nk-payment-filters">
+                    <select class="ui dropdown" id="paymentYearFilter" onchange="filterPaymentRows()">
+                        <option value="">全部年份</option>
+                        {{range $year := .Years}}
+                        <option value="{{$year}}">{{$year}}</option>
+                        {{end}}
+                    </select>
+                    <select class="ui dropdown" id="paymentServerFilter" onchange="filterPaymentRows()">
+                        <option value="">全部服务器</option>
+                        {{range $row := .Overview.Rows}}
+                        <option value="{{$row.ServerID}}">{{$row.Name}}</option>
+                        {{end}}
+                    </select>
+                </div>
+            </div>
+            <div class="nk-table-wrap">
+                <table class="ui very basic table nk-table" id="paymentTable">
+                    <thead>
+                        <tr>
+                            <th>付款日</th>
+                            <th>服务器</th>
+                            <th>金额</th>
+                            <th>周期</th>
+                            <th>覆盖区间</th>
+                            <th>方式</th>
+                            <th>备注</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range $payment := .Payments}}
+                        <tr data-year="{{$payment.Year}}" data-server="{{$payment.ServerID}}">
+                            <td>{{$payment.PaidAt}}</td>
+                            <td>{{$payment.Server}}</td>
+                            <td>{{$payment.Currency}} {{$payment.Amount}}</td>
+                            <td>{{$payment.Cycle}}</td>
+                            <td>{{if $payment.Period}}{{$payment.Period}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>{{if $payment.Method}}{{$payment.Method}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>{{if $payment.Note}}{{$payment.Note}}{{else}}<span class="nk-muted-text">-</span>{{end}}</td>
+                            <td>
+                                <button class="ui mini icon button"
+                                    onclick="showConfirm('删除付费记录','确认删除这条流水？到期日不会跟着回退。',deleteRequest,'/api/payment/'+{{$payment.ID}})">
+                                    <i class="trash alternate outline icon"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {{else}}
+                        <tr class="nk-payment-empty">
+                            <td colspan="8" class="nk-muted-text">还没有付费记录</td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+{{template "component/billing"}}
+{{template "common/footer" .}}
+{{end}}

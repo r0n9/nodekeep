@@ -294,6 +294,31 @@ function confirmDeletePayment(paymentID) {
     showConfirm('删除付费记录', '确认删除这条流水？到期日不会跟着回退。', deleteRequest, '/api/payment/' + paymentID)
 }
 
+// 计费总览页的流水筛选。数据量是个人自用规模，直接在前端过滤行，
+// 不额外加接口和分页。
+function filterPaymentRows() {
+    const year = $('#paymentYearFilter').val()
+    const server = $('#paymentServerFilter').val()
+    let visible = 0
+    $('#paymentTable tbody tr').each(function () {
+        const row = $(this)
+        if (row.hasClass('nk-payment-empty') || row.hasClass('nk-payment-no-match')) {
+            return
+        }
+        const matched = (!year || String(row.data('year')) === year) &&
+            (!server || String(row.data('server')) === server)
+        row.toggle(matched)
+        if (matched) {
+            visible++
+        }
+    })
+    $('#paymentTable tbody .nk-payment-no-match').remove()
+    if (visible === 0 && $('#paymentTable tbody .nk-payment-empty').length === 0) {
+        $('#paymentTable tbody').append(
+            '<tr class="nk-payment-no-match"><td colspan="8" class="nk-muted-text">没有符合条件的记录</td></tr>')
+    }
+}
+
 function serverSecretMask(secret) {
     const length = Math.max(String(secret || '').length, 8)
     return new Array(length + 1).join('*')
