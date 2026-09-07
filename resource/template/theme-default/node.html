@@ -14,7 +14,7 @@
                         <span class="nk-status-dot nk-status-dot-lg" :class="statusState()" role="img"
                             :title="statusText()" :aria-label="statusText()"></span>
                         <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                        <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                        <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                         <span class="nk-node-hero-title">@#server.Name#@</span>
                     </h1>
                     <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · @#hasReport ? (server.Host.Platform || 'unknown') + ' ' + (server.Host.Arch || '-') : '等待 Agent 上报'#@</p>

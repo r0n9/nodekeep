@@ -55,7 +55,7 @@
                                     <span :class="statusClass(server)" role="img"
                                         :title="statusText(server)" :aria-label="statusText(server)"></span>
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                    <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                                    <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                                     <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                     <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                     <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
@@ -171,7 +171,7 @@
                                         <span :class="statusClass(server)" role="img"
                                             :title="statusText(server)" :aria-label="statusText(server)"></span>
                                         <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                        <i v-else class="globe icon nk-country-flag nk-country-flag-none" title="未知地区"></i>
+                                        <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                                         <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
                                         <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                         <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>

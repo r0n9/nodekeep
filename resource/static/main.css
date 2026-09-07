@@ -2936,10 +2936,19 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   transform: translateY(-0.02em);
 }
 
-.nk-country-flag-none {
-  color: var(--nk-subtle);
-  font-size: 0.95rem;
-  line-height: 1;
+.nk-country-flag-default {
+  display: inline-block;
+  width: 16px;
+  height: 11px;
+  box-sizing: border-box;
+  border: 1px solid var(--nk-border-strong);
+  border-radius: 2px;
+  background-color: #14213d;
+  background-image: url('/static/logo.svg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 10px 10px;
+  vertical-align: middle;
 }
 
 @media (max-width: 900px) {
