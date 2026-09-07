@@ -201,14 +201,15 @@ func (sf *serverForm) hasBillingData() bool {
 }
 
 var validBillingCycles = map[string]bool{
-	"":                             true,
-	model.BillingCycleMonthly:      true,
-	model.BillingCycleQuarterly:    true,
-	model.BillingCycleSemiannually: true,
-	model.BillingCycleAnnually:     true,
-	model.BillingCycleBiennially:   true,
-	model.BillingCycleTriennially:  true,
-	model.BillingCycleOnetime:      true,
+	"":                               true,
+	model.BillingCycleMonthly:        true,
+	model.BillingCycleQuarterly:      true,
+	model.BillingCycleSemiannually:   true,
+	model.BillingCycleAnnually:       true,
+	model.BillingCycleBiennially:     true,
+	model.BillingCycleTriennially:    true,
+	model.BillingCycleQuinquennially: true,
+	model.BillingCycleOnetime:        true,
 }
 
 // buildServerBilling 校验并组装订阅信息。所有校验都在写库之前完成，

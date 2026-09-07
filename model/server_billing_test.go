@@ -189,14 +189,15 @@ func TestEffectiveRemindDays(t *testing.T) {
 
 func TestBillingCycleMonths(t *testing.T) {
 	cases := map[string]int{
-		BillingCycleMonthly:      1,
-		BillingCycleQuarterly:    3,
-		BillingCycleSemiannually: 6,
-		BillingCycleAnnually:     12,
-		BillingCycleBiennially:   24,
-		BillingCycleTriennially:  36,
-		BillingCycleOnetime:      0,
-		"unknown":                0,
+		BillingCycleMonthly:        1,
+		BillingCycleQuarterly:      3,
+		BillingCycleSemiannually:   6,
+		BillingCycleAnnually:       12,
+		BillingCycleBiennially:     24,
+		BillingCycleTriennially:    36,
+		BillingCycleQuinquennially: 60,
+		BillingCycleOnetime:        0,
+		"unknown":                  0,
 	}
 	for cycle, want := range cases {
 		if got := BillingCycleMonths(cycle); got != want {

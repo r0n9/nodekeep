@@ -74,6 +74,12 @@ func TestAdvanceDue(t *testing.T) {
 			want:  date(2028, 5, 10),
 		},
 		{
+			name:  "五年付",
+			from:  date(2026, 5, 10),
+			cycle: BillingCycleQuinquennially,
+			want:  date(2031, 5, 10),
+		},
+		{
 			name:  "周期数为2的年付等于加两年",
 			from:  date(2026, 5, 10),
 			cycle: BillingCycleAnnually,

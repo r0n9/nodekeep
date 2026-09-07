@@ -14,13 +14,14 @@ import (
 
 // 计费周期。取值与主流主机计费系统保持一致，便于以后导入导出。
 const (
-	BillingCycleMonthly      = "monthly"
-	BillingCycleQuarterly    = "quarterly"
-	BillingCycleSemiannually = "semiannually"
-	BillingCycleAnnually     = "annually"
-	BillingCycleBiennially   = "biennially"
-	BillingCycleTriennially  = "triennially"
-	BillingCycleOnetime      = "onetime"
+	BillingCycleMonthly        = "monthly"
+	BillingCycleQuarterly      = "quarterly"
+	BillingCycleSemiannually   = "semiannually"
+	BillingCycleAnnually       = "annually"
+	BillingCycleBiennially     = "biennially"
+	BillingCycleTriennially    = "triennially"
+	BillingCycleQuinquennially = "quinquennially"
+	BillingCycleOnetime        = "onetime"
 )
 
 // 订阅状态。「已过期」由 NextDueDate 推导，不落库，避免存储状态与实际日期漂移。
@@ -39,23 +40,25 @@ const (
 var DefaultBillingRemindDays = []int{30, 7, 3, 1}
 
 var billingCycleMonths = map[string]int{
-	BillingCycleMonthly:      1,
-	BillingCycleQuarterly:    3,
-	BillingCycleSemiannually: 6,
-	BillingCycleAnnually:     12,
-	BillingCycleBiennially:   24,
-	BillingCycleTriennially:  36,
-	BillingCycleOnetime:      0,
+	BillingCycleMonthly:        1,
+	BillingCycleQuarterly:      3,
+	BillingCycleSemiannually:   6,
+	BillingCycleAnnually:       12,
+	BillingCycleBiennially:     24,
+	BillingCycleTriennially:    36,
+	BillingCycleQuinquennially: 60,
+	BillingCycleOnetime:        0,
 }
 
 var billingCycleNames = map[string]string{
-	BillingCycleMonthly:      "月付",
-	BillingCycleQuarterly:    "季付",
-	BillingCycleSemiannually: "半年付",
-	BillingCycleAnnually:     "年付",
-	BillingCycleBiennially:   "两年付",
-	BillingCycleTriennially:  "三年付",
-	BillingCycleOnetime:      "一次性",
+	BillingCycleMonthly:        "月付",
+	BillingCycleQuarterly:      "季付",
+	BillingCycleSemiannually:   "半年付",
+	BillingCycleAnnually:       "年付",
+	BillingCycleBiennially:     "两年付",
+	BillingCycleTriennially:    "三年付",
+	BillingCycleQuinquennially: "五年付",
+	BillingCycleOnetime:        "一次性",
 }
 
 // BillingCycleMonths 返回一个计费周期包含的月数，一次性付费返回 0。
