@@ -57,15 +57,18 @@
                                     <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                                     <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                                     <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID">@#server.Name#@</a>
-                                    <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
-                                    <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-if="server.reported">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
+                                    <span>· 系统 @#server.Host.PlatformVersion || '-'#@</span>
                                     <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span>
                                     <span>· @#server.Host.Arch || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
+                            </div>
+                            <div v-if="server.Billing && (server.Billing.Provider || dueLabel(server))" class="nk-node-billing">
+                                <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
+                                <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                             </div>
                         </div>
 
@@ -178,8 +181,11 @@
                                         <span v-if="server.Billing && server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                         <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                     </div>
-                                    <div class="nk-list-node-meta" v-if="server.reported">
-                                        运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span> · @#server.Host.Arch || '-'#@
+                                    <div class="nk-list-node-meta nk-platform-meta" v-if="server.reported">
+                                        <span>运行 @#secondToDate(server.State.Uptime)#@</span>
+                                        <span>· 系统 @#server.Host.PlatformVersion || '-'#@</span>
+                                        <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span>
+                                        <span>· @#server.Host.Arch || '-'#@</span>
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
                                 </td>
