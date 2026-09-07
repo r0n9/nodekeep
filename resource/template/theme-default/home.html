@@ -62,7 +62,8 @@
                                 </div>
                                 <div class="nk-node-meta" v-if="server.reported">
                                     <span class="nk-node-runtime">运行 @#secondToDate(server.State.Uptime)#@</span>
-                                    <span>@#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@</span>
+                                    <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span>
+                                    <span>· @#server.Host.Arch || '-'#@</span>
                                 </div>
                                 <div class="nk-node-meta" v-else>等待 Agent 上报</div>
                             </div>
@@ -71,17 +72,17 @@
                         <template v-if="server.reported">
                             <div class="nk-metrics">
                                 <div class="nk-meter">
-                                    <span>CPU</span>
+                                    <span class="nk-meter-label"><i class="microchip icon" aria-hidden="true"></i>CPU</span>
                                     <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.CPU, 100)"></i></div>
                                     <strong>@#formatPercentValue(server.live, server.State.CPU, 100)#@%</strong>
                                 </div>
                                 <div class="nk-meter">
-                                    <span>内存</span>
+                                    <span class="nk-meter-label"><i class="database icon" aria-hidden="true"></i>内存</span>
                                     <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.MemUsed, server.Host.MemTotal)"></i></div>
                                     <strong>@#formatPercentValue(server.live, server.State.MemUsed, server.Host.MemTotal)#@%</strong>
                                 </div>
                                 <div class="nk-meter">
-                                    <span>硬盘</span>
+                                    <span class="nk-meter-label"><i class="hdd outline icon" aria-hidden="true"></i>硬盘</span>
                                     <div class="nk-meter-track"><i :style="meterStyle(server.live, server.State.DiskUsed, server.Host.DiskTotal)"></i></div>
                                     <strong>@#formatPercentValue(server.live, server.State.DiskUsed, server.Host.DiskTotal)#@%</strong>
                                 </div>
@@ -89,6 +90,7 @@
 
                             <div class="nk-network-grid">
                                 <div class="nk-network-card nk-network-combo">
+                                    <div class="nk-network-title"><i class="sitemap icon" aria-hidden="true"></i><span>网络</span></div>
                                     <div class="nk-network-row outbound">
                                         <div class="nk-network-head">
                                             <span class="nk-network-label"><i class="arrow up icon"></i>出站</span>
@@ -120,7 +122,7 @@
                                 <div class="nk-node-detail-grid">
                                     <p>
                                         <span>系统</span>
-                                        <strong>@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</strong>
+                                        <strong class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform#@ @#server.Host.PlatformVersion#@</strong>
                                     </p>
                                     <p>
                                         <span>最近活动</span>
@@ -157,10 +159,10 @@
                         <thead>
                             <tr>
                                 <th>节点</th>
-                                <th>CPU</th>
-                                <th>内存</th>
-                                <th>硬盘</th>
-                                <th>网络</th>
+                                <th><i class="microchip icon" aria-hidden="true"></i>CPU</th>
+                                <th><i class="database icon" aria-hidden="true"></i>内存</th>
+                                <th><i class="hdd outline icon" aria-hidden="true"></i>硬盘</th>
+                                <th><i class="sitemap icon" aria-hidden="true"></i>网络</th>
                                 <th>累计流量</th>
                             </tr>
                         </thead>
@@ -177,7 +179,7 @@
                                         <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                     </div>
                                     <div class="nk-list-node-meta" v-if="server.reported">
-                                        运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · @#server.Host.Platform || 'unknown'#@ · @#server.Host.Arch || '-'#@
+                                        运行 @#secondToDate(server.State.Uptime)#@ · 系统 @#server.Host.PlatformVersion || '-'#@ · <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span> · @#server.Host.Arch || '-'#@
                                     </div>
                                     <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
                                 </td>
@@ -362,6 +364,34 @@
                 }
                 return [billing.Provider, billing.ProductPlan, billing.Location]
                     .filter(Boolean).join(' · ')
+            },
+            platformIcon(platform, version) {
+                const value = (String(platform || '') + ' ' + String(version || '')).toLowerCase()
+                if (value.includes('ubuntu')) {
+                    return 'nk-platform-icon nk-platform-icon-ubuntu'
+                }
+                if (value.includes('debian')) {
+                    return 'nk-platform-icon nk-platform-icon-debian'
+                }
+                if (value.includes('centos')) {
+                    return 'nk-platform-icon nk-platform-icon-centos'
+                }
+                if (value.includes('windows')) {
+                    return 'nk-platform-icon windows icon'
+                }
+                if (value.includes('darwin') || value.includes('macos') || value.includes('os x') || value === 'mac') {
+                    return 'nk-platform-icon apple icon'
+                }
+                if (value.includes('android')) {
+                    return 'nk-platform-icon android icon'
+                }
+                if (/(linux|ubuntu|debian|centos|red ?hat|rhel|rocky|alma|fedora|oracle|amazon|alpine|arch|mint|raspbian|suse|gentoo|kylin|deepin|uos)/.test(value)) {
+                    return 'nk-platform-icon linux icon'
+                }
+                if (value.includes('freebsd')) {
+                    return 'nk-platform-icon freebsd icon'
+                }
+                return 'nk-platform-icon computer icon'
             },
             percent(live, used, total) {
                 if (!live || !total) {

@@ -705,6 +705,13 @@ html[data-theme="dark"] .nk-theme-icon-light {
   white-space: nowrap;
 }
 
+.nk-node-list th .icon {
+  width: 1rem;
+  margin: 0 0.22rem 0 0;
+  color: currentColor;
+  font-size: 0.78rem;
+}
+
 .nk-node-list tbody tr {
   transition: background 140ms ease;
 }
@@ -912,6 +919,44 @@ html[data-theme="dark"] .nk-theme-icon-light {
   font-size: 0.88rem;
 }
 
+.nk-platform-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.nk-platform-value .icon,
+.nk-platform-value .nk-platform-icon {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+  color: currentColor;
+  font-size: 0.78rem;
+  line-height: 1;
+  transform: translateY(0.15em);
+}
+
+.nk-platform-value .nk-platform-icon {
+  display: inline-block;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.nk-platform-value .nk-platform-icon-ubuntu {
+  background-image: url('/static/icons/os/ubuntu.svg');
+}
+
+.nk-platform-value .nk-platform-icon-debian {
+  background-image: url('/static/icons/os/debian.svg');
+}
+
+.nk-platform-value .nk-platform-icon-centos {
+  background-image: url('/static/icons/os/centos.svg');
+}
+
 .nk-node-runtime {
   display: inline-flex;
   align-items: center;
@@ -978,7 +1023,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
 .nk-meter {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 42px;
+  grid-template-columns: 52px minmax(0, 1fr) 42px;
   align-items: center;
   gap: 0.65rem;
 }
@@ -989,6 +1034,25 @@ html[data-theme="dark"] .nk-theme-icon-light {
   color: var(--nk-muted);
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.nk-meter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.nk-meter-label .icon {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  margin: 0;
+  color: currentColor;
+  font-size: 0.78rem;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-0.00em);
 }
 
 .nk-meter strong,
@@ -1036,6 +1100,26 @@ html[data-theme="dark"] .nk-theme-icon-light {
   background:
     linear-gradient(135deg, rgba(11, 132, 255, 0.09), transparent 46%),
     var(--nk-surface-soft);
+}
+
+.nk-network-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 1.25rem;
+  padding-left: 0.9rem;
+  color: var(--nk-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.nk-network-title .icon {
+  width: 0.9rem;
+  margin: 0;
+  color: currentColor;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .nk-network-card::before {
@@ -3268,7 +3352,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   }
 
   .nk-meter {
-    grid-template-columns: 38px minmax(0, 1fr) 36px;
+    grid-template-columns: 50px minmax(0, 1fr) 36px;
     gap: 0.45rem;
   }
 
@@ -3465,7 +3549,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   }
 
   .nk-meter {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    grid-template-columns: 48px minmax(0, 1fr) 34px;
     gap: 0.38rem;
   }
 

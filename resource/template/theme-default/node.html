@@ -17,7 +17,7 @@
                         <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                         <span class="nk-node-hero-title">@#server.Name#@</span>
                     </h1>
-                    <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · @#hasReport ? (server.Host.Platform || 'unknown') + ' ' + (server.Host.Arch || '-') : '等待 Agent 上报'#@</p>
+                    <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · <span v-if="hasReport" class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span><span v-if="hasReport"> @#server.Host.Arch || '-'#@</span><span v-else>等待 Agent 上报</span></p>
                 </div>
                 <div class="nk-hero-actions">
                     <div class="nk-summary-grid">
@@ -106,7 +106,8 @@
                     <div class="nk-node-detail-grid nk-node-detail-grid-large">
                         <p>
                             <span>系统</span>
-                            <strong>@#hasReport ? (server.Host.Platform || '-') + ' ' + (server.Host.PlatformVersion || '') : '-'#@</strong>
+                            <strong v-if="hasReport" class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || '-'#@ @#server.Host.PlatformVersion || ''#@</strong>
+                            <strong v-else>-</strong>
                         </p>
                         <p>
                             <span>架构</span>
@@ -443,6 +444,34 @@
             }
         },
         methods: {
+            platformIcon(platform, version) {
+                const value = (String(platform || '') + ' ' + String(version || '')).toLowerCase()
+                if (value.includes('ubuntu')) {
+                    return 'nk-platform-icon nk-platform-icon-ubuntu'
+                }
+                if (value.includes('debian')) {
+                    return 'nk-platform-icon nk-platform-icon-debian'
+                }
+                if (value.includes('centos')) {
+                    return 'nk-platform-icon nk-platform-icon-centos'
+                }
+                if (value.includes('windows')) {
+                    return 'nk-platform-icon windows icon'
+                }
+                if (value.includes('darwin') || value.includes('macos') || value.includes('os x') || value === 'mac') {
+                    return 'nk-platform-icon apple icon'
+                }
+                if (value.includes('android')) {
+                    return 'nk-platform-icon android icon'
+                }
+                if (/(linux|ubuntu|debian|centos|red ?hat|rhel|rocky|alma|fedora|oracle|amazon|alpine|arch|mint|raspbian|suse|gentoo|kylin|deepin|uos)/.test(value)) {
+                    return 'nk-platform-icon linux icon'
+                }
+                if (value.includes('freebsd')) {
+                    return 'nk-platform-icon freebsd icon'
+                }
+                return 'nk-platform-icon computer icon'
+            },
             refreshServer(server) {
                 if (!server) {
                     return
