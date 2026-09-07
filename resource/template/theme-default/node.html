@@ -11,8 +11,8 @@
                 <div>
                     <p class="nk-eyebrow">Node Detail</p>
                     <h1>
-                        <span class="nk-status-dot nk-status-dot-lg" :class="statusState()" role="img"
-                            :title="statusText()" :aria-label="statusText()"></span>
+                        <span class="nk-status-dot nk-status-dot-lg" :class="statusState" role="img"
+                            :title="statusText" :aria-label="statusText"></span>
                         <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
                         <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                         <span class="nk-node-hero-title">@#server.Name#@</span>
@@ -23,7 +23,7 @@
                     <div class="nk-summary-grid">
                         <div class="nk-summary-item">
                             <span>状态</span>
-                            <strong>@#statusText()#@</strong>
+                            <strong>@#statusText#@</strong>
                         </div>
                         <div class="nk-summary-item">
                             <span>运行</span>
@@ -42,8 +42,8 @@
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
-                                <span class="nk-status-dot" :class="statusState()" role="img"
-                                    :title="statusText()" :aria-label="statusText()"></span>
+                                <span class="nk-status-dot" :class="statusState" role="img"
+                                    :title="statusText" :aria-label="statusText"></span>
                                 <span>实时状态</span>
                             </div>
                             <div class="nk-node-meta">@#hasReport ? formatDate(server.LastActive) : '暂无上报数据'#@</div>
