@@ -779,7 +779,14 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
 /* .nk-node-name span 带了 flex:1 1 auto，状态点和旗帜需要压回固定宽度 */
 .nk-node-name .nk-status-dot,
-.nk-list-node-name .nk-status-dot,
+.nk-list-node-name .nk-status-dot {
+  flex: 0 0 0.7rem;
+}
+
+.nk-node-name .nk-status-dot-lg {
+  flex-basis: 0.85rem;
+}
+
 .nk-node-name .nk-country-flag,
 .nk-list-node-name .nk-country-flag {
   flex: 0 0 16px;
@@ -909,16 +916,38 @@ html[data-theme="dark"] .nk-theme-icon-light {
   align-items: flex-start;
   justify-content: flex-end;
   flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.24rem 0.45rem;
   max-width: 48%;
   min-width: 0;
+  overflow: hidden;
   padding-top: 0.08rem;
   text-align: right;
+  white-space: nowrap;
 }
 
 .nk-node-billing .nk-provider-tag {
+  flex: 0 1 auto;
   max-width: 8rem;
+  min-width: 0;
+}
+
+.nk-monitor .nk-node-card .nk-node-top .nk-node-meta {
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.nk-monitor .nk-node-card .nk-node-top .nk-node-meta > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-monitor .nk-node-card .nk-node-top .nk-node-runtime {
+  flex: 0 0 auto;
 }
 
 .nk-node-name {
