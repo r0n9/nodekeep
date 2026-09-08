@@ -5,8 +5,31 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/net"
 )
+
+func TestDetectedPlatformPrefersDistribution(t *testing.T) {
+	tests := []struct {
+		name string
+		info *host.InfoStat
+		want string
+	}{
+		{name: "ubuntu", info: &host.InfoStat{OS: "linux", Platform: "ubuntu"}, want: "ubuntu"},
+		{name: "debian", info: &host.InfoStat{OS: "linux", Platform: "debian"}, want: "debian"},
+		{name: "centos", info: &host.InfoStat{OS: "linux", Platform: "centos"}, want: "centos"},
+		{name: "unknown distribution", info: &host.InfoStat{OS: "linux"}, want: "linux"},
+		{name: "nil info", info: nil, want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := detectedPlatform(tt.info); got != tt.want {
+				t.Fatalf("detectedPlatform() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestGetHostCPUIsNonNil(t *testing.T) {
 	host := GetHost()

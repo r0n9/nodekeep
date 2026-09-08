@@ -58,7 +58,7 @@ func GetHost() *model.Host {
 	ip, country := CachedIP()
 
 	return &model.Host{
-		Platform:        hi.OS,
+		Platform:        detectedPlatform(hi),
 		PlatformVersion: hi.PlatformVersion,
 		CPU:             getCPUInfo(cpuType),
 		MemTotal:        mv.Total,
@@ -71,6 +71,16 @@ func GetHost() *model.Host {
 		CountryCode:     strings.ToLower(country),
 		Version:         dao.Version,
 	}
+}
+
+func detectedPlatform(info *host.InfoStat) string {
+	if info == nil {
+		return ""
+	}
+	if platform := strings.TrimSpace(info.Platform); platform != "" {
+		return platform
+	}
+	return strings.TrimSpace(info.OS)
 }
 
 func GetState(delay int64) *model.HostState {
