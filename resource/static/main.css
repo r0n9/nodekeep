@@ -918,7 +918,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
   flex: 0 1 auto;
   flex-wrap: nowrap;
   gap: 0.24rem 0.45rem;
-  max-width: 48%;
+  max-width: 58%;
   min-width: 0;
   overflow: hidden;
   padding-top: 0.08rem;
@@ -928,7 +928,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 
 .nk-node-billing .nk-provider-tag {
   flex: 0 1 auto;
-  max-width: 8rem;
+  max-width: 12rem;
   min-width: 0;
 }
 
@@ -940,6 +940,7 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 .nk-monitor .nk-node-card .nk-node-top .nk-node-meta > span {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
