@@ -54,8 +54,8 @@
 
                 <div v-if="viewMode === 'card'" class="nk-node-grid">
                     <article v-for="server in group.data" :key="server.ID" :id="server.ID" class="nk-node-card" :class="{ offline: server.reported && !server.live && !networkDisconnected }">
-                        <div class="nk-node-top">
-                            <div>
+                        <div class="nk-node-header">
+                            <div class="nk-node-header-main">
                                 <div class="nk-node-name">
                                     <span :class="statusClass(server)" role="img"
                                         :title="statusText(server)" :aria-label="statusText(server)"></span>
@@ -63,16 +63,21 @@
                                     <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                                     <a class="nk-node-label nk-node-link" :href="'/node/' + server.ID" :title="server.Name">@#server.Name#@</a>
                                 </div>
-                                <div class="nk-node-meta" v-if="server.reported">
-                                    <span class="nk-node-runtime">运行 @#hasLiveData(server) ? secondToDate(server.State.Uptime) : '—'#@</span>
-                                    <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@ @#server.Host.PlatformVersion#@</span>
-                                    <span>· @#server.Host.Arch || '-'#@</span>
-                                </div>
-                                <div class="nk-node-meta" v-else>等待 Agent 上报</div>
+                                <span v-if="server.reported" class="nk-node-header-runtime">运行 @#hasLiveData(server) ? secondToDate(server.State.Uptime) : '—'#@</span>
                             </div>
-                            <div v-if="server.Billing && (server.Billing.Provider || dueLabel(server))" class="nk-node-billing">
-                                <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
-                                <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
+                            <div class="nk-node-header-meta">
+                                <div v-if="server.reported" class="nk-node-header-system" :title="(server.Host.Platform || 'unknown') + ' ' + (server.Host.PlatformVersion || '') + ' · ' + (server.Host.Arch || '—')">
+                                    <span class="nk-platform-value">
+                                        <i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>
+                                        <span>@#server.Host.Platform || 'unknown'#@ @#server.Host.PlatformVersion#@</span>
+                                    </span>
+                                    <span class="nk-node-header-arch">· @#server.Host.Arch || '—'#@</span>
+                                </div>
+                                <span v-else class="nk-node-header-system">等待 Agent 上报</span>
+                                <div v-if="server.Billing && (server.Billing.Provider || dueLabel(server))" class="nk-node-billing">
+                                    <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
+                                    <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
+                                </div>
                             </div>
                         </div>
 
@@ -177,22 +182,31 @@
                             <tbody>
                                 <tr v-for="server in group.data" :key="server.ID" :id="'list-' + server.ID" :class="{ offline: server.reported && !server.live && !networkDisconnected }">
                                     <td>
-                                        <div class="nk-list-node-name">
-                                            <span :class="statusClass(server)" role="img"
-                                                :title="statusText(server)" :aria-label="statusText(server)"></span>
-                                            <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                                            <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
-                                            <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID" :title="server.Name">@#server.Name#@</a>
-                                        </div>
-                                        <div class="nk-list-node-meta nk-platform-meta" v-if="server.reported">
-                                            <span>运行 @#hasLiveData(server) ? secondToDate(server.State.Uptime) : '—'#@</span>
-                                            <span class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@ @#server.Host.PlatformVersion#@</span>
-                                            <span>· @#server.Host.Arch || '-'#@</span>
-                                        </div>
-                                        <div class="nk-list-node-meta" v-else>等待 Agent 上报</div>
-                                        <div v-if="server.Billing && (server.Billing.Provider || dueLabel(server))" class="nk-node-billing">
-                                            <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
-                                            <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
+                                        <div class="nk-node-header">
+                                            <div class="nk-node-header-main">
+                                                <div class="nk-list-node-name">
+                                                    <span :class="statusClass(server)" role="img"
+                                                        :title="statusText(server)" :aria-label="statusText(server)"></span>
+                                                    <i v-if="server.Host && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
+                                                    <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
+                                                    <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID" :title="server.Name">@#server.Name#@</a>
+                                                </div>
+                                                <span v-if="server.reported" class="nk-node-header-runtime">运行 @#hasLiveData(server) ? secondToDate(server.State.Uptime) : '—'#@</span>
+                                            </div>
+                                            <div class="nk-node-header-meta">
+                                                <div v-if="server.reported" class="nk-node-header-system" :title="(server.Host.Platform || 'unknown') + ' ' + (server.Host.PlatformVersion || '') + ' · ' + (server.Host.Arch || '—')">
+                                                    <span class="nk-platform-value">
+                                                        <i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>
+                                                        <span>@#server.Host.Platform || 'unknown'#@ @#server.Host.PlatformVersion#@</span>
+                                                    </span>
+                                                    <span class="nk-node-header-arch">· @#server.Host.Arch || '—'#@</span>
+                                                </div>
+                                                <span v-else class="nk-node-header-system">等待 Agent 上报</span>
+                                                <div v-if="server.Billing && (server.Billing.Provider || dueLabel(server))" class="nk-node-billing">
+                                                    <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
+                                                    <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
+                                                </div>
+                                            </div>
                                         </div>
                                         <p v-if="server.reported && (networkDisconnected || !hasLiveData(server))" class="nk-data-note">
                                             @#statusText(server)#@ · 最后上报 <time :datetime="server.LastActive">@#formatDate(server.LastActive)#@</time>
@@ -506,7 +520,7 @@
                 if (!billing.HasDue) {
                     return ''
                 }
-                // 标签跟在主机名后面，位置紧张，完整日期放进 title
+                // 摘要标签保持简短，完整日期放进 title
                 if (billing.DueDays < 0) {
                     return '已过期 ' + (-billing.DueDays) + ' 天'
                 }
