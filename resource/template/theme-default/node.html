@@ -50,48 +50,48 @@
                         </div>
                     </div>
 
-                    <div class="nk-metrics">
-                        <div class="nk-meter">
-                            <span>CPU</span>
-                            <div class="nk-meter-track"><i :style="meterStyle('cpu')"></i></div>
-                            <strong>@#livePercent('cpu')#@%</strong>
+                    <template v-if="hasReport">
+                        <div class="nk-metrics">
+                            <div class="nk-meter">
+                                <span class="nk-meter-label"><i class="microchip icon" aria-hidden="true"></i>CPU</span>
+                                <div class="nk-meter-track"><i :style="meterStyle('cpu')"></i></div>
+                                <strong>@#livePercent('cpu')#@%</strong>
+                            </div>
+                            <div class="nk-meter">
+                                <span class="nk-meter-label"><i class="database icon" aria-hidden="true"></i>内存</span>
+                                <div class="nk-meter-track"><i :style="meterStyle('mem')"></i></div>
+                                <strong>@#livePercent('mem')#@%</strong>
+                            </div>
+                            <div class="nk-meter">
+                                <span class="nk-meter-label"><i class="hdd outline icon" aria-hidden="true"></i>硬盘</span>
+                                <div class="nk-meter-track"><i :style="meterStyle('disk')"></i></div>
+                                <strong>@#livePercent('disk')#@%</strong>
+                            </div>
                         </div>
-                        <div class="nk-meter">
-                            <span>内存</span>
-                            <div class="nk-meter-track"><i :style="meterStyle('mem')"></i></div>
-                            <strong>@#livePercent('mem')#@%</strong>
-                        </div>
-                        <div class="nk-meter">
-                            <span>硬盘</span>
-                            <div class="nk-meter-track"><i :style="meterStyle('disk')"></i></div>
-                            <strong>@#livePercent('disk')#@%</strong>
-                        </div>
-                    </div>
 
-                    <div class="nk-network-grid">
-                        <div class="nk-network-card nk-network-combo">
-                            <div class="nk-network-row outbound">
-                                <div class="nk-network-head">
-                                    <span class="nk-network-label"><i class="arrow up icon"></i>出站</span>
-                                    <strong class="nk-speed-value" :class="netSpeedClass(server.State.NetOutSpeed)">@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
-                                </div>
-                                <div class="nk-network-track">
-                                    <i :class="netSpeedClass(server.State.NetOutSpeed)" :style="netLoadStyle(server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
-                                </div>
-                                <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
+                        <div class="nk-network-live">
+                            <div class="nk-network-live-heading">
+                                <span><i class="sitemap icon" aria-hidden="true"></i>网络</span>
+                                <span class="nk-network-window">@#networkStatus#@</span>
                             </div>
-                            <div class="nk-network-row inbound">
-                                <div class="nk-network-head">
-                                    <span class="nk-network-label"><i class="arrow down icon"></i>入站</span>
-                                    <strong class="nk-speed-value" :class="netSpeedClass(server.State.NetInSpeed)">@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
+                            <div class="nk-network-values">
+                                <div class="nk-network-stat inbound">
+                                    <span><i class="arrow down icon" aria-hidden="true"></i>入站</span>
+                                    <strong>@#networkRate('NetInSpeed')#@</strong>
                                 </div>
-                                <div class="nk-network-track">
-                                    <i :class="netSpeedClass(server.State.NetInSpeed)" :style="netLoadStyle(server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
+                                <div class="nk-network-stat outbound">
+                                    <span><i class="arrow up icon" aria-hidden="true"></i>出站</span>
+                                    <strong>@#networkRate('NetOutSpeed')#@</strong>
                                 </div>
-                                <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
+                            </div>
+                            <network-chart :history="networkHistory" :now="networkNow" :theme="networkTheme"></network-chart>
+                            <div class="nk-network-transfers">
+                                <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
+                                <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
                             </div>
                         </div>
-                    </div>
+                    </template>
+                    <div v-else class="nk-empty-node">节点暂未上报运行数据。</div>
                 </article>
 
                 <article class="nk-node-card nk-node-info-panel">
@@ -140,7 +140,7 @@
                     </div>
                 </article>
 
-                <article v-if="hasBilling" class="nk-node-card nk-node-info-panel">
+                <article v-if="hasBilling" class="nk-node-card nk-node-info-panel nk-node-billing-panel">
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
@@ -195,7 +195,8 @@
                 </article>
             </section>
 
-            <section class="nk-history-section">                <div class="nk-section-title nk-history-toolbar">
+            <section class="nk-history-section">
+                <div class="nk-section-title nk-history-toolbar">
                     <div class="nk-history-title">
                         <h2>监控指标</h2>
                         <span>@#historyLabel#@</span>
@@ -246,18 +247,20 @@
                     </article>
 
                     <article class="nk-history-card">
-                        <div class="nk-history-head">
-                            <div>
-                                <span>网络</span>
-                                <strong>@#formatByteSize(latestMetric.netIn)#@/s</strong>
+                        <div class="nk-network-live-heading">
+                            <span><i class="sitemap icon" aria-hidden="true"></i>网络</span>
+                        </div>
+                        <div class="nk-network-values">
+                            <div class="nk-network-stat inbound">
+                                <span><i class="arrow down icon" aria-hidden="true"></i>入站</span>
+                                <strong>@#formatNetworkSpeed(latestMetric.netIn)#@</strong>
                             </div>
-                            <small>出站 @#formatByteSize(latestMetric.netOut)#@/s</small>
+                            <div class="nk-network-stat outbound">
+                                <span><i class="arrow up icon" aria-hidden="true"></i>出站</span>
+                                <strong>@#formatNetworkSpeed(latestMetric.netOut)#@</strong>
+                            </div>
                         </div>
                         <div class="nk-history-chart" ref="netChart" aria-label="网络速率趋势"></div>
-                        <div class="nk-history-legend">
-                            <span><i class="primary"></i>入站</span>
-                            <span><i class="secondary"></i>出站</span>
-                        </div>
                     </article>
                 </div>
                 <div v-else class="nk-empty-node nk-history-empty">@#metricLoading ? '指标加载中…' : '暂无历史指标。'#@</div>
@@ -267,6 +270,7 @@
 </main>
 {{template "common/footer" .}}
 <script src="/static/vendor/uplot/uPlot.iife.min.js?v1.6.31"></script>
+<script src="/static/network-chart.js?v2026091001"></script>
 <script>
     const nodeID = {{.Server.ID}};
     const initServer = {{.Server}};
@@ -298,6 +302,10 @@
         delimiters: ['@#', '#@'],
         data: {
             server: initServer,
+            networkHistory: NodekeepNetwork.createHistory(),
+            networkNow: Date.now() / 1000,
+            networkTheme: document.documentElement.getAttribute('data-theme') || 'light',
+            networkDisconnected: false,
             metricSeries: emptyMetricSeries(initMetricRange || 'today'),
             metricRange: initMetricRange || 'today',
             metricLoading: false,
@@ -329,6 +337,15 @@
                     return '未上报'
                 }
                 return this.server.live ? '在线' : '离线'
+            },
+            networkStatus() {
+                if (this.networkDisconnected) {
+                    return '连接中断，正在重连'
+                }
+                if (!this.server.live) {
+                    return '节点离线'
+                }
+                return NodekeepNetwork.isFresh(this.server, this.networkNow) ? '最近 60 秒' : '等待新采样'
             },
             hasMetrics() {
                 return !!(this.metricSeries && this.metricSeries.count > 0)
@@ -417,21 +434,35 @@
                 return this.currentRangeLabel + ' · ' + this.metricSeries.count + ' 点 · ' + stepLabel + ' 粒度'
             },
         },
+        created() {
+            this.refreshServer(this.server)
+        },
         mounted() {
             this.chartInstances = {}
-            this.refreshServer(this.server)
+            this.connectNetwork()
+            this._networkTimer = window.setInterval(this.tickNetwork, 2000)
             this.updateMetricMaxPoints()
             this.refreshMetrics(false)
             this.metricRefreshTimer = window.setInterval(() => this.refreshMetrics(true), 60 * 1000)
             this.resizeChartsHandler = () => this.resizeCharts()
             window.addEventListener('resize', this.resizeChartsHandler)
-            this.themeObserver = new MutationObserver(() => this.renderCharts(true))
+            this.themeObserver = new MutationObserver(() => {
+                this.networkTheme = document.documentElement.getAttribute('data-theme') || 'light'
+                this.renderCharts(true)
+            })
             this.themeObserver.observe(document.documentElement, {
                 attributes: true,
                 attributeFilter: ['data-theme'],
             })
         },
         beforeDestroy() {
+            this._networkDestroyed = true
+            window.clearInterval(this._networkTimer)
+            window.clearTimeout(this._networkReconnectTimer)
+            if (this._networkSocket) {
+                this._networkSocket.onmessage = this._networkSocket.onerror = this._networkSocket.onclose = null
+                this._networkSocket.close()
+            }
             this.destroyCharts()
             if (this.metricRefreshTimer) {
                 window.clearInterval(this.metricRefreshTimer)
@@ -479,8 +510,79 @@
                 // ws 推来的是全新对象，计费信息要重新挂回去
                 server.Billing = billingData[server.ID] || null
                 const lastActive = new Date(server.LastActive).getTime()
-                server.live = Number.isFinite(lastActive) && Date.now() - lastActive <= 20 * 1000
                 this.server = server
+                this.$set(server, 'reported', this.hasReport)
+                this.$set(server, 'live', server.reported && Number.isFinite(lastActive) && Date.now() - lastActive <= 20 * 1000)
+                this.networkNow = Date.now() / 1000
+                this._networkLastMessage = this.networkNow
+                this.networkDisconnected = false
+                NodekeepNetwork.recordSample(this.networkHistory, server, this.networkNow)
+            },
+            connectNetwork() {
+                if (this._networkDestroyed || this._networkSocket) {
+                    return
+                }
+                const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+                const socket = new WebSocket(protocol + '://' + window.location.host + '/ws')
+                this._networkSocket = socket
+                this._networkLastMessage = Date.now() / 1000
+                socket.onmessage = event => {
+                    if (this._networkDestroyed || this._networkSocket !== socket) {
+                        return
+                    }
+                    try {
+                        const servers = JSON.parse(event.data)
+                        if (Array.isArray(servers)) {
+                            this._networkLastMessage = Date.now() / 1000
+                            this.networkDisconnected = false
+                            this.refreshServer(servers.find(server => server.ID === nodeID))
+                        }
+                    } catch (error) {
+                        console.warn('无法读取节点状态', error)
+                    }
+                }
+                socket.onerror = socket.onclose = () => {
+                    if (this._networkSocket === socket) {
+                        this.reconnectNetwork()
+                    }
+                }
+            },
+            reconnectNetwork() {
+                if (this._networkDestroyed || this._networkReconnectTimer) {
+                    return
+                }
+                this.networkDisconnected = true
+                NodekeepNetwork.breakHistory(this.networkHistory, Date.now() / 1000)
+                const socket = this._networkSocket
+                this._networkSocket = null
+                if (socket) {
+                    socket.onmessage = socket.onerror = socket.onclose = null
+                    socket.close()
+                }
+                this._networkReconnectTimer = window.setTimeout(() => {
+                    this._networkReconnectTimer = null
+                    this.connectNetwork()
+                }, 3000)
+            },
+            tickNetwork() {
+                this.networkNow = Date.now() / 1000
+                if (this.networkNow - this._networkLastMessage > NodekeepNetwork.GAP_SECONDS) {
+                    this.reconnectNetwork()
+                }
+                this.server.live = this.hasReport && this.networkNow - Date.parse(this.server.LastActive) / 1000 <= 20
+                if (this.networkDisconnected || !NodekeepNetwork.isFresh(this.server, this.networkNow)) {
+                    NodekeepNetwork.breakHistory(this.networkHistory, this.networkNow)
+                } else {
+                    NodekeepNetwork.pruneHistory(this.networkHistory, this.networkNow)
+                }
+            },
+            networkRate(field) {
+                return this.formatNetworkSpeed(
+                    !this.networkDisconnected && NodekeepNetwork.isFresh(this.server, this.networkNow) ? this.server.State[field] : null
+                )
+            },
+            formatNetworkSpeed(value) {
+                return NodekeepNetwork.formatSpeed(value)
             },
             refreshMetrics(incremental) {
                 this.metricLoading = true
@@ -657,27 +759,6 @@
                 }
                 return { width: percent + '%', backgroundColor: color }
             },
-            netSpeedClass(speed) {
-                if (!this.server.live) {
-                    return 'nk-speed-offline'
-                }
-                const value = Number(speed) || 0
-                if (value >= 2 * 1024 * 1024) {
-                    return 'nk-speed-tier-high'
-                }
-                if (value >= 400 * 1024) {
-                    return 'nk-speed-tier-mid'
-                }
-                return 'nk-speed-tier-low'
-            },
-            netLoadStyle(current, peer) {
-                if (!this.server.live || !current) {
-                    return { width: '0%' }
-                }
-                const max = Math.max(Number(current) || 0, Number(peer) || 0, 1)
-                const percent = Math.max(8, Math.min(100, Math.round(Number(current) / max * 100) || 0))
-                return { width: percent + '%' }
-            },
             chartValues(type) {
                 if (!this.hasMetrics) {
                     return []
@@ -741,8 +822,8 @@
                         ref: 'netChart',
                         percent: false,
                         series: [
-                            { label: '入站', type: 'net_in', color: this.cssVar('--nk-accent') },
-                            { label: '出站', type: 'net_out', color: this.cssVar('--nk-speed-high') },
+                            { label: '入站', type: 'net_in', color: this.cssVar('--nk-net-in') },
+                            { label: '出站', type: 'net_out', color: this.cssVar('--nk-net-out'), dash: [4, 3] },
                         ],
                     },
                 ]
@@ -836,8 +917,9 @@
                         ...definition.series.map(series => ({
                             label: series.label,
                             stroke: series.color || text,
-                            fill: this.alphaColor(series.color || text, 0.08),
-                            width: 2,
+                            fill: definition.key === 'net' ? undefined : this.alphaColor(series.color || text, 0.08),
+                            width: definition.key === 'net' ? 1.75 : 2,
+                            dash: series.dash || [],
                             points: { show: false },
                             value: (u, value) => this.formatChartSeriesValue(value, definition.percent),
                         })),
@@ -1062,13 +1144,13 @@
                 if (percent) {
                     return Math.round(value) + '%'
                 }
-                return this.formatByteSize(value) + '/s'
+                return this.formatNetworkSpeed(value)
             },
             formatChartSeriesValue(value, percent) {
                 if (value == null) {
                     return '-'
                 }
-                return percent ? Math.round(value) + '%' : this.formatByteSize(value) + '/s'
+                return percent ? Math.round(value) + '%' : this.formatNetworkSpeed(value)
             },
             formatChartTooltipSeriesValue(point, type, percent) {
                 const value = this.metricValue(point, type)
@@ -1126,15 +1208,5 @@
             },
         }
     })
-
-    const wsProtocol = window.location.protocol == 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(wsProtocol + '://' + window.location.host + '/ws')
-    ws.onmessage = function (evt) {
-        const servers = JSON.parse(evt.data)
-        const server = servers.find(item => item.ID === nodeID)
-        if (server) {
-            nodeDetail.refreshServer(server)
-        }
-    }
 </script>
 {{end}}

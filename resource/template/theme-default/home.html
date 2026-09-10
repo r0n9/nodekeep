@@ -41,14 +41,14 @@
                 </div>
             </header>
 
-            <section v-for="group in groups" class="nk-group">
+            <section v-for="group in groups" :key="group.Tag" class="nk-group">
                 <div class="nk-section-title">
                     <h2>@#(group.Tag !== '' ? group.Tag : '默认分组')#@</h2>
                     <span>@#group.data.length#@ 台节点</span>
                 </div>
 
                 <div v-if="viewMode === 'card'" class="nk-node-grid">
-                    <article v-for="server in group.data" :id="server.ID" class="nk-node-card" :class="{ offline: server.reported && !server.live }">
+                    <article v-for="server in group.data" :key="server.ID" :id="server.ID" class="nk-node-card" :class="{ offline: server.reported && !server.live }">
                         <div class="nk-node-top">
                             <div>
                                 <div class="nk-node-name">
@@ -91,29 +91,25 @@
                                 </div>
                             </div>
 
-                            <div class="nk-network-grid">
-                                <div class="nk-network-card nk-network-combo">
-                                    <div class="nk-network-title"><i class="sitemap icon" aria-hidden="true"></i><span>网络</span></div>
-                                    <div class="nk-network-row outbound">
-                                        <div class="nk-network-head">
-                                            <span class="nk-network-label"><i class="arrow up icon"></i>出站</span>
-                                            <strong class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetOutSpeed)">@#formatByteSize(server.State.NetOutSpeed)#@/s</strong>
-                                        </div>
-                                        <div class="nk-network-track">
-                                            <i :class="netSpeedClass(server.live, server.State.NetOutSpeed)" :style="netLoadStyle(server.live, server.State.NetOutSpeed, server.State.NetInSpeed)"></i>
-                                        </div>
-                                        <div class="nk-network-total">累计 @#formatByteSize(server.State.NetOutTransfer)#@</div>
+                            <div class="nk-network-live">
+                                <div class="nk-network-live-heading">
+                                    <span><i class="sitemap icon" aria-hidden="true"></i>网络</span>
+                                    <span class="nk-network-window">@#networkStatus(server)#@</span>
+                                </div>
+                                <div class="nk-network-values">
+                                    <div class="nk-network-stat inbound">
+                                        <span><i class="arrow down icon" aria-hidden="true"></i>入站</span>
+                                        <strong>@#networkRate(server, 'NetInSpeed')#@</strong>
                                     </div>
-                                    <div class="nk-network-row inbound">
-                                        <div class="nk-network-head">
-                                            <span class="nk-network-label"><i class="arrow down icon"></i>入站</span>
-                                            <strong class="nk-speed-value" :class="netSpeedClass(server.live, server.State.NetInSpeed)">@#formatByteSize(server.State.NetInSpeed)#@/s</strong>
-                                        </div>
-                                        <div class="nk-network-track">
-                                            <i :class="netSpeedClass(server.live, server.State.NetInSpeed)" :style="netLoadStyle(server.live, server.State.NetInSpeed, server.State.NetOutSpeed)"></i>
-                                        </div>
-                                        <div class="nk-network-total">累计 @#formatByteSize(server.State.NetInTransfer)#@</div>
+                                    <div class="nk-network-stat outbound">
+                                        <span><i class="arrow up icon" aria-hidden="true"></i>出站</span>
+                                        <strong>@#networkRate(server, 'NetOutSpeed')#@</strong>
                                     </div>
+                                </div>
+                                <network-chart :history="networkHistory[server.ID]" :now="networkNow" :theme="networkTheme"></network-chart>
+                                <div class="nk-network-transfers">
+                                    <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
+                                    <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
                                 </div>
                             </div>
 
@@ -170,7 +166,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="server in group.data" :id="'list-' + server.ID" :class="{ offline: server.reported && !server.live }">
+                            <tr v-for="server in group.data" :key="server.ID" :id="'list-' + server.ID" :class="{ offline: server.reported && !server.live }">
                                 <td>
                                     <div class="nk-list-node-name">
                                         <span :class="statusClass(server)" role="img"
@@ -230,6 +226,8 @@
     </div>
 </main>
 {{template "common/footer" .}}
+<script src="/static/vendor/uplot/uPlot.iife.min.js?v1.6.31"></script>
+<script src="/static/network-chart.js?v2026091001"></script>
 <script>
     const initData = {{.Servers}};
     // 计费信息不随 /ws 推送：那条快照每 2 秒下发一次全量数据并整个替换 servers，
@@ -259,6 +257,10 @@
             servers: initData,
             groups: [],
             viewMode: initialViewMode(),
+            networkHistory: {},
+            networkNow: Date.now() / 1000,
+            networkTheme: document.documentElement.getAttribute('data-theme') || 'light',
+            networkDisconnected: false,
         },
         computed: {
             onlineCount() {
@@ -275,6 +277,26 @@
         created() {
             this.refreshServers(this.servers)
         },
+        mounted() {
+            this.connectNetwork()
+            this._networkTimer = window.setInterval(this.tickNetwork, 2000)
+            this._networkThemeObserver = new MutationObserver(() => {
+                this.networkTheme = document.documentElement.getAttribute('data-theme') || 'light'
+            })
+            this._networkThemeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-theme'],
+            })
+        },
+        beforeDestroy() {
+            this._networkDestroyed = true
+            window.clearInterval(this._networkTimer)
+            window.clearTimeout(this._networkReconnectTimer)
+            this._networkThemeObserver.disconnect()
+            if (this._networkSocket) {
+                this._networkSocket.close()
+            }
+        },
         methods: {
             group() {
                 this.groups = groupingData(this.servers, "Tag")
@@ -284,6 +306,9 @@
                 localStorage.setItem(viewModeStorageKey(), mode)
             },
             refreshServers(servers) {
+                this.networkNow = Date.now() / 1000
+                this._networkLastMessage = this.networkNow
+                this.networkDisconnected = false
                 this.servers = servers.map(server => {
                     // 每次刷新都要重新挂计费信息：ws 推来的对象是全新的，
                     // 不合并的话首屏渲染的字段 2 秒后就没了
@@ -295,9 +320,102 @@
                     }
                     const lastActive = new Date(server.LastActive).getTime()
                     server.live = Date.now() - lastActive <= 20 * 1000
+                    if (!this.networkHistory[server.ID]) {
+                        this.$set(this.networkHistory, server.ID, NodekeepNetwork.createHistory())
+                    }
+                    NodekeepNetwork.recordSample(this.networkHistory[server.ID], server, this.networkNow)
                     return server
                 })
+                const reportedIDs = new Set(this.servers.filter(server => server.reported).map(server => String(server.ID)))
+                Object.keys(this.networkHistory).forEach(id => {
+                    if (!reportedIDs.has(id)) {
+                        this.$delete(this.networkHistory, id)
+                    }
+                })
                 this.group()
+            },
+            connectNetwork() {
+                if (this._networkDestroyed || this._networkSocket) {
+                    return
+                }
+                const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+                const socket = new WebSocket(protocol + '://' + window.location.host + '/ws')
+                this._networkSocket = socket
+                this._networkLastMessage = Date.now() / 1000
+                socket.onmessage = event => {
+                    if (this._networkDestroyed || this._networkSocket !== socket) {
+                        return
+                    }
+                    try {
+                        const servers = JSON.parse(event.data)
+                        if (Array.isArray(servers)) {
+                            this.refreshServers(servers)
+                        }
+                    } catch (error) {
+                        console.warn('无法读取节点状态', error)
+                    }
+                }
+                socket.onerror = socket.onclose = () => {
+                    if (this._networkSocket === socket) {
+                        this.reconnectNetwork()
+                    }
+                }
+            },
+            reconnectNetwork() {
+                if (this._networkDestroyed || this._networkReconnectTimer) {
+                    return
+                }
+                this.disconnectNetwork()
+                const socket = this._networkSocket
+                this._networkSocket = null
+                if (socket) {
+                    // The server only writes snapshots; a close handshake can linger.
+                    // Retire the old socket before retrying so its events cannot affect the new one.
+                    socket.onmessage = socket.onerror = socket.onclose = null
+                    socket.close()
+                }
+                this._networkReconnectTimer = window.setTimeout(() => {
+                    this._networkReconnectTimer = null
+                    this.connectNetwork()
+                }, 3000)
+            },
+            disconnectNetwork() {
+                this.networkDisconnected = true
+                Object.values(this.networkHistory).forEach(history => {
+                    NodekeepNetwork.breakHistory(history, Date.now() / 1000)
+                })
+            },
+            tickNetwork() {
+                this.networkNow = Date.now() / 1000
+                if (this.networkNow - this._networkLastMessage > NodekeepNetwork.GAP_SECONDS) {
+                    this.reconnectNetwork()
+                }
+                this.servers.forEach(server => {
+                    if (!server.reported) {
+                        return
+                    }
+                    server.live = this.networkNow - Date.parse(server.LastActive) / 1000 <= 20
+                    const history = this.networkHistory[server.ID]
+                    if (this.networkDisconnected || !NodekeepNetwork.isFresh(server, this.networkNow)) {
+                        NodekeepNetwork.breakHistory(history, this.networkNow)
+                    } else {
+                        NodekeepNetwork.pruneHistory(history, this.networkNow)
+                    }
+                })
+            },
+            networkStatus(server) {
+                if (this.networkDisconnected) {
+                    return '连接中断，正在重连'
+                }
+                if (!server.live) {
+                    return '节点离线'
+                }
+                return NodekeepNetwork.isFresh(server, this.networkNow) ? '最近 60 秒' : '等待新采样'
+            },
+            networkRate(server, field) {
+                return NodekeepNetwork.formatSpeed(
+                    !this.networkDisconnected && NodekeepNetwork.isFresh(server, this.networkNow) ? server.State[field] : null
+                )
             },
             statusText(server) {
                 if (!server.reported) {
@@ -453,14 +571,6 @@
                 }
                 return 'nk-speed-tier-low'
             },
-            netLoadStyle(live, current, peer) {
-                if (!live || !current) {
-                    return { width: '0%' }
-                }
-                const max = Math.max(current, peer || 0, 1)
-                const percent = Math.max(8, Math.min(100, parseInt(current / max * 100) || 0))
-                return { width: percent + '%' }
-            },
             secondToDate(s) {
                 var d = Math.floor(s / 3600 / 24);
                 if (d > 0) {
@@ -526,12 +636,6 @@
     function viewModeStorageKey() {
         const isMobile = window.matchMedia && window.matchMedia('(max-width: 640px)').matches
         return isMobile ? 'nodekeep:view-mode:mobile' : 'nodekeep:view-mode'
-    }
-
-    const wsProtocol = window.location.protocol == "https:" ? "wss" : "ws"
-    const ws = new WebSocket(wsProtocol + '://' + window.location.host + '/ws');
-    ws.onmessage = function (evt) {
-        statusCards.refreshServers(JSON.parse(evt.data))
     }
 </script>
 {{end}}

@@ -171,6 +171,7 @@ func (cp *commonPage) home(c *gin.Context) {
 	c.HTML(http.StatusOK, "theme-default/home", mygin.CommonEnvironment(c, gin.H{
 		"Servers":    servers,
 		"Billings":   publicBillingJSON(dao.PublicServerBillingMap(time.Now())),
+		"UseUPlot":   true,
 		"CustomCode": dao.Conf.Site.CustomCode,
 	}))
 }
