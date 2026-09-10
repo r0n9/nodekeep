@@ -17,7 +17,16 @@
                         <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                         <span class="nk-node-hero-title">@#server.Name#@</span>
                     </h1>
-                    <p class="nk-hero-subtitle">@#server.Tag || '默认分组'#@ · <span v-if="hasReport" class="nk-platform-value"><i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>@#server.Host.Platform || 'unknown'#@</span><span v-if="hasReport"> @#server.Host.Arch || '-'#@</span><span v-else>等待 Agent 上报</span></p>
+                    <p class="nk-hero-subtitle nk-node-hero-meta">
+                        <span>@#server.Tag || '默认分组'#@</span>
+                        <span aria-hidden="true">·</span>
+                        <span v-if="hasReport" class="nk-platform-value">
+                            <i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>
+                            <span>@#server.Host.Platform || 'unknown'#@</span>
+                        </span>
+                        <span v-if="hasReport">@#server.Host.Arch || '-'#@</span>
+                        <span v-else>等待 Agent 上报</span>
+                    </p>
                 </div>
                 <div class="nk-hero-actions">
                     <div class="nk-summary-grid">
@@ -27,18 +36,23 @@
                         </div>
                         <div class="nk-summary-item">
                             <span>运行</span>
-                            <strong>@#hasReport ? secondToDate(server.State.Uptime) : '-'#@</strong>
+                            <strong>@#hasLiveData ? secondToDate(server.State.Uptime) : '—'#@</strong>
                         </div>
                         <div class="nk-summary-item">
-                            <span>最近活动</span>
-                            <strong>@#formatShortDate(server.LastActive)#@</strong>
+                            <span>最近上报</span>
+                            <strong :title="formatDate(server.LastActive)">@#formatShortDate(server.LastActive)#@</strong>
                         </div>
                     </div>
                 </div>
             </header>
 
+            <div v-if="networkDisconnected" class="nk-connection-notice" role="status">
+                <i class="wifi icon" aria-hidden="true"></i>
+                <span>实时连接中断，正在重连。节点当前状态暂不可用。</span>
+            </div>
+
             <section class="nk-node-detail-layout">
-                <article class="nk-node-card nk-node-live-panel" :class="{ offline: hasReport && !server.live }">
+                <article class="nk-node-card nk-node-live-panel" :class="{ offline: hasReport && !server.live && !networkDisconnected }">
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
@@ -46,7 +60,7 @@
                                     :title="statusText" :aria-label="statusText"></span>
                                 <span>实时状态</span>
                             </div>
-                            <div class="nk-node-meta">@#hasReport ? formatDate(server.LastActive) : '暂无上报数据'#@</div>
+                            <div class="nk-node-meta">@#hasReport ? (hasLiveData ? '最近上报 ' : statusText + ' · 最后上报 ') + formatDate(server.LastActive) : '暂无上报数据'#@</div>
                         </div>
                     </div>
 
@@ -55,17 +69,17 @@
                             <div class="nk-meter">
                                 <span class="nk-meter-label"><i class="microchip icon" aria-hidden="true"></i>CPU</span>
                                 <div class="nk-meter-track"><i :style="meterStyle('cpu')"></i></div>
-                                <strong>@#livePercent('cpu')#@%</strong>
+                                <strong>@#formatLivePercent('cpu')#@</strong>
                             </div>
                             <div class="nk-meter">
                                 <span class="nk-meter-label"><i class="database icon" aria-hidden="true"></i>内存</span>
                                 <div class="nk-meter-track"><i :style="meterStyle('mem')"></i></div>
-                                <strong>@#livePercent('mem')#@%</strong>
+                                <strong>@#formatLivePercent('mem')#@</strong>
                             </div>
                             <div class="nk-meter">
                                 <span class="nk-meter-label"><i class="hdd outline icon" aria-hidden="true"></i>硬盘</span>
                                 <div class="nk-meter-track"><i :style="meterStyle('disk')"></i></div>
-                                <strong>@#livePercent('disk')#@%</strong>
+                                <strong>@#formatLivePercent('disk')#@</strong>
                             </div>
                         </div>
 
@@ -127,78 +141,24 @@
                         </p>
                         <p>
                             <span>内存</span>
-                            <strong>@#hasReport ? formatByteSize(server.State.MemUsed) + ' / ' + formatByteSize(server.Host.MemTotal) : '-'#@</strong>
+                            <strong>@#resourceUsage('Mem')#@</strong>
                         </p>
                         <p>
                             <span>交换</span>
-                            <strong>@#hasReport ? formatByteSize(server.State.SwapUsed) + ' / ' + formatByteSize(server.Host.SwapTotal) : '-'#@</strong>
+                            <strong>@#resourceUsage('Swap')#@</strong>
                         </p>
                         <p>
                             <span>硬盘</span>
-                            <strong>@#hasReport ? formatByteSize(server.State.DiskUsed) + ' / ' + formatByteSize(server.Host.DiskTotal) : '-'#@</strong>
-                        </p>
-                    </div>
-                </article>
-
-                <article v-if="hasBilling" class="nk-node-card nk-node-info-panel nk-node-billing-panel">
-                    <div class="nk-node-top">
-                        <div>
-                            <div class="nk-node-name">
-                                <span>套餐信息</span>
-                            </div>
-                            <div class="nk-node-meta">@#server.Billing.Provider || '未标注服务商'#@</div>
-                        </div>
-                        <span v-if="dueLabel" :class="dueClass">@#dueLabel#@</span>
-                    </div>
-                    <div class="nk-node-detail-grid nk-node-detail-grid-large">
-                        <p v-if="server.Billing.ProductPlan">
-                            <span>套餐</span>
-                            <strong>@#server.Billing.ProductPlan#@</strong>
-                        </p>
-                        <p v-if="server.Billing.Location">
-                            <span>机房</span>
-                            <strong>@#server.Billing.Location#@</strong>
-                        </p>
-                        <p v-if="server.Billing.CPUSpec">
-                            <span>CPU</span>
-                            <strong>@#server.Billing.CPUSpec#@</strong>
-                        </p>
-                        <p v-if="server.Billing.MemSpec">
-                            <span>内存</span>
-                            <strong>@#server.Billing.MemSpec#@</strong>
-                        </p>
-                        <p v-if="server.Billing.DiskSpec">
-                            <span>硬盘</span>
-                            <strong>@#server.Billing.DiskSpec#@</strong>
-                        </p>
-                        <p v-if="server.Billing.Bandwidth">
-                            <span>带宽</span>
-                            <strong>@#server.Billing.Bandwidth#@</strong>
-                        </p>
-                        <p v-if="server.Billing.TrafficVol">
-                            <span>流量</span>
-                            <strong>@#server.Billing.TrafficVol#@@#server.Billing.TrafficType ? '（' + server.Billing.TrafficType + '）' : ''#@</strong>
-                        </p>
-                        <p v-if="server.Billing.NetworkRoute">
-                            <span>线路</span>
-                            <strong>@#server.Billing.NetworkRoute#@</strong>
-                        </p>
-                        <p v-if="server.Billing.NextDueDate">
-                            <span>到期日</span>
-                            <strong>@#server.Billing.NextDueDate#@</strong>
-                        </p>
-                        <p v-if="server.Billing.Lifetime">
-                            <span>到期日</span>
-                            <strong>永久有效</strong>
+                            <strong>@#resourceUsage('Disk')#@</strong>
                         </p>
                     </div>
                 </article>
             </section>
 
-            <section class="nk-history-section">
+            <section class="nk-history-section" aria-labelledby="nk-history-heading" :aria-busy="metricLoading">
                 <div class="nk-section-title nk-history-toolbar">
                     <div class="nk-history-title">
-                        <h2>监控指标</h2>
+                        <h2 id="nk-history-heading">监控指标</h2>
                         <span>@#historyLabel#@</span>
                     </div>
                     <div class="nk-range-switch" role="group" aria-label="监控指标时间范围">
@@ -211,6 +171,10 @@
                             @click="setMetricRange(range.value)"
                         >@#range.label#@</button>
                     </div>
+                </div>
+                <div v-if="metricError" class="nk-history-feedback" role="alert">
+                    <span>@#metricError#@</span>
+                    <button type="button" class="nk-retry-button" :disabled="metricLoading" @click="refreshMetrics(false)">重新加载</button>
                 </div>
                 <div v-if="hasMetrics" class="nk-history-grid" :class="{ 'is-loading': metricLoading }">
                     <article class="nk-history-card">
@@ -263,8 +227,62 @@
                         <div class="nk-history-chart" ref="netChart" aria-label="网络速率趋势"></div>
                     </article>
                 </div>
-                <div v-else class="nk-empty-node nk-history-empty">@#metricLoading ? '指标加载中…' : '暂无历史指标。'#@</div>
+                <div v-else-if="!metricError" class="nk-empty-node nk-history-empty" role="status">@#metricLoading ? '正在加载历史指标…' : '所选时间范围内暂无历史指标。'#@</div>
             </section>
+
+            <article v-if="hasBilling" class="nk-node-card nk-node-billing-panel">
+                <div class="nk-node-top">
+                    <div>
+                        <div class="nk-node-name">
+                            <span>套餐信息</span>
+                        </div>
+                        <div class="nk-node-meta">@#server.Billing.Provider || '未标注服务商'#@</div>
+                    </div>
+                    <span v-if="dueLabel" :class="dueClass">@#dueLabel#@</span>
+                </div>
+                <div class="nk-node-detail-grid nk-node-detail-grid-large nk-plan-grid">
+                    <p v-if="server.Billing.ProductPlan">
+                        <span>套餐</span>
+                        <strong>@#server.Billing.ProductPlan#@</strong>
+                    </p>
+                    <p v-if="server.Billing.Location">
+                        <span>机房</span>
+                        <strong>@#server.Billing.Location#@</strong>
+                    </p>
+                    <p v-if="server.Billing.CPUSpec">
+                        <span>CPU</span>
+                        <strong>@#server.Billing.CPUSpec#@</strong>
+                    </p>
+                    <p v-if="server.Billing.MemSpec">
+                        <span>内存</span>
+                        <strong>@#server.Billing.MemSpec#@</strong>
+                    </p>
+                    <p v-if="server.Billing.DiskSpec">
+                        <span>硬盘</span>
+                        <strong>@#server.Billing.DiskSpec#@</strong>
+                    </p>
+                    <p v-if="server.Billing.Bandwidth">
+                        <span>带宽</span>
+                        <strong>@#server.Billing.Bandwidth#@</strong>
+                    </p>
+                    <p v-if="server.Billing.TrafficVol">
+                        <span>流量</span>
+                        <strong>@#server.Billing.TrafficVol#@@#server.Billing.TrafficType ? '（' + server.Billing.TrafficType + '）' : ''#@</strong>
+                    </p>
+                    <p v-if="server.Billing.NetworkRoute">
+                        <span>线路</span>
+                        <strong>@#server.Billing.NetworkRoute#@</strong>
+                    </p>
+                    <p v-if="server.Billing.NextDueDate && !server.Billing.Lifetime">
+                        <span>到期日</span>
+                        <strong>@#server.Billing.NextDueDate#@</strong>
+                    </p>
+                    <p v-if="server.Billing.Lifetime">
+                        <span>到期日</span>
+                        <strong>永久有效</strong>
+                    </p>
+                </div>
+            </article>
         </section>
     </div>
 </main>
@@ -309,6 +327,7 @@
             metricSeries: emptyMetricSeries(initMetricRange || 'today'),
             metricRange: initMetricRange || 'today',
             metricLoading: false,
+            metricError: '',
             metricRequestID: 0,
             metricMaxPoints: 720,
             metricRanges: [
@@ -326,8 +345,11 @@
                     this.server.Host.CPU && this.server.Host.CPU.length
                 ))
             },
+            hasLiveData() {
+                return !this.networkDisconnected && NodekeepNetwork.isFresh(this.server, this.networkNow)
+            },
             statusState() {
-                if (!this.hasReport) {
+                if (!this.hasReport || this.networkDisconnected || (this.server.live && !this.hasLiveData)) {
                     return 'pending'
                 }
                 return this.server.live ? '' : 'offline'
@@ -336,7 +358,13 @@
                 if (!this.hasReport) {
                     return '未上报'
                 }
-                return this.server.live ? '在线' : '离线'
+                if (this.networkDisconnected) {
+                    return '状态未知'
+                }
+                if (!this.server.live) {
+                    return '离线'
+                }
+                return this.hasLiveData ? '在线' : '等待上报'
             },
             networkStatus() {
                 if (this.networkDisconnected) {
@@ -424,14 +452,17 @@
             },
             historyLabel() {
                 if (this.metricLoading) {
-                    return this.currentRangeLabel + ' · 加载中'
+                    return this.currentRangeLabel + (this.hasMetrics ? ' · 正在更新' : ' · 正在加载')
+                }
+                if (this.metricError && !this.hasMetrics) {
+                    return this.currentRangeLabel + ' · 加载失败'
                 }
                 if (!this.hasMetrics) {
                     return this.currentRangeLabel + ' · 暂无数据'
                 }
                 const stepSec = Number(this.metricSeries.stepSec) || 60
                 const stepLabel = stepSec >= 60 ? (stepSec / 60) + ' 分钟' : stepSec + ' 秒'
-                return this.currentRangeLabel + ' · ' + this.metricSeries.count + ' 点 · ' + stepLabel + ' 粒度'
+                return this.currentRangeLabel + ' · ' + stepLabel + '采样 · 截至 ' + this.formatShortDate(this.latestMetric.t * 1000)
             },
         },
         created() {
@@ -457,6 +488,10 @@
         },
         beforeDestroy() {
             this._networkDestroyed = true
+            this.metricRequestID++
+            if (this._metricRequestController) {
+                this._metricRequestController.abort()
+            }
             window.clearInterval(this._networkTimer)
             window.clearTimeout(this._networkReconnectTimer)
             if (this._networkSocket) {
@@ -576,7 +611,7 @@
             },
             networkRate(field) {
                 return this.formatNetworkSpeed(
-                    !this.networkDisconnected && NodekeepNetwork.isFresh(this.server, this.networkNow) ? this.server.State[field] : null
+                    this.hasLiveData ? this.server.State[field] : null
                 )
             },
             formatNetworkSpeed(value) {
@@ -584,7 +619,14 @@
             },
             refreshMetrics(incremental) {
                 this.metricLoading = true
+                this.metricError = ''
                 const requestID = ++this.metricRequestID
+                if (this._metricRequestController) {
+                    this._metricRequestController.abort()
+                }
+                const controller = new AbortController()
+                this._metricRequestController = controller
+                const timeoutID = window.setTimeout(() => controller.abort(), 15000)
                 const params = new URLSearchParams()
                 params.set('range', this.metricRange)
                 params.set('max', String(this.metricMaxPoints || 720))
@@ -592,16 +634,20 @@
                 if (canIncremental) {
                     params.set('after', String(this.metricSeries.to))
                 }
-                fetch('/node/' + nodeID + '/metrics?' + params.toString(), {
+                return fetch('/node/' + nodeID + '/metrics?' + params.toString(), {
                     headers: { 'X-NodeKeep-Request': '1' },
+                    signal: controller.signal,
                 }).then(resp => {
                     if (!resp.ok) {
-                        return null
+                        throw new Error('Historical metrics request failed: ' + resp.status)
                     }
                     return resp.json()
                 }).then(series => {
-                    if (requestID !== this.metricRequestID || !series || !Array.isArray(series.t)) {
+                    if (requestID !== this.metricRequestID) {
                         return
+                    }
+                    if (!series || !Array.isArray(series.t)) {
+                        throw new Error('Invalid historical metrics response')
                     }
                     if (canIncremental) {
                         this.mergeMetricSeries(series)
@@ -610,9 +656,16 @@
                     }
                     this.$nextTick(() => this.renderCharts())
                 }).catch(() => {
+                    if (requestID === this.metricRequestID) {
+                        this.metricError = this.hasMetrics
+                            ? '历史指标更新失败，当前显示上次加载的数据。'
+                            : '历史指标加载失败，请重试。'
+                    }
                 }).finally(() => {
+                    window.clearTimeout(timeoutID)
                     if (requestID === this.metricRequestID) {
                         this.metricLoading = false
+                        this._metricRequestController = null
                     }
                 })
             },
@@ -736,26 +789,45 @@
                 return { used: 0, total: 0 }
             },
             percent(used, total) {
-                if (!total) {
-                    return 0
+                if (!Number.isFinite(used) || !Number.isFinite(total) || used < 0 || total <= 0) {
+                    return null
                 }
-                return Math.max(0, Math.min(100, Math.round(Number(used) / Number(total) * 100) || 0))
+                return Math.max(0, Math.min(100, Math.round(used / total * 100)))
             },
             livePercent(type) {
                 const metric = this.liveMetric(type)
-                return this.server.live ? this.percent(metric.used, metric.total) : 0
+                return this.hasLiveData ? this.percent(metric.used, metric.total) : null
+            },
+            formatLivePercent(type) {
+                const percent = this.livePercent(type)
+                return percent === null ? '—' : percent + '%'
             },
             meterStyle(type) {
                 const percent = this.livePercent(type)
-                let color = '#0b84ff'
-                if (!this.server.live) {
-                    color = '#94a3b8'
+                let color = 'var(--nk-accent)'
+                if (percent === null) {
+                    color = 'var(--nk-offline)'
                 } else if (percent >= 91) {
-                    color = '#dc2626'
+                    color = 'var(--nk-danger)'
                 } else if (percent >= 71) {
-                    color = '#d97706'
+                    color = 'var(--nk-warning)'
                 }
-                return { width: percent + '%', backgroundColor: color }
+                return { width: (percent === null ? 0 : percent) + '%', backgroundColor: color }
+            },
+            resourceUsage(type) {
+                if (!this.hasReport || !this.server.State) {
+                    return '—'
+                }
+                const total = this.server.Host[type + 'Total']
+                const used = this.server.State[type + 'Used']
+                if (type === 'Swap' && total === 0) {
+                    return '未启用'
+                }
+                if (!Number.isFinite(total) || total <= 0) {
+                    return '—'
+                }
+                const usedLabel = this.hasLiveData && Number.isFinite(used) && used >= 0 ? this.formatByteSize(used) : '—'
+                return usedLabel + ' / ' + this.formatByteSize(total)
             },
             chartValues(type) {
                 if (!this.hasMetrics) {
@@ -1181,7 +1253,10 @@
             formatShortDate(t) {
                 const date = new Date(t)
                 if (!Number.isFinite(date.getTime()) || date.getFullYear() < 2000) {
-                    return '-'
+                    return '—'
+                }
+                if (date.toDateString() !== new Date(this.networkNow * 1000).toDateString()) {
+                    return date.toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                 }
                 return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             },
