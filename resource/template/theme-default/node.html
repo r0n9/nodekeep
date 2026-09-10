@@ -48,7 +48,7 @@
 
             <div v-if="networkDisconnected" class="nk-connection-notice" role="status">
                 <i class="wifi icon" aria-hidden="true"></i>
-                <span>实时连接中断，正在重连。节点当前状态暂不可用。</span>
+                <span>实时连接中断，正在重连。暂时保留上次收到的节点数据。</span>
             </div>
 
             <section class="nk-node-detail-layout">
@@ -60,7 +60,7 @@
                                     :title="statusText" :aria-label="statusText"></span>
                                 <span>实时状态</span>
                             </div>
-                            <div class="nk-node-meta">@#hasReport ? (hasLiveData ? '最近上报 ' : statusText + ' · 最后上报 ') + formatDate(server.LastActive) : '暂无上报数据'#@</div>
+                            <div class="nk-node-meta">@#hasReport ? (hasLiveData && !networkDisconnected ? '最近上报 ' : statusText + ' · 最后上报 ') + formatDate(server.LastActive) : '暂无上报数据'#@</div>
                         </div>
                     </div>
 
@@ -346,10 +346,11 @@
                 ))
             },
             hasLiveData() {
-                return !this.networkDisconnected && NodekeepNetwork.isFresh(this.server, this.networkNow)
+                // 数值沿用节点的 20 秒在线判断，不受折线图的 6 秒采样间隔限制。
+                return !!(this.hasReport && this.server.live && this.server.State)
             },
             statusState() {
-                if (!this.hasReport || this.networkDisconnected || (this.server.live && !this.hasLiveData)) {
+                if (!this.hasReport || this.networkDisconnected) {
                     return 'pending'
                 }
                 return this.server.live ? '' : 'offline'
@@ -361,10 +362,7 @@
                 if (this.networkDisconnected) {
                     return '状态未知'
                 }
-                if (!this.server.live) {
-                    return '离线'
-                }
-                return this.hasLiveData ? '在线' : '等待上报'
+                return this.server.live ? '在线' : '离线'
             },
             networkStatus() {
                 if (this.networkDisconnected) {
@@ -373,7 +371,7 @@
                 if (!this.server.live) {
                     return '节点离线'
                 }
-                return NodekeepNetwork.isFresh(this.server, this.networkNow) ? '最近 60 秒' : '等待新采样'
+                return NodekeepNetwork.isFresh(this.server, this.networkNow) ? '最近 60 秒' : '显示上次采样'
             },
             hasMetrics() {
                 return !!(this.metricSeries && this.metricSeries.count > 0)
@@ -602,7 +600,10 @@
                 if (this.networkNow - this._networkLastMessage > NodekeepNetwork.GAP_SECONDS) {
                     this.reconnectNetwork()
                 }
-                this.server.live = this.hasReport && this.networkNow - Date.parse(this.server.LastActive) / 1000 <= 20
+                // 连接中断时保留最后收到的在线状态，重连后再随快照更新。
+                if (!this.networkDisconnected) {
+                    this.server.live = this.hasReport && this.networkNow - Date.parse(this.server.LastActive) / 1000 <= 20
+                }
                 if (this.networkDisconnected || !NodekeepNetwork.isFresh(this.server, this.networkNow)) {
                     NodekeepNetwork.breakHistory(this.networkHistory, this.networkNow)
                 } else {

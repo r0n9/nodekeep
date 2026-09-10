@@ -43,7 +43,7 @@
 
             <div v-if="networkDisconnected" class="nk-connection-notice" role="status">
                 <i class="wifi icon" aria-hidden="true"></i>
-                <span>实时连接中断，正在重连。节点当前状态暂不可用。</span>
+                <span>实时连接中断，正在重连。暂时保留上次收到的节点数据。</span>
             </div>
 
             <section v-for="group in groups" :key="group.Tag" class="nk-group">
@@ -76,7 +76,7 @@
                             </div>
                         </div>
 
-                        <p v-if="server.reported && !hasLiveData(server)" class="nk-data-note">
+                        <p v-if="server.reported && (networkDisconnected || !hasLiveData(server))" class="nk-data-note">
                             @#statusText(server)#@ · 最后上报 <time :datetime="server.LastActive">@#formatDate(server.LastActive)#@</time>
                         </p>
 
@@ -194,7 +194,7 @@
                                             <span v-if="server.Billing.Provider" class="nk-provider-tag" :title="providerTitle(server)">@#server.Billing.Provider#@</span>
                                             <span v-if="dueLabel(server)" :class="dueClass(server)" :title="dueTitle(server)">@#dueLabel(server)#@</span>
                                         </div>
-                                        <p v-if="server.reported && !hasLiveData(server)" class="nk-data-note">
+                                        <p v-if="server.reported && (networkDisconnected || !hasLiveData(server))" class="nk-data-note">
                                             @#statusText(server)#@ · 最后上报 <time :datetime="server.LastActive">@#formatDate(server.LastActive)#@</time>
                                         </p>
                                     </td>
@@ -242,7 +242,7 @@
                                 <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
                                 <a class="nk-list-node-label nk-node-link" :href="'/node/' + server.ID" :title="server.Name">@#server.Name#@</a>
                             </div>
-                            <p v-if="server.reported && !hasLiveData(server)" class="nk-data-note">
+                            <p v-if="server.reported && (networkDisconnected || !hasLiveData(server))" class="nk-data-note">
                                 @#statusText(server)#@ · 最后上报 <time :datetime="server.LastActive">@#formatDate(server.LastActive)#@</time>
                             </p>
                             <p v-else-if="!server.reported" class="nk-data-note">等待 Agent 上报</p>
@@ -320,11 +320,11 @@
         },
         computed: {
             onlineCount() {
-                return this.networkDisconnected ? '—' : this.servers.filter(server => server.live).length
+                return this.servers.filter(server => server.live).length
             },
             offlineCount() {
                 // 上报过但已失联；从未上报的单独算，不混进这里
-                return this.networkDisconnected ? '—' : this.servers.filter(server => server.reported && !server.live).length
+                return this.servers.filter(server => server.reported && !server.live).length
             },
             pendingCount() {
                 return this.servers.filter(server => !server.reported).length
@@ -450,7 +450,10 @@
                     if (!server.reported) {
                         return
                     }
-                    server.live = this.networkNow - Date.parse(server.LastActive) / 1000 <= 20
+                    // 连接中断时保留最后收到的在线状态，重连后再随快照更新。
+                    if (!this.networkDisconnected) {
+                        server.live = this.networkNow - Date.parse(server.LastActive) / 1000 <= 20
+                    }
                     const history = this.networkHistory[server.ID]
                     if (this.networkDisconnected || !NodekeepNetwork.isFresh(server, this.networkNow)) {
                         NodekeepNetwork.breakHistory(history, this.networkNow)
@@ -466,7 +469,7 @@
                 if (!server.live) {
                     return '节点离线'
                 }
-                return NodekeepNetwork.isFresh(server, this.networkNow) ? '最近 60 秒' : '等待新采样'
+                return NodekeepNetwork.isFresh(server, this.networkNow) ? '最近 60 秒' : '显示上次采样'
             },
             networkRate(server, field) {
                 return NodekeepNetwork.formatSpeed(
@@ -474,7 +477,8 @@
                 )
             },
             hasLiveData(server) {
-                return !this.networkDisconnected && NodekeepNetwork.isFresh(server, this.networkNow)
+                // 数值沿用节点的 20 秒在线判断，不受折线图的 6 秒采样间隔限制。
+                return !!(server.reported && server.live && server.State)
             },
             statusText(server) {
                 if (!server.reported) {
@@ -483,13 +487,10 @@
                 if (this.networkDisconnected) {
                     return '状态未知'
                 }
-                if (!server.live) {
-                    return '离线'
-                }
-                return this.hasLiveData(server) ? '在线' : '等待上报'
+                return server.live ? '在线' : '离线'
             },
             statusClass(server) {
-                if (!server.reported || this.networkDisconnected || (server.live && !this.hasLiveData(server))) {
+                if (!server.reported || this.networkDisconnected) {
                     return 'nk-status-dot pending'
                 }
                 return server.live ? 'nk-status-dot' : 'nk-status-dot offline'
