@@ -256,6 +256,28 @@ func nodeMetricRange(rangeKey string, now time.Time) (string, time.Time) {
 var upgrader = websocket.Upgrader{}
 
 func (cp *commonPage) ws(c *gin.Context) {
+	var nodeID uint64
+	if values, subscribed := c.Request.URL.Query()["node_id"]; subscribed {
+		var err error
+		if len(values) == 1 {
+			nodeID, err = strconv.ParseUint(strings.TrimSpace(values[0]), 10, 64)
+		}
+		if len(values) != 1 || err != nil || nodeID == 0 {
+			c.JSON(http.StatusBadRequest, model.Response{
+				Code:    http.StatusBadRequest,
+				Message: "无效的节点 ID。",
+			})
+			return
+		}
+		if _, ok := dao.PublicServerSnapshot(nodeID); !ok {
+			c.JSON(http.StatusNotFound, model.Response{
+				Code:    http.StatusNotFound,
+				Message: "没有找到对应的节点。",
+			})
+			return
+		}
+	}
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		mygin.ShowErrorPage(c, mygin.ErrInfo{
@@ -269,7 +291,18 @@ func (cp *commonPage) ws(c *gin.Context) {
 	}
 	defer conn.Close()
 	for {
-		err = conn.WriteJSON(dao.SortedPublicServerSnapshot())
+		if nodeID == 0 {
+			err = conn.WriteJSON(dao.SortedPublicServerSnapshot())
+		} else {
+			server, ok := dao.PublicServerSnapshot(nodeID)
+			if !ok {
+				_ = conn.WriteControl(websocket.CloseMessage,
+					websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "node not found"),
+					time.Now().Add(time.Second))
+				return
+			}
+			err = conn.WriteJSON(server)
+		}
 		if err != nil {
 			break
 		}

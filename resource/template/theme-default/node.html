@@ -523,7 +523,7 @@
                     return
                 }
                 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-                const socket = new WebSocket(protocol + '://' + window.location.host + '/ws')
+                const socket = new WebSocket(protocol + '://' + window.location.host + '/ws?node_id=' + encodeURIComponent(nodeID))
                 this._networkSocket = socket
                 this._networkLastMessage = Date.now() / 1000
                 socket.onmessage = event => {
@@ -531,11 +531,9 @@
                         return
                     }
                     try {
-                        const servers = JSON.parse(event.data)
-                        if (Array.isArray(servers)) {
-                            this._networkLastMessage = Date.now() / 1000
-                            this.networkDisconnected = false
-                            this.refreshServer(servers.find(server => server.ID === nodeID))
+                        const server = JSON.parse(event.data)
+                        if (server && server.ID === nodeID) {
+                            this.refreshServer(server)
                         }
                     } catch (error) {
                         console.warn('无法读取节点状态', error)
