@@ -2674,7 +2674,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
   transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button[data-tooltip]:after {
+.ui.table.nk-table .ui.mini.icon.buttons .button[data-tooltip]:after,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button[data-tooltip]:after,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-billing-button[data-tooltip]:after {
   padding: 0.46rem 0.62rem;
   border: 1px solid var(--nk-tooltip-border);
   color: var(--nk-tooltip-text);
@@ -2689,7 +2691,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
   white-space: nowrap;
 }
 
-.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button[data-tooltip]:before {
+.ui.table.nk-table .ui.mini.icon.buttons .button[data-tooltip]:before,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button[data-tooltip]:before,
+.ui.table.nk-table .ui.mini.icon.buttons .nk-billing-button[data-tooltip]:before {
   background: var(--nk-tooltip-bg);
   box-shadow: -1px -1px 0 0 var(--nk-tooltip-border);
 }
