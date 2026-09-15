@@ -2445,7 +2445,8 @@ html[data-theme="dark"] .nk-theme-icon-light {
   line-height: 1;
 }
 
-.ui.button.nk-secret-toggle[data-tooltip]:after {
+.ui.button.nk-secret-toggle[data-tooltip]:after,
+.ui.button.nk-password-toggle[data-tooltip]:after {
   padding: 0.46rem 0.62rem;
   border: 1px solid var(--nk-tooltip-border);
   color: var(--nk-tooltip-text);
@@ -2460,9 +2461,66 @@ html[data-theme="dark"] .nk-theme-icon-light {
   white-space: nowrap;
 }
 
-.ui.button.nk-secret-toggle[data-tooltip]:before {
+.ui.button.nk-secret-toggle[data-tooltip]:before,
+.ui.button.nk-password-toggle[data-tooltip]:before {
   background: var(--nk-tooltip-bg);
   box-shadow: -1px -1px 0 0 var(--nk-tooltip-border);
+}
+
+.nk-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.nk-password-wrap input {
+  width: 100%;
+  padding-right: 2.6rem !important;
+}
+
+.ui.button.nk-password-toggle {
+  position: absolute !important;
+  right: 5px;
+  top: 0;
+  bottom: 0;
+  margin: auto 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  color: var(--nk-muted) !important;
+  background: transparent none !important;
+  box-shadow: none !important;
+  transition: background 160ms ease, color 160ms ease;
+  z-index: 2;
+}
+
+.ui.button.nk-password-toggle:hover,
+.ui.button.nk-password-toggle:focus-visible {
+  color: var(--nk-text) !important;
+  background: var(--nk-track) none !important;
+}
+
+.ui.button.nk-password-toggle:focus-visible {
+  outline: 0;
+}
+
+.ui.button.nk-password-toggle:active {
+  background: var(--nk-track-strong) none !important;
+}
+
+.ui.button.nk-password-toggle i.icon {
+  width: 1rem;
+  height: 1rem;
+  margin: 0 !important;
+  color: currentColor !important;
+  line-height: 1;
 }
 
 .ui.button.nk-secret-toggle:hover,
@@ -2728,7 +2786,8 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button {
+  .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-button,
+  .ui.button.nk-password-toggle {
     transition: none;
   }
 

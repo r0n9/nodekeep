@@ -363,6 +363,36 @@ function toggleServerSecret(btn) {
     }
 }
 
+function togglePasswordVisibility(btn) {
+    const wrap = btn.closest('.nk-password-wrap')
+    if (!wrap) {
+        return
+    }
+    const input = wrap.querySelector('input')
+    const icon = btn.querySelector('i.icon')
+    if (!input) {
+        return
+    }
+    const isPassword = input.type === 'password'
+    if (isPassword) {
+        input.type = 'text'
+        btn.setAttribute('aria-label', '隐藏密码')
+        btn.setAttribute('aria-pressed', 'true')
+        btn.setAttribute('data-tooltip', '隐藏密码')
+        if (icon) {
+            icon.className = 'eye slash icon'
+        }
+    } else {
+        input.type = 'password'
+        btn.setAttribute('aria-label', '显示密码')
+        btn.setAttribute('aria-pressed', 'false')
+        btn.setAttribute('data-tooltip', '显示密码')
+        if (icon) {
+            icon.className = 'eye icon'
+        }
+    }
+}
+
 $(initServerSecretMasks)
 
 function copyTextToClipboard(text) {

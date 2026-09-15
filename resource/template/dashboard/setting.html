@@ -27,7 +27,15 @@
                     </div>
                     <div class="field">
                         <label>前台查看密码</label>
-                        <input type="text" name="ViewPassword" placeholder="留空则公开访问" value="{{.Conf.Site.ViewPassword}}">
+                        <div class="nk-password-wrap">
+                            <input type="password" name="ViewPassword" placeholder="留空则公开访问"
+                                value="{{.Conf.Site.ViewPassword}}" autocomplete="new-password">
+                            <button class="ui mini icon button nk-password-toggle" type="button" data-tooltip="显示密码"
+                                data-position="top center" aria-label="显示密码" aria-pressed="false"
+                                onclick="togglePasswordVisibility(this)">
+                                <i class="eye icon"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="field nk-form-full">
                         <div class="ui checkbox hide-billing">
