@@ -258,6 +258,7 @@ code {
 }
 
 .nk-theme-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -271,14 +272,59 @@ code {
   background: var(--nk-control-bg);
   box-shadow: 0 1px 2px rgba(23, 33, 29, 0.06);
   cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
 }
 
 .nk-theme-toggle:hover {
-  color: var(--nk-accent-strong);
-  border-color: rgba(11, 132, 255, 0.28);
-  background: var(--nk-accent-soft);
+  color: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.3);
+  background: rgba(79, 70, 229, 0.08);
 }
 
+.nk-theme-toggle:active {
+  transform: scale(0.92);
+}
+
+html[data-theme="dark"] .nk-theme-toggle:hover {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.nk-theme-svg {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 240ms ease;
+  pointer-events: none;
+}
+
+/* 浅色模式：显示月亮图标 */
+.nk-theme-svg-moon {
+  transform: rotate(0deg) scale(1);
+  opacity: 1;
+}
+
+.nk-theme-svg-sun {
+  transform: rotate(90deg) scale(0);
+  opacity: 0;
+}
+
+/* 深色模式：显示太阳图标 */
+html[data-theme="dark"] .nk-theme-svg-moon {
+  transform: rotate(-90deg) scale(0);
+  opacity: 0;
+}
+
+html[data-theme="dark"] .nk-theme-svg-sun {
+  transform: rotate(0deg) scale(1);
+  opacity: 1;
+  color: #fbbf24;
+}
+
+/* 兼容可能存在的旧语义化图标 */
 .nk-theme-toggle i.icon {
   width: 1rem;
   height: 1rem;
@@ -2399,8 +2445,79 @@ html[data-theme="dark"] .nk-theme-icon-light {
   white-space: nowrap;
 }
 
+.nk-ip-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  max-width: 260px;
+  min-width: 0;
+}
+
+.nk-ip-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+
 .ui.table.nk-table td code.nk-ip-code {
-  max-width: 180px;
+  max-width: 170px;
+  letter-spacing: -0.01em;
+  transition: background 140ms ease, color 140ms ease, max-width 180ms ease;
+}
+
+.ui.table.nk-table td code.nk-ip-code.nk-ip-code-v6 {
+  cursor: pointer;
+}
+
+.ui.table.nk-table td code.nk-ip-code.nk-ip-code-v6:hover {
+  background: var(--nk-surface-hover);
+  color: var(--nk-primary);
+}
+
+.ui.table.nk-table td code.nk-ip-code[data-expanded="true"] {
+  max-width: 320px;
+}
+
+.ui.button.nk-ip-copy-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  color: var(--nk-muted) !important;
+  background: var(--nk-surface-soft) none !important;
+  box-shadow: inset 0 0 0 1px var(--nk-border);
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui.button.nk-ip-copy-btn i.icon {
+  width: 1rem;
+  height: 1rem;
+  margin: 0 !important;
+  color: currentColor !important;
+  line-height: 1;
+}
+
+.ui.button.nk-ip-copy-btn:hover,
+.ui.button.nk-ip-copy-btn:focus-visible {
+  color: var(--nk-accent-strong) !important;
+  background: var(--nk-accent-soft) none !important;
+  box-shadow: inset 0 0 0 1px rgba(11, 132, 255, 0.24);
+}
+
+.ui.button.nk-ip-copy-btn:focus-visible {
+  outline: 0;
+}
+
+.ui.button.nk-ip-copy-btn:active {
+  transform: translateY(1px);
 }
 
 .nk-secret-field {
@@ -2446,7 +2563,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 .ui.button.nk-secret-toggle[data-tooltip]:after,
-.ui.button.nk-password-toggle[data-tooltip]:after {
+.ui.button.nk-password-toggle[data-tooltip]:after,
+.ui.button.nk-ip-copy-btn[data-tooltip]:after,
+.nk-ip-wrap[data-tooltip]:after {
   padding: 0.46rem 0.62rem;
   border: 1px solid var(--nk-tooltip-border);
   color: var(--nk-tooltip-text);
@@ -2462,7 +2581,9 @@ html[data-theme="dark"] .nk-theme-icon-light {
 }
 
 .ui.button.nk-secret-toggle[data-tooltip]:before,
-.ui.button.nk-password-toggle[data-tooltip]:before {
+.ui.button.nk-password-toggle[data-tooltip]:before,
+.ui.button.nk-ip-copy-btn[data-tooltip]:before,
+.nk-ip-wrap[data-tooltip]:before {
   background: var(--nk-tooltip-bg);
   box-shadow: -1px -1px 0 0 var(--nk-tooltip-border);
 }

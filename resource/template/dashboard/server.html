@@ -39,7 +39,20 @@
                             <td>
                                 {{if $server.Host}}
                                     {{$ipv4 := ipv4 $server.Host.IP}}
-                                    {{if $ipv4}}<code class="nk-ip-code">{{$ipv4}}</code>{{else}}<span class="nk-muted-text">-</span>{{end}}
+                                    {{if $ipv4}}
+                                        <div class="nk-ip-field">
+                                            <span class="nk-ip-wrap" data-tooltip="{{$ipv4}}" data-position="top center">
+                                                <code class="nk-ip-code">{{$ipv4}}</code>
+                                            </span>
+                                            <button class="ui mini icon button nk-ip-copy-btn" type="button" data-tooltip="复制 IPv4"
+                                                data-position="top center" aria-label="复制 IPv4"
+                                                onclick="copyIPToClipboard('{{$ipv4}}', 'IPv4', this)">
+                                                <i class="copy outline icon"></i>
+                                            </button>
+                                        </div>
+                                    {{else}}
+                                        <span class="nk-muted-text">-</span>
+                                    {{end}}
                                 {{else}}
                                     <span class="nk-muted-text">-</span>
                                 {{end}}
@@ -47,7 +60,24 @@
                             <td>
                                 {{if $server.Host}}
                                     {{$ipv6 := ipv6 $server.Host.IP}}
-                                    {{if $ipv6}}<code class="nk-ip-code">{{$ipv6}}</code>{{else}}<span class="nk-muted-text">-</span>{{end}}
+                                    {{if $ipv6}}
+                                        {{$shortIPv6 := shortIPv6 $ipv6}}
+                                        <div class="nk-ip-field">
+                                            <span class="nk-ip-wrap" data-tooltip="{{$ipv6}}" data-position="top center">
+                                                <code class="nk-ip-code nk-ip-code-v6"
+                                                    data-full-ip="{{$ipv6}}" data-short-ip="{{$shortIPv6}}"
+                                                    data-expanded="false"
+                                                    {{if ne $shortIPv6 $ipv6}}onclick="toggleIPExpand(this)"{{end}}>{{$shortIPv6}}</code>
+                                            </span>
+                                            <button class="ui mini icon button nk-ip-copy-btn" type="button" data-tooltip="复制 IPv6"
+                                                data-position="top center" aria-label="复制 IPv6"
+                                                onclick="copyIPToClipboard('{{$ipv6}}', 'IPv6', this)">
+                                                <i class="copy outline icon"></i>
+                                            </button>
+                                        </div>
+                                    {{else}}
+                                        <span class="nk-muted-text">-</span>
+                                    {{end}}
                                 {{else}}
                                     <span class="nk-muted-text">-</span>
                                 {{end}}

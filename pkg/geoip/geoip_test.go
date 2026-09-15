@@ -32,3 +32,27 @@ func TestExtractIPsRejectsInvalidInput(t *testing.T) {
 		t.Fatalf("ExtractIPs invalid = %q, %q", ipv4, ipv6)
 	}
 }
+
+func TestShortIPv6(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"", ""},
+		{"   ", ""},
+		{"2001:db8::1", "2001:db8::1"},
+		{"::1", "::1"},
+		{"::ffff:192.0.2.128", "::ffff:192.0.2.128"},
+		{"240e:390:860:1100:215:5dff:fe22:3a1b", "240e:390:…:fe22:3a1b"},
+		{"2600:1f18:43e7:8200::1", "2600:1f18:…::1"},
+		{"2400:cb00:2048:1::c629:d7a2", "2400:cb00:…:c629:d7a2"},
+		{"2409:8a15:3221:a1b2:5c8f:e932:1a2b:3c4d", "2409:8a15:…:1a2b:3c4d"},
+	}
+
+	for _, tc := range tests {
+		got := ShortIPv6(tc.input)
+		if got != tc.want {
+			t.Errorf("ShortIPv6(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}

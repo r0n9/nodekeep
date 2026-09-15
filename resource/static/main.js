@@ -24,12 +24,17 @@ function applyColorMode(mode) {
     const nextMode = mode === 'dark' ? 'dark' : 'light'
     document.documentElement.setAttribute('data-theme', nextMode)
     document.documentElement.style.colorScheme = nextMode
-    const toggle = document.querySelector('.nk-theme-toggle')
-    if (toggle) {
-        toggle.setAttribute('aria-label', nextMode === 'dark' ? '切换亮色模式' : '切换暗色模式')
-        toggle.setAttribute('title', nextMode === 'dark' ? '切换亮色模式' : '切换暗色模式')
-    }
+    const text = nextMode === 'dark' ? '切换到浅色模式' : '切换到深色模式'
+    document.querySelectorAll('.nk-theme-toggle').forEach(function (toggle) {
+        toggle.setAttribute('aria-label', text)
+        toggle.setAttribute('data-tooltip', text)
+        toggle.removeAttribute('title')
+    })
 }
+
+$(function () {
+    applyColorMode(currentColorMode())
+})
 
 function toggleColorMode() {
     const nextMode = currentColorMode() === 'dark' ? 'light' : 'dark'
@@ -469,6 +474,57 @@ function copyAgentInstallCommand(btn) {
     }).catch(function () {
         window.prompt('复制失败，请手动复制以下命令', command)
     })
+}
+
+function copyIPToClipboard(text, label, btn) {
+    if (!text) return
+    copyTextToClipboard(text).then(function () {
+        if (btn) {
+            const icon = btn.querySelector('i.icon')
+            const originalIconClass = icon ? icon.className : ''
+            const originalTooltip = btn.getAttribute('data-tooltip')
+            if (icon) {
+                icon.className = 'check icon'
+            }
+            btn.setAttribute('data-tooltip', '已复制!')
+            setTimeout(function () {
+                if (icon) {
+                    icon.className = originalIconClass
+                }
+                if (originalTooltip) {
+                    btn.setAttribute('data-tooltip', originalTooltip)
+                }
+            }, 1500)
+        }
+        $.suiAlert({
+            title: '已复制 ' + (label || 'IP') + ' 地址',
+            type: 'success',
+            description: text,
+            time: '2',
+            position: 'top-center',
+        })
+    }).catch(function () {
+        window.prompt('复制失败，请手动复制以下地址', text)
+    })
+}
+
+function toggleIPExpand(codeEl) {
+    if (!codeEl) return
+    const wrap = codeEl.closest('.nk-ip-wrap')
+    const isExpanded = codeEl.dataset.expanded === 'true'
+    if (isExpanded) {
+        codeEl.dataset.expanded = 'false'
+        codeEl.textContent = codeEl.dataset.shortIp
+        if (wrap) {
+            wrap.setAttribute('data-tooltip', codeEl.dataset.fullIp)
+        }
+    } else {
+        codeEl.dataset.expanded = 'true'
+        codeEl.textContent = codeEl.dataset.fullIp
+        if (wrap) {
+            wrap.setAttribute('data-tooltip', '点击收起')
+        }
+    }
 }
 
 function addOrEditMonitor(monitor) {

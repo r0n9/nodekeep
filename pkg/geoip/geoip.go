@@ -116,3 +116,52 @@ func normalizeIP(raw string) string {
 	}
 	return ""
 }
+
+// ShortIPv6 returns a compact representation of a long IPv6 address suitable
+// for display in tables or compact UI elements (e.g. "240e:390:…:fe22:3a1b").
+// Addresses with length <= 18 (e.g. "2001:db8::1") are returned unchanged.
+func ShortIPv6(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || len(raw) <= 18 {
+		return raw
+	}
+	parts := strings.Split(raw, ":")
+	if len(parts) < 4 {
+		return raw
+	}
+	var prefix string
+	if parts[0] == "" && parts[1] == "" {
+		if len(parts) > 2 {
+			prefix = "::" + parts[2]
+		} else {
+			return raw
+		}
+	} else if parts[0] == "" {
+		prefix = ":" + parts[1]
+	} else {
+		prefix = parts[0] + ":" + parts[1]
+	}
+
+	last := parts[len(parts)-1]
+	prev := parts[len(parts)-2]
+	var suffix string
+	if prev == "" {
+		suffix = "::" + last
+	} else {
+		suffix = prev + ":" + last
+	}
+
+	var short string
+	if strings.HasSuffix(prefix, "::") {
+		short = prefix + "…:" + suffix
+	} else if strings.HasPrefix(suffix, "::") {
+		short = prefix + ":…" + suffix
+	} else {
+		short = prefix + ":…:" + suffix
+	}
+
+	if len(short) >= len(raw) {
+		return raw
+	}
+	return short
+}

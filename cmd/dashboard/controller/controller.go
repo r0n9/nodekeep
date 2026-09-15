@@ -54,6 +54,9 @@ func ServeWeb() *gin.Engine {
 			_, ipv6 := geoip.ExtractIPs(s)
 			return ipv6
 		},
+		"shortIPv6": func(s string) string {
+			return geoip.ShortIPv6(s)
+		},
 		"float32f": func(f float32) string {
 			return fmt.Sprintf("%.2f", f)
 		},
