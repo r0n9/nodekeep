@@ -112,11 +112,11 @@
                                 <div class="nk-network-values">
                                     <div class="nk-network-stat inbound">
                                         <span><i class="arrow down icon" aria-hidden="true"></i>入站</span>
-                                        <strong>@#networkRate(server, 'NetInSpeed')#@</strong>
+                                        <strong class="nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')">@#networkRate(server, 'NetInSpeed')#@</strong>
                                     </div>
                                     <div class="nk-network-stat outbound">
                                         <span><i class="arrow up icon" aria-hidden="true"></i>出站</span>
-                                        <strong>@#networkRate(server, 'NetOutSpeed')#@</strong>
+                                        <strong class="nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')">@#networkRate(server, 'NetOutSpeed')#@</strong>
                                     </div>
                                 </div>
                                 <network-chart :history="networkHistory[server.ID]" :now="networkNow" :theme="networkTheme"></network-chart>
@@ -171,12 +171,12 @@
                         <table class="nk-node-list">
                             <thead>
                                 <tr>
-                                    <th>节点</th>
+                                    <th><i class="server icon" aria-hidden="true"></i>节点</th>
                                     <th><i class="microchip icon" aria-hidden="true"></i>CPU</th>
                                     <th><i class="database icon" aria-hidden="true"></i>内存</th>
                                     <th><i class="hdd outline icon" aria-hidden="true"></i>硬盘</th>
                                     <th><i class="sitemap icon" aria-hidden="true"></i>网络</th>
-                                    <th>累计流量</th>
+                                    <th><i class="exchange alternate icon" aria-hidden="true"></i>累计流量</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -232,8 +232,8 @@
                                     </td>
                                     <td>
                                         <div class="nk-list-network">
-                                            <span class="inbound"><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">入站</span>@#networkRate(server, 'NetInSpeed')#@</span>
-                                            <span class="outbound"><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">出站</span>@#networkRate(server, 'NetOutSpeed')#@</span>
+                                            <span class="inbound nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')"><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">入站</span>@#networkRate(server, 'NetInSpeed')#@</span>
+                                            <span class="outbound nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')"><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">出站</span>@#networkRate(server, 'NetOutSpeed')#@</span>
                                         </div>
                                     </td>
                                     <td>
@@ -263,8 +263,8 @@
                             <dl class="nk-compact-metrics">
                                 <div><dt>CPU</dt><dd>@#listPercent(server, 'cpu')#@</dd></div>
                                 <div><dt>内存</dt><dd>@#listPercent(server, 'mem')#@</dd></div>
-                                <div class="inbound"><dt><i class="arrow down icon" aria-hidden="true"></i>入站</dt><dd>@#networkRate(server, 'NetInSpeed')#@</dd></div>
-                                <div class="outbound"><dt><i class="arrow up icon" aria-hidden="true"></i>出站</dt><dd>@#networkRate(server, 'NetOutSpeed')#@</dd></div>
+                                <div class="inbound"><dt><i class="arrow down icon" aria-hidden="true"></i>入站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')">@#networkRate(server, 'NetInSpeed')#@</dd></div>
+                                <div class="outbound"><dt><i class="arrow up icon" aria-hidden="true"></i>出站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')">@#networkRate(server, 'NetOutSpeed')#@</dd></div>
                             </dl>
                             <details class="nk-node-details nk-compact-details">
                                 <summary>
@@ -492,7 +492,29 @@
             },
             hasLiveData(server) {
                 // 数值沿用节点的 20 秒在线判断，不受折线图的 6 秒采样间隔限制。
-                return !!(server.reported && server.live && server.State)
+                return !this.networkDisconnected && !!(server.reported && server.live && server.State)
+            },
+            netSpeedClass(serverOrLive, fieldOrSpeed) {
+                let live = false
+                let speed = 0
+                if (typeof serverOrLive === 'object' && serverOrLive !== null) {
+                    live = this.hasLiveData(serverOrLive)
+                    speed = serverOrLive.State ? serverOrLive.State[fieldOrSpeed] : 0
+                } else {
+                    live = !!serverOrLive
+                    speed = fieldOrSpeed
+                }
+                if (!live) {
+                    return 'nk-speed-offline'
+                }
+                const value = Number(speed) || 0
+                if (value >= 1024 * 1024) {
+                    return 'nk-speed-tier-high'
+                }
+                if (value >= 100 * 1024) {
+                    return 'nk-speed-tier-mid'
+                }
+                return 'nk-speed-tier-low'
             },
             statusText(server) {
                 if (!server.reported) {

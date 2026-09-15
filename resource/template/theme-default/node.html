@@ -91,11 +91,11 @@
                             <div class="nk-network-values">
                                 <div class="nk-network-stat inbound">
                                     <span><i class="arrow down icon" aria-hidden="true"></i>入站</span>
-                                    <strong>@#networkRate('NetInSpeed')#@</strong>
+                                    <strong class="nk-speed-value" :class="netSpeedClass('NetInSpeed')">@#networkRate('NetInSpeed')#@</strong>
                                 </div>
                                 <div class="nk-network-stat outbound">
                                     <span><i class="arrow up icon" aria-hidden="true"></i>出站</span>
-                                    <strong>@#networkRate('NetOutSpeed')#@</strong>
+                                    <strong class="nk-speed-value" :class="netSpeedClass('NetOutSpeed')">@#networkRate('NetOutSpeed')#@</strong>
                                 </div>
                             </div>
                             <network-chart :history="networkHistory" :now="networkNow" :theme="networkTheme"></network-chart>
@@ -617,6 +617,22 @@
             },
             formatNetworkSpeed(value) {
                 return NodekeepNetwork.formatSpeed(value)
+            },
+            netSpeedClass(fieldOrSpeed) {
+                if (!this.hasLiveData) {
+                    return 'nk-speed-offline'
+                }
+                const speed = typeof fieldOrSpeed === 'number'
+                    ? fieldOrSpeed
+                    : (this.server.State ? this.server.State[fieldOrSpeed] : 0)
+                const value = Number(speed) || 0
+                if (value >= 1024 * 1024) {
+                    return 'nk-speed-tier-high'
+                }
+                if (value >= 100 * 1024) {
+                    return 'nk-speed-tier-mid'
+                }
+                return 'nk-speed-tier-low'
             },
             refreshMetrics(incremental) {
                 this.metricLoading = true

@@ -108,3 +108,34 @@ test('changing views preserves history and removing a node releases its history'
     app.refreshServers([])
     assert.equal(Object.keys(app.networkHistory).length, 0)
 })
+
+test('network speed tiers distinguish offline, low (<100KB), mid (>=100KB), and high (>=1MB)', () => {
+    const { app } = createPage()
+    const server = app.servers[0]
+
+    // Live low tier (2048 B/s = 2 KB/s)
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-tier-low')
+
+    // Live mid tier (>= 100 KB/s)
+    server.State.NetInSpeed = 100 * 1024
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-tier-mid')
+    server.State.NetInSpeed = 500 * 1024
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-tier-mid')
+
+    // Live high tier (>= 1 MB/s)
+    server.State.NetInSpeed = 1024 * 1024
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-tier-high')
+    server.State.NetInSpeed = 5 * 1024 * 1024
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-tier-high')
+
+    // Calling with (live, speed) signature
+    assert.equal(app.netSpeedClass(true, 50 * 1024), 'nk-speed-tier-low')
+    assert.equal(app.netSpeedClass(true, 100 * 1024), 'nk-speed-tier-mid')
+    assert.equal(app.netSpeedClass(true, 1024 * 1024), 'nk-speed-tier-high')
+
+    // Offline / disconnected
+    assert.equal(app.netSpeedClass(false, 10 * 1024 * 1024), 'nk-speed-offline')
+    server.live = false
+    assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-offline')
+})
+
