@@ -7,35 +7,90 @@
 <main class="nk-page nk-public-page">
     <div class="ui container">
         <section id="app" class="nk-monitor">
-            <header class="nk-hero">
-                <div>
-                    <h1>{{.Conf.Site.Brand}}</h1>
+            <header class="nk-hero nk-monitor-hero">
+                <div class="nk-hero-lead">
+                    <div class="nk-hero-title-wrap">
+                        <h1 class="nk-hero-title">{{.Conf.Site.Brand}}</h1>
+                        <span class="nk-hero-status-badge" :class="heroStatusClass">
+                            <span class="nk-live-dot"></span>
+                            <span>@#heroStatusText#@</span>
+                        </span>
+                    </div>
+                    <p class="nk-hero-subtitle">基础设施与节点运行状态实时概览</p>
                 </div>
-                <div class="nk-hero-actions">
-                    <div class="nk-summary-grid nk-summary-grid-nodes">
-                        <div class="nk-summary-item">
-                            <span>节点总数</span>
-                            <strong>@#servers.length#@</strong>
+                <div class="nk-hero-actions-wrap">
+                    <div class="nk-hero-stats" role="region" aria-label="节点状态统计">
+                        <div class="nk-stat-card total" title="全部节点">
+                            <div class="nk-stat-icon-wrap" aria-hidden="true">
+                                <svg class="nk-stat-svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="2.5" width="12" height="4.5" rx="1.2" />
+                                    <rect x="2" y="9" width="12" height="4.5" rx="1.2" />
+                                    <circle cx="4.5" cy="4.75" r="0.75" fill="currentColor" />
+                                    <circle cx="4.5" cy="11.25" r="0.75" fill="currentColor" />
+                                    <line x1="8" y1="4.75" x2="11.5" y2="4.75" />
+                                    <line x1="8" y1="11.25" x2="11.5" y2="11.25" />
+                                </svg>
+                            </div>
+                            <div class="nk-stat-content">
+                                <span class="nk-stat-label">全部</span>
+                                <strong class="nk-stat-num">@#servers.length#@</strong>
+                            </div>
                         </div>
-                        <div class="nk-summary-item">
-                            <span>在线节点</span>
-                            <strong>@#onlineCount#@</strong>
+                        <div class="nk-stat-card online" title="在线节点">
+                            <div class="nk-stat-icon-wrap" aria-hidden="true">
+                                <span class="nk-stat-beacon online">
+                                    <span class="nk-stat-beacon-core"></span>
+                                    <span class="nk-stat-beacon-ring"></span>
+                                </span>
+                            </div>
+                            <div class="nk-stat-content">
+                                <span class="nk-stat-label">在线</span>
+                                <strong class="nk-stat-num">@#onlineCount#@</strong>
+                            </div>
                         </div>
-                        <div class="nk-summary-item">
-                            <span>离线节点</span>
-                            <strong>@#offlineCount#@</strong>
+                        <div class="nk-stat-card offline" :class="{ 'has-alert': typeof offlineCount === 'number' && offlineCount > 0 && !networkDisconnected }" title="离线节点">
+                            <div class="nk-stat-icon-wrap" aria-hidden="true">
+                                <span class="nk-stat-beacon offline">
+                                    <span class="nk-stat-beacon-core"></span>
+                                    <span class="nk-stat-beacon-ring"></span>
+                                </span>
+                            </div>
+                            <div class="nk-stat-content">
+                                <span class="nk-stat-label">离线</span>
+                                <strong class="nk-stat-num">@#offlineCount#@</strong>
+                            </div>
                         </div>
-                        <div class="nk-summary-item">
-                            <span>未上报</span>
-                            <strong>@#pendingCount#@</strong>
+                        <div class="nk-stat-card pending" :class="{ 'has-alert': typeof pendingCount === 'number' && pendingCount > 0 }" title="未上报节点">
+                            <div class="nk-stat-icon-wrap" aria-hidden="true">
+                                <span class="nk-stat-beacon pending">
+                                    <span class="nk-stat-beacon-core"></span>
+                                    <span class="nk-stat-beacon-ring"></span>
+                                </span>
+                            </div>
+                            <div class="nk-stat-content">
+                                <span class="nk-stat-label">未上报</span>
+                                <strong class="nk-stat-num">@#pendingCount#@</strong>
+                            </div>
                         </div>
                     </div>
+                    <div class="nk-hero-divider" aria-hidden="true"></div>
                     <div class="nk-view-switch" role="group" aria-label="节点展示模式">
-                        <button type="button" :class="{ active: viewMode === 'card' }" :aria-pressed="viewMode === 'card' ? 'true' : 'false'" @click="setViewMode('card')" aria-label="卡片视图" title="卡片视图">
-                            <i class="grid layout icon" aria-hidden="true"></i>
+                        <button type="button" class="nk-view-btn" :class="{ active: viewMode === 'card' }" :aria-pressed="viewMode === 'card' ? 'true' : 'false'" @click="setViewMode('card')" aria-label="卡片视图" title="卡片视图">
+                            <svg class="nk-switch-svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <rect x="1.75" y="1.75" width="5.5" height="5.5" rx="1.5" />
+                                <rect x="8.75" y="1.75" width="5.5" height="5.5" rx="1.5" />
+                                <rect x="1.75" y="8.75" width="5.5" height="5.5" rx="1.5" />
+                                <rect x="8.75" y="8.75" width="5.5" height="5.5" rx="1.5" />
+                            </svg>
+                            <span class="nk-view-label">卡片</span>
                         </button>
-                        <button type="button" :class="{ active: viewMode === 'list' }" :aria-pressed="viewMode === 'list' ? 'true' : 'false'" @click="setViewMode('list')" aria-label="列表视图" title="列表视图">
-                            <i class="list icon" aria-hidden="true"></i>
+                        <button type="button" class="nk-view-btn" :class="{ active: viewMode === 'list' }" :aria-pressed="viewMode === 'list' ? 'true' : 'false'" @click="setViewMode('list')" aria-label="列表视图" title="列表视图">
+                            <svg class="nk-switch-svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <rect x="1.5" y="2.5" width="13" height="2" rx="1" />
+                                <rect x="1.5" y="7" width="13" height="2" rx="1" />
+                                <rect x="1.5" y="11.5" width="13" height="2" rx="1" />
+                            </svg>
+                            <span class="nk-view-label">列表</span>
                         </button>
                     </div>
                 </div>
@@ -342,6 +397,32 @@
             },
             pendingCount() {
                 return this.servers.filter(server => !server.reported).length
+            },
+            heroStatusText() {
+                if (this.networkDisconnected) {
+                    return '连接重试中'
+                }
+                const offline = this.offlineCount
+                if (typeof offline === 'number' && offline > 0) {
+                    return offline + ' 台离线'
+                }
+                const pending = this.pendingCount
+                if (typeof pending === 'number' && pending > 0) {
+                    return pending + ' 台等待上报'
+                }
+                return '运行正常'
+            },
+            heroStatusClass() {
+                if (this.networkDisconnected) {
+                    return 'status-warning'
+                }
+                if (typeof this.offlineCount === 'number' && this.offlineCount > 0) {
+                    return 'status-danger'
+                }
+                if (typeof this.pendingCount === 'number' && this.pendingCount > 0) {
+                    return 'status-pending'
+                }
+                return 'status-online'
             },
         },
         created() {

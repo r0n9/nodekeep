@@ -33,6 +33,14 @@ function createPage() {
             for (const [name, method] of Object.entries(options.methods)) {
                 this[name] = method.bind(this)
             }
+            if (options.computed) {
+                for (const [name, getter] of Object.entries(options.computed)) {
+                    Object.defineProperty(this, name, {
+                        get: () => getter.call(this),
+                        configurable: true,
+                    })
+                }
+            }
             this.$set = (target, key, value) => { target[key] = value }
             this.$delete = (target, key) => { delete target[key] }
             options.created.call(this)
@@ -138,4 +146,26 @@ test('network speed tiers distinguish offline, low (<100KB), mid (>=100KB), and 
     server.live = false
     assert.equal(app.netSpeedClass(server, 'NetInSpeed'), 'nk-speed-offline')
 })
+
+test('hero status text and class reflect node health and disconnection', () => {
+    const { app } = createPage()
+    assert.equal(app.heroStatusText, '运行正常')
+    assert.equal(app.heroStatusClass, 'status-online')
+    assert.equal(app.onlineCount, 1)
+    assert.equal(app.offlineCount, 0)
+    assert.equal(app.pendingCount, 0)
+
+    // Mark server offline
+    app.servers[0].live = false
+    assert.equal(app.heroStatusText, '1 台离线')
+    assert.equal(app.heroStatusClass, 'status-danger')
+    assert.equal(app.onlineCount, 0)
+    assert.equal(app.offlineCount, 1)
+
+    // Disconnected state takes highest priority
+    app.networkDisconnected = true
+    assert.equal(app.heroStatusText, '连接重试中')
+    assert.equal(app.heroStatusClass, 'status-warning')
+})
+
 
