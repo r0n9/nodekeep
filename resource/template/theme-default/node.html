@@ -46,13 +46,22 @@
                 </div>
             </header>
 
-            <div v-if="networkDisconnected" class="nk-connection-notice" role="status">
+            <div v-if="isDormant" class="nk-connection-notice nk-dormant-notice" role="status">
+                <div class="nk-dormant-content">
+                    <div class="nk-dormant-message">
+                        <i class="pause circle outline icon" aria-hidden="true"></i>
+                        <span>页面长时间无操作已进入休眠，已暂停实时连接与数据拉取。</span>
+                    </div>
+                    <button type="button" class="nk-retry-button nk-resume-btn" @click.stop="wakeUp">恢复实时监控</button>
+                </div>
+            </div>
+            <div v-else-if="networkDisconnected" class="nk-connection-notice" role="status">
                 <i class="wifi icon" aria-hidden="true"></i>
                 <span>实时连接中断，正在重连。暂时保留上次收到的节点数据。</span>
             </div>
 
             <section class="nk-node-detail-layout">
-                <article class="nk-node-card nk-node-live-panel" :class="{ offline: hasReport && !server.live && !networkDisconnected }">
+                <article class="nk-node-card nk-node-live-panel" :class="{ offline: hasReport && !server.live && !networkDisconnected && !isDormant }">
                     <div class="nk-node-top">
                         <div>
                             <div class="nk-node-name">
@@ -315,6 +324,9 @@
         }
     }
 
+    const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+    const HIDDEN_TIMEOUT_MS = 10 * 1000;
+
     var nodeDetail = new Vue({
         el: '#node-detail-app',
         delimiters: ['@#', '#@'],
@@ -324,6 +336,8 @@
             networkNow: Date.now() / 1000,
             networkTheme: document.documentElement.getAttribute('data-theme') || 'light',
             networkDisconnected: false,
+            isDormant: false,
+            isPageHidden: false,
             metricSeries: emptyMetricSeries(initMetricRange || 'today'),
             metricRange: initMetricRange || 'today',
             metricLoading: false,
@@ -350,7 +364,7 @@
                 return !!(this.hasReport && this.server.live && this.server.State)
             },
             statusState() {
-                if (!this.hasReport || this.networkDisconnected) {
+                if (this.isDormant || !this.hasReport || this.networkDisconnected) {
                     return 'pending'
                 }
                 return this.server.live ? '' : 'offline'
@@ -359,16 +373,22 @@
                 if (!this.hasReport) {
                     return '未上报'
                 }
+                if (this.isDormant) {
+                    return '已休眠'
+                }
                 if (this.networkDisconnected) {
                     return '状态未知'
                 }
                 return this.server.live ? '在线' : '离线'
             },
             networkStatus() {
+                if (this.isDormant) {
+                    return '已休眠暂停'
+                }
                 if (this.networkDisconnected) {
                     return '连接中断，正在重连'
                 }
-                if (!this.server.live) {
+                if (!this.server || !this.server.live) {
                     return '节点离线'
                 }
                 return NodekeepNetwork.isFresh(this.server, this.networkNow) ? '最近 60 秒' : '显示上次采样'
@@ -475,17 +495,21 @@
             this.metricRefreshTimer = window.setInterval(() => this.refreshMetrics(true), 60 * 1000)
             this.resizeChartsHandler = () => this.resizeCharts()
             window.addEventListener('resize', this.resizeChartsHandler)
-            this.themeObserver = new MutationObserver(() => {
-                this.networkTheme = document.documentElement.getAttribute('data-theme') || 'light'
-                this.renderCharts(true)
-            })
-            this.themeObserver.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['data-theme'],
-            })
+            if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+                this.themeObserver = new MutationObserver(() => {
+                    this.networkTheme = document.documentElement.getAttribute('data-theme') || 'light'
+                    this.renderCharts(true)
+                })
+                this.themeObserver.observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ['data-theme'],
+                })
+            }
+            this.initDormancy()
         },
         beforeDestroy() {
             this._networkDestroyed = true
+            this.destroyDormancy()
             this.metricRequestID++
             if (this._metricRequestController) {
                 this._metricRequestController.abort()
@@ -552,7 +576,7 @@
                 NodekeepNetwork.recordSample(this.networkHistory, server, this.networkNow)
             },
             connectNetwork() {
-                if (this._networkDestroyed || this._networkSocket) {
+                if (this._networkDestroyed || this._networkSocket || this.isDormant || this.isPageHidden) {
                     return
                 }
                 const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
@@ -560,7 +584,7 @@
                 this._networkSocket = socket
                 this._networkLastMessage = Date.now() / 1000
                 socket.onmessage = event => {
-                    if (this._networkDestroyed || this._networkSocket !== socket) {
+                    if (this._networkDestroyed || this._networkSocket !== socket || this.isDormant || this.isPageHidden) {
                         return
                     }
                     try {
@@ -579,7 +603,7 @@
                 }
             },
             reconnectNetwork() {
-                if (this._networkDestroyed || this._networkReconnectTimer) {
+                if (this._networkDestroyed || this._networkReconnectTimer || this.isDormant || this.isPageHidden) {
                     return
                 }
                 this.networkDisconnected = true
@@ -596,6 +620,9 @@
                 }, 3000)
             },
             tickNetwork() {
+                if (this.isDormant || this.isPageHidden) {
+                    return
+                }
                 this.networkNow = Date.now() / 1000
                 if (this.networkNow - this._networkLastMessage > NodekeepNetwork.GAP_SECONDS) {
                     this.reconnectNetwork()
@@ -608,6 +635,205 @@
                     NodekeepNetwork.breakHistory(this.networkHistory, this.networkNow)
                 } else {
                     NodekeepNetwork.pruneHistory(this.networkHistory, this.networkNow)
+                }
+            },
+            initDormancy() {
+                this._lastActivityTime = Date.now()
+                this._lastActivityRecorded = Date.now()
+                this.resetIdleTimer()
+
+                this._activityHandler = () => this.onUserActivity()
+                this._wakeHandler = () => this.onWakeActivity()
+                this._visibilityHandler = () => this.onVisibilityChange()
+
+                if (typeof window !== 'undefined' && window.addEventListener) {
+                    ['mousemove', 'keydown', 'scroll', 'touchstart', 'pointerdown'].forEach(event => {
+                        window.addEventListener(event, this._activityHandler, { passive: true })
+                    })
+                }
+                if (typeof document !== 'undefined' && document.addEventListener) {
+                    ['click', 'keydown', 'touchstart'].forEach(event => {
+                        document.addEventListener(event, this._wakeHandler, { passive: true })
+                    })
+                    document.addEventListener('visibilitychange', this._visibilityHandler)
+                }
+            },
+            destroyDormancy() {
+                this.clearIdleTimer()
+                this.clearHiddenTimer()
+                if (typeof window !== 'undefined' && window.removeEventListener && this._activityHandler) {
+                    ['mousemove', 'keydown', 'scroll', 'touchstart', 'pointerdown'].forEach(event => {
+                        window.removeEventListener(event, this._activityHandler)
+                    })
+                }
+                if (typeof document !== 'undefined' && document.removeEventListener) {
+                    if (this._wakeHandler) {
+                        ['click', 'keydown', 'touchstart'].forEach(event => {
+                            document.removeEventListener(event, this._wakeHandler)
+                        })
+                    }
+                    if (this._visibilityHandler) {
+                        document.removeEventListener('visibilitychange', this._visibilityHandler)
+                    }
+                }
+            },
+            clearIdleTimer() {
+                if (this._idleTimer) {
+                    window.clearTimeout(this._idleTimer)
+                    this._idleTimer = null
+                }
+            },
+            clearHiddenTimer() {
+                if (this._hiddenTimer) {
+                    window.clearTimeout(this._hiddenTimer)
+                    this._hiddenTimer = null
+                }
+            },
+            resetIdleTimer() {
+                this.clearIdleTimer()
+                if (this._networkDestroyed || this.isDormant) {
+                    return
+                }
+                this._idleTimer = window.setTimeout(() => {
+                    this._idleTimer = null
+                    this.enterDormancy()
+                }, IDLE_TIMEOUT_MS)
+            },
+            onUserActivity() {
+                if (this.isDormant) {
+                    return
+                }
+                const now = Date.now()
+                if (now - this._lastActivityRecorded < 2000) {
+                    return
+                }
+                this._lastActivityRecorded = now
+                this._lastActivityTime = now
+                this.resetIdleTimer()
+            },
+            onWakeActivity() {
+                if (!this.isDormant) {
+                    return
+                }
+                this.wakeUp()
+            },
+            onVisibilityChange() {
+                if (typeof document === 'undefined') {
+                    return
+                }
+                if (document.hidden) {
+                    this.clearHiddenTimer()
+                    this._hiddenTimer = window.setTimeout(() => {
+                        this._hiddenTimer = null
+                        this.pauseForHidden()
+                    }, HIDDEN_TIMEOUT_MS)
+                } else {
+                    this.clearHiddenTimer()
+                    this.resumeFromHidden()
+                }
+            },
+            pauseForHidden() {
+                if (this._networkDestroyed || this.isPageHidden) {
+                    return
+                }
+                this.isPageHidden = true
+                if (!this.isDormant) {
+                    NodekeepNetwork.breakHistory(this.networkHistory, Date.now() / 1000)
+                    const socket = this._networkSocket
+                    this._networkSocket = null
+                    if (socket) {
+                        socket.onmessage = socket.onerror = socket.onclose = null
+                        socket.close()
+                    }
+                    if (this._networkReconnectTimer) {
+                        window.clearTimeout(this._networkReconnectTimer)
+                        this._networkReconnectTimer = null
+                    }
+                    if (this._networkTimer) {
+                        window.clearInterval(this._networkTimer)
+                        this._networkTimer = null
+                    }
+                    if (this.metricRefreshTimer) {
+                        window.clearInterval(this.metricRefreshTimer)
+                        this.metricRefreshTimer = null
+                    }
+                }
+            },
+            resumeFromHidden() {
+                if (this._networkDestroyed) {
+                    return
+                }
+                const wasHidden = this.isPageHidden
+                this.isPageHidden = false
+                if (Date.now() - this._lastActivityTime >= IDLE_TIMEOUT_MS) {
+                    this.enterDormancy()
+                    return
+                }
+                if (this.isDormant) {
+                    return
+                }
+                this._lastActivityTime = Date.now()
+                this._lastActivityRecorded = Date.now()
+                this.resetIdleTimer()
+                if (wasHidden) {
+                    this.networkDisconnected = false
+                    if (!this._networkTimer) {
+                        this._networkTimer = window.setInterval(this.tickNetwork, 2000)
+                    }
+                    this.connectNetwork()
+                    this.tickNetwork()
+                    this.refreshMetrics(true)
+                    if (!this.metricRefreshTimer) {
+                        this.metricRefreshTimer = window.setInterval(() => this.refreshMetrics(true), 60 * 1000)
+                    }
+                }
+            },
+            enterDormancy() {
+                if (this._networkDestroyed || this.isDormant) {
+                    return
+                }
+                this.isDormant = true
+                this.clearIdleTimer()
+                this.networkDisconnected = true
+                NodekeepNetwork.breakHistory(this.networkHistory, Date.now() / 1000)
+                const socket = this._networkSocket
+                this._networkSocket = null
+                if (socket) {
+                    socket.onmessage = socket.onerror = socket.onclose = null
+                    socket.close()
+                }
+                if (this._networkReconnectTimer) {
+                    window.clearTimeout(this._networkReconnectTimer)
+                    this._networkReconnectTimer = null
+                }
+                if (this._networkTimer) {
+                    window.clearInterval(this._networkTimer)
+                    this._networkTimer = null
+                }
+                if (this.metricRefreshTimer) {
+                    window.clearInterval(this.metricRefreshTimer)
+                    this.metricRefreshTimer = null
+                }
+            },
+            wakeUp() {
+                if (this._networkDestroyed) {
+                    return
+                }
+                this.isDormant = false
+                this.networkDisconnected = false
+                this._lastActivityTime = Date.now()
+                this._lastActivityRecorded = Date.now()
+                this.resetIdleTimer()
+                if (!this.isPageHidden) {
+                    if (!this._networkTimer) {
+                        this._networkTimer = window.setInterval(this.tickNetwork, 2000)
+                    }
+                    this.connectNetwork()
+                    this.tickNetwork()
+                    this.refreshMetrics(true)
+                    if (!this.metricRefreshTimer) {
+                        this.metricRefreshTimer = window.setInterval(() => this.refreshMetrics(true), 60 * 1000)
+                    }
                 }
             },
             networkRate(field) {

@@ -1736,6 +1736,34 @@ html[data-theme="dark"] .nk-view-switch button.active {
   margin: 0;
 }
 
+.nk-dormant-notice {
+  justify-content: space-between;
+}
+
+.nk-dormant-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.nk-dormant-message {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.nk-dormant-message .icon {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.nk-resume-btn {
+  flex: 0 0 auto;
+}
+
 .nk-history-feedback {
   justify-content: space-between;
   flex-wrap: wrap;

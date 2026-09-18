@@ -25,7 +25,7 @@ function createPage() {
         }
         // Simulate a server that never acknowledges the close handshake.
         close() { this.readyState = 2 }
-        receive() { this.onmessage({ data: JSON.stringify(snapshot(now)) }) }
+        receive() { this.onmessage && this.onmessage({ data: JSON.stringify(snapshot(now)) }) }
     }
     class Vue {
         constructor(options) {
@@ -47,6 +47,31 @@ function createPage() {
             options.mounted.call(this)
         }
     }
+    const eventListeners = new Map()
+    const addListener = (target, type, handler) => {
+        const key = `${target}:${type}`
+        if (!eventListeners.has(key)) eventListeners.set(key, [])
+        eventListeners.get(key).push(handler)
+    }
+    const removeListener = (target, type, handler) => {
+        const key = `${target}:${type}`
+        const list = eventListeners.get(key)
+        if (list) {
+            const idx = list.indexOf(handler)
+            if (idx !== -1) list.splice(idx, 1)
+        }
+    }
+    const dispatch = (target, type, event = {}) => {
+        const list = eventListeners.get(`${target}:${type}`) || []
+        list.forEach(h => h(event))
+    }
+    const doc = {
+        documentElement: { getAttribute: () => 'light' },
+        hidden: false,
+        visibilityState: 'visible',
+        addEventListener: (type, handler) => addListener('document', type, handler),
+        removeEventListener: (type, handler) => removeListener('document', type, handler),
+    }
     const window = {
         location: { protocol: 'http:', host: 'localhost' },
         matchMedia: () => ({ matches: false }),
@@ -57,10 +82,12 @@ function createPage() {
             return timerID
         },
         clearTimeout: id => timers.delete(id),
+        addEventListener: (type, handler) => addListener('window', type, handler),
+        removeEventListener: (type, handler) => removeListener('window', type, handler),
     }
     const context = vm.createContext({
         window, Date: Clock, Vue, WebSocket: Socket, NodekeepNetwork: network, console,
-        document: { documentElement: { getAttribute: () => 'light' } },
+        document: doc,
         localStorage: { getItem: () => null, setItem: () => {} },
         MutationObserver: class { observe() {} disconnect() {} },
     })
@@ -72,15 +99,42 @@ function createPage() {
     return {
         app: context.statusCards,
         sockets,
-        advance(seconds) {
-            now += seconds * 1000
-            context.statusCards.tickNetwork()
-            for (const [id, timer] of timers) {
-                if (timer.at <= now) {
-                    timers.delete(id)
-                    timer.callback()
+        advance(seconds, receive = false) {
+            const step = receive ? 2 : seconds
+            let remaining = seconds
+            while (remaining > 0) {
+                const dt = Math.min(step, remaining)
+                now += dt * 1000
+                if (receive) {
+                    const currentSocket = sockets.at(-1)
+                    if (currentSocket && currentSocket.readyState === 1) {
+                        currentSocket.receive()
+                    }
                 }
+                context.statusCards.tickNetwork()
+                const fired = []
+                for (const [id, timer] of timers) {
+                    if (timer.at <= now) {
+                        fired.push({ id, callback: timer.callback })
+                    }
+                }
+                for (const { id, callback } of fired) {
+                    timers.delete(id)
+                    callback()
+                }
+                remaining -= dt
             }
+        },
+        setHidden(hidden) {
+            doc.hidden = hidden
+            doc.visibilityState = hidden ? 'hidden' : 'visible'
+            dispatch('document', 'visibilitychange')
+        },
+        triggerActivity(event = 'mousemove') {
+            dispatch('window', event)
+        },
+        triggerWake(event = 'click') {
+            dispatch('document', event)
         },
     }
 }
@@ -167,5 +221,113 @@ test('hero status text and class reflect node health and disconnection', () => {
     assert.equal(app.heroStatusText, '连接重试中')
     assert.equal(app.heroStatusClass, 'status-warning')
 })
+
+test('page enters dormancy after 15 minutes of inactivity and user action wakes it up', () => {
+    const page = createPage()
+    assert.equal(page.app.isDormant, false)
+    assert.equal(page.sockets.length, 1)
+    assert.equal(page.sockets[0].readyState, 1)
+
+    // Advance 15 minutes (900 seconds) without any interaction
+    page.advance(900)
+    assert.equal(page.app.isDormant, true)
+    assert.equal(page.app.heroStatusText, '已休眠')
+    assert.equal(page.app.heroStatusClass, 'status-warning')
+    assert.equal(page.app.networkStatus(page.app.servers[0]), '已休眠暂停')
+    assert.equal(page.app.statusText(page.app.servers[0]), '已休眠')
+    assert.equal(page.sockets[0].readyState, 2) // closed
+
+    // While dormant, tickNetwork should not attempt reconnect
+    page.advance(10)
+    assert.equal(page.sockets.length, 1)
+
+    // Wake up by user action (e.g. click)
+    page.triggerWake('click')
+    assert.equal(page.app.isDormant, false)
+    assert.equal(page.sockets.length, 2) // reconnected
+    page.sockets[1].receive()
+    assert.equal(page.app.heroStatusText, '运行正常')
+    assert.equal(page.app.statusText(page.app.servers[0]), '在线')
+})
+
+test('user activity resets idle timer and prevents dormancy', () => {
+    const page = createPage()
+    assert.equal(page.app.isDormant, false)
+
+    // Advance 10 minutes with live server traffic
+    page.advance(600, true)
+    assert.equal(page.app.isDormant, false)
+
+    // User moves mouse or types
+    page.triggerActivity('mousemove')
+
+    // Advance another 10 minutes (total 20 min from start, but only 10 min since last activity)
+    page.advance(600, true)
+    assert.equal(page.app.isDormant, false)
+    assert.equal(page.sockets.length, 1)
+    assert.equal(page.sockets[0].readyState, 1)
+
+    // Now let full 15 minutes pass without activity
+    page.advance(900, true)
+    assert.equal(page.app.isDormant, true)
+})
+
+test('page hidden for 10 seconds pauses websocket, visible resumes it', () => {
+    const page = createPage()
+    assert.equal(page.app.isPageHidden, false)
+    assert.equal(page.sockets.length, 1)
+
+    // Switch tab away
+    page.setHidden(true)
+    // Less than 10s: should NOT pause yet (debounce)
+    page.advance(5)
+    assert.equal(page.app.isPageHidden, false)
+    assert.equal(page.sockets[0].readyState, 1)
+
+    // Exceed 10s: paused
+    page.advance(6)
+    assert.equal(page.app.isPageHidden, true)
+    assert.equal(page.sockets[0].readyState, 2) // closed
+
+    // Returning to visible resumes automatically
+    page.setHidden(false)
+    assert.equal(page.app.isPageHidden, false)
+    assert.equal(page.sockets.length, 2) // reconnected
+    page.sockets[1].receive()
+    assert.equal(page.app.heroStatusText, '运行正常')
+})
+
+test('page hidden and returning within 10 seconds does not disconnect websocket', () => {
+    const page = createPage()
+    assert.equal(page.sockets.length, 1)
+
+    page.setHidden(true)
+    page.advance(4)
+    page.setHidden(false)
+    page.advance(10, true)
+
+    // Still the same original socket, never closed
+    assert.equal(page.sockets.length, 1)
+    assert.equal(page.sockets[0].readyState, 1)
+})
+
+test('page hidden for more than 15 minutes enters dormancy and requires wake action', () => {
+    const page = createPage()
+    page.setHidden(true)
+    // Advance 20 minutes (1200 seconds) while hidden
+    page.advance(1200)
+
+    // User switches back to tab
+    page.setHidden(false)
+    assert.equal(page.app.isDormant, true)
+    assert.equal(page.app.heroStatusText, '已休眠')
+    assert.equal(page.sockets.length, 1) // still paused, no reconnect yet
+
+    // Wake up via button / user action
+    page.app.wakeUp()
+    assert.equal(page.app.isDormant, false)
+    assert.equal(page.sockets.length, 2)
+})
+
 
 
