@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -217,10 +218,11 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 	var result pb.TaskResult
 	result.Id = task.GetId()
 	result.Type = task.GetType()
+	taskData := strings.TrimSpace(task.GetData())
 	switch task.GetType() {
 	case model.TaskTypeHTTPGET:
 		start := time.Now()
-		resp, err := httpClient.Get(task.GetData())
+		resp, err := httpClient.Get(taskData)
 		if err == nil {
 			defer resp.Body.Close()
 			result.Delay = float32(time.Now().Sub(start).Microseconds()) / 1000.0
@@ -229,8 +231,11 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 			}
 		}
 		if err == nil {
-			if strings.HasPrefix(task.GetData(), "https://") {
-				c := cert.NewCert(task.GetData()[8:])
+			hostport, isHTTPS, certErr := parseCertTarget(taskData)
+			if certErr != nil {
+				result.Data = "SSL证书错误：" + certErr.Error()
+			} else if isHTTPS {
+				c := cert.NewCert(hostport)
 				if c.Error != "" {
 					result.Data = "SSL证书错误：" + c.Error
 				} else {
@@ -244,7 +249,7 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 			result.Data = err.Error()
 		}
 	case model.TaskTypeICMPPing:
-		pinger, err := ping.NewPinger(task.GetData())
+		pinger, err := ping.NewPinger(taskData)
 		if err == nil {
 			pinger.SetPrivileged(true)
 			pinger.Count = 10
@@ -259,7 +264,7 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 		}
 	case model.TaskTypeTCPPing:
 		start := time.Now()
-		conn, err := net.DialTimeout("tcp", task.GetData(), time.Second*10)
+		conn, err := net.DialTimeout("tcp", taskData, time.Second*10)
 		if err == nil {
 			_ = conn.SetDeadline(time.Now().Add(time.Second * 10))
 			if _, err = conn.Write([]byte("ping\n")); err == nil {
@@ -314,6 +319,42 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 		log.Printf("Unknown action: %v", task)
 	}
 	reportTaskResult(client, &result)
+}
+
+func parseCertTarget(rawURL string) (hostport string, isHTTPS bool, err error) {
+	rawURL = strings.TrimSpace(rawURL)
+	u, parseErr := url.Parse(rawURL)
+	if parseErr == nil && u.Scheme != "" {
+		if !strings.EqualFold(u.Scheme, "https") {
+			return "", false, nil
+		}
+		host := strings.ToLower(u.Hostname())
+		if host == "" {
+			return "", true, errors.New("empty host in url")
+		}
+		port := u.Port()
+		if port == "" {
+			port = "443"
+		}
+		return net.JoinHostPort(host, port), true, nil
+	}
+
+	lower := strings.ToLower(rawURL)
+	if strings.HasPrefix(lower, "https://") {
+		target := strings.TrimSpace(lower[8:])
+		if idx := strings.IndexAny(target, "/?#"); idx != -1 {
+			target = target[:idx]
+		}
+		if target == "" {
+			return "", true, errors.New("empty host in url")
+		}
+		if !strings.Contains(target, ":") {
+			target = net.JoinHostPort(target, "443")
+		}
+		return target, true, nil
+	}
+
+	return "", false, nil
 }
 
 func reportTaskResult(client pb.ProbeServiceClient, result *pb.TaskResult) {
