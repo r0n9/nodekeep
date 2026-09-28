@@ -3461,6 +3461,47 @@ html[data-theme="dark"] .nk-view-switch button.active {
 
 .ui.modal .nk-server-tabs {
   margin-bottom: 0;
+  border-color: var(--nk-border);
+}
+
+.ui.modal .nk-server-tabs .item {
+  color: var(--nk-muted);
+}
+
+.ui.modal .nk-server-tabs .item:hover {
+  color: var(--nk-text);
+}
+
+.ui.modal .nk-server-tabs .active.item {
+  border-color: var(--nk-border);
+  color: var(--nk-accent-strong);
+  background: var(--nk-surface);
+}
+
+.ui.server.modal .ui.tab.segment {
+  border-color: var(--nk-border);
+  background: var(--nk-surface);
+  box-shadow: none;
+}
+
+.ui.billing.modal .ui.dividing.header {
+  border-color: var(--nk-border);
+  color: var(--nk-text);
+}
+
+.ui.server.modal .ui.checkbox label::before {
+  border-color: var(--nk-border-strong);
+  background: var(--nk-surface-soft);
+}
+
+.ui.server.modal .ui.checkbox input:checked ~ label::before,
+.ui.server.modal .ui.checkbox input:focus ~ label::before {
+  border-color: var(--nk-accent);
+  background: var(--nk-accent-soft);
+}
+
+.ui.server.modal .ui.checkbox input:checked ~ label::after {
+  color: var(--nk-accent-strong);
 }
 
 .ui.table.nk-table td:last-child {
@@ -3852,6 +3893,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 .ui.form input[type="text"],
 .ui.form input[type="password"],
 .ui.form input[type="number"],
+.ui.form input[type="date"],
 .ui.form textarea,
 .ui.form select,
 .ui.selection.dropdown {
@@ -3890,7 +3932,9 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 .ui.dropdown .menu > .item:hover,
-.ui.selection.dropdown .menu > .item:hover {
+.ui.selection.dropdown .menu > .item:hover,
+.ui.dropdown .menu > .selected.item,
+.ui.dropdown .menu > .active.item {
   color: var(--nk-accent-strong) !important;
   background: var(--nk-accent-soft) !important;
 }
