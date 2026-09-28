@@ -325,8 +325,8 @@
                             </p>
                             <p v-else-if="!server.reported" class="nk-data-note">等待 Agent 上报</p>
                             <dl class="nk-compact-metrics">
-                                <div><dt>CPU</dt><dd>@#listPercent(server, 'cpu')#@</dd></div>
-                                <div><dt>内存</dt><dd>@#listPercent(server, 'mem')#@</dd></div>
+                                <div><dt><i class="microchip icon" aria-hidden="true"></i>CPU</dt><dd>@#listPercent(server, 'cpu')#@</dd></div>
+                                <div><dt><i class="database icon" aria-hidden="true"></i>内存</dt><dd>@#listPercent(server, 'mem')#@</dd></div>
                                 <div class="inbound"><dt><i class="arrow down icon" aria-hidden="true"></i>入站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')">@#networkRate(server, 'NetInSpeed')#@</dd></div>
                                 <div class="outbound"><dt><i class="arrow up icon" aria-hidden="true"></i>出站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')">@#networkRate(server, 'NetOutSpeed')#@</dd></div>
                             </dl>
