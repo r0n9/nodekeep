@@ -184,9 +184,17 @@
                                     </div>
                                 </div>
                                 <network-chart :history="networkHistory[server.ID]" :now="networkNow" :theme="networkTheme"></network-chart>
-                                <div class="nk-network-transfers">
-                                    <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
-                                    <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
+                                <div class="nk-network-transfers" :title="trafficTooltip(server)">
+                                    <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
+                                        <span>本期已用 <strong>@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@ (@#server.Traffic.CyclePercent.toFixed(1)#@%)</strong></span>
+                                    </template>
+                                    <template v-else-if="server.Traffic">
+                                        <span>本期 <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ ↑@#formatByteSize(server.Traffic.CycleNetOut)#@</strong></span>
+                                    </template>
+                                    <template v-else>
+                                        <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
+                                        <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
+                                    </template>
                                 </div>
                             </div>
 
@@ -220,6 +228,18 @@
                                         <span>磁盘</span>
                                         <strong>@#resourceUsage(server, 'Disk')#@</strong>
                                     </p>
+                                    <p v-if="server.Traffic">
+                                        <span>今日流量</span>
+                                        <strong>↓@#formatByteSize(server.Traffic.TodayNetIn)#@ / ↑@#formatByteSize(server.Traffic.TodayNetOut)#@</strong>
+                                    </p>
+                                    <p v-if="server.Traffic">
+                                        <span>本期流量</span>
+                                        <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ / ↑@#formatByteSize(server.Traffic.CycleNetOut)#@ <small>(@#server.Traffic.CycleResetDay || 1#@日重置)</small></strong>
+                                    </p>
+                                    <p>
+                                        <span>累计流量</span>
+                                        <strong>↓@#formatByteSize(server.Traffic ? server.Traffic.TotalNetIn : server.State.NetInTransfer)#@ / ↑@#formatByteSize(server.Traffic ? server.Traffic.TotalNetOut : server.State.NetOutTransfer)#@</strong>
+                                    </p>
                                 </div>
                             </details>
                         </template>
@@ -240,7 +260,7 @@
                                     <th><i class="database icon" aria-hidden="true"></i>内存</th>
                                     <th><i class="hdd outline icon" aria-hidden="true"></i>硬盘</th>
                                     <th><i class="sitemap icon" aria-hidden="true"></i>网络</th>
-                                    <th><i class="exchange alternate icon" aria-hidden="true"></i>累计流量</th>
+                                    <th title="点击或悬停查看今日与历史累计"><i class="exchange alternate icon" aria-hidden="true"></i>周期流量</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -301,9 +321,22 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="nk-list-traffic" v-if="server.reported">
-                                            <span><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计入站</span>@#formatByteSize(server.State.NetInTransfer)#@</span>
-                                            <span><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计出站</span>@#formatByteSize(server.State.NetOutTransfer)#@</span>
+                                        <div class="nk-list-traffic" v-if="server.reported" :title="trafficTooltip(server)">
+                                            <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
+                                                <div class="nk-list-meter">
+                                                    <strong>@#server.Traffic.CyclePercent.toFixed(0)#@%</strong>
+                                                    <div class="nk-meter-track"><i :style="trafficMeterStyle(server)"></i></div>
+                                                </div>
+                                                <div class="nk-traffic-quota-text">@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@</div>
+                                            </template>
+                                            <template v-else-if="server.Traffic">
+                                                <span><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">本期入站</span>@#formatByteSize(server.Traffic.CycleNetIn)#@</span>
+                                                <span><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">本期出站</span>@#formatByteSize(server.Traffic.CycleNetOut)#@</span>
+                                            </template>
+                                            <template v-else>
+                                                <span><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计入站</span>@#formatByteSize(server.State.NetInTransfer)#@</span>
+                                                <span><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计出站</span>@#formatByteSize(server.State.NetOutTransfer)#@</span>
+                                            </template>
                                         </div>
                                         <span v-else class="nk-list-node-meta">—</span>
                                     </td>
@@ -342,8 +375,9 @@
                                         <p><span>运行时间</span><strong>@#hasLiveData(server) ? secondToDate(server.State.Uptime) : '—'#@</strong></p>
                                         <p><span>内存</span><strong>@#resourceUsage(server, 'Mem')#@</strong></p>
                                         <p><span>硬盘</span><strong>@#resourceUsage(server, 'Disk')#@</strong></p>
-                                        <p><span>累计入站</span><strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></p>
-                                        <p><span>累计出站</span><strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></p>
+                                        <p v-if="server.Traffic"><span>今日流量</span><strong>↓@#formatByteSize(server.Traffic.TodayNetIn)#@ / ↑@#formatByteSize(server.Traffic.TodayNetOut)#@</strong></p>
+                                        <p v-if="server.Traffic"><span>本期流量</span><strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ / ↑@#formatByteSize(server.Traffic.CycleNetOut)#@ <small>(@#server.Traffic.CycleResetDay || 1#@日重置)</small></strong></p>
+                                        <p><span>累计流量</span><strong>↓@#formatByteSize(server.Traffic ? server.Traffic.TotalNetIn : server.State.NetInTransfer)#@ / ↑@#formatByteSize(server.Traffic ? server.Traffic.TotalNetOut : server.State.NetOutTransfer)#@</strong></p>
                                     </template>
                                     <template v-if="server.Billing">
                                         <p v-if="server.Billing.Provider"><span>服务商</span><strong>@#server.Billing.Provider#@</strong></p>
@@ -1004,6 +1038,27 @@
             formatByteSize(bs) {
                 const x = readableBytes(bs)
                 return x != "NaN undefined" ? x : '0 KB'
+            },
+            trafficTooltip(server) {
+                if (!server || !server.reported) return ''
+                const t = server.Traffic
+                if (!t) {
+                    return '累计入站: ' + this.formatByteSize(server.State ? server.State.NetInTransfer : 0) +
+                           '\n累计出站: ' + this.formatByteSize(server.State ? server.State.NetOutTransfer : 0)
+                }
+                const resetDay = t.CycleResetDay || 1
+                const quota = t.CycleTrafficVol > 0 ? '\n本期配额: ' + this.formatByteSize(t.CycleTrafficVol) + ' (已用 ' + t.CyclePercent.toFixed(1) + '%)' : ''
+                return '今日流量: ↓ ' + this.formatByteSize(t.TodayNetIn) + ' / ↑ ' + this.formatByteSize(t.TodayNetOut) +
+                       '\n本期流量: ↓ ' + this.formatByteSize(t.CycleNetIn) + ' / ↑ ' + this.formatByteSize(t.CycleNetOut) + ' (每月 ' + resetDay + ' 日重置)' + quota +
+                       '\n历史累计: ↓ ' + this.formatByteSize(t.TotalNetIn) + ' / ↑ ' + this.formatByteSize(t.TotalNetOut)
+            },
+            trafficMeterStyle(server) {
+                if (!server || !server.Traffic) return { width: '0%' }
+                const p = Math.min(Math.max(server.Traffic.CyclePercent || 0, 0), 100)
+                let color = 'var(--nk-primary)'
+                if (p >= 90) color = 'var(--nk-danger, #e05252)'
+                else if (p >= 75) color = 'var(--nk-warning, #e09b52)'
+                return { width: p + '%', background: color }
             }
         }
     })

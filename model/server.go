@@ -18,9 +18,10 @@ type Server struct {
 
 type ServerRuntime struct {
 	Server
-	Host       *Host      `gorm:"-"`
-	State      *HostState `gorm:"-"`
-	LastActive time.Time  `gorm:"-"`
+	Host       *Host                  `gorm:"-"`
+	State      *HostState             `gorm:"-"`
+	LastActive time.Time              `gorm:"-"`
+	Traffic    *ServerTrafficSnapshot `gorm:"-"`
 }
 
 type PublicHost struct {
@@ -43,6 +44,7 @@ type PublicServerRuntime struct {
 	Host       *PublicHost
 	State      *HostState
 	LastActive time.Time
+	Traffic    *ServerTrafficSnapshot `json:"Traffic,omitempty"`
 }
 
 func (s Server) Marshal() template.JS {

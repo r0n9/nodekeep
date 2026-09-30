@@ -65,7 +65,11 @@ func SaveServerBillingWith(tx *gorm.DB, billing *model.ServerBilling) error {
 	if billing.LastRemindedOn == nil {
 		billing.LastRemindedOn = existing.LastRemindedOn
 	}
-	return tx.Save(billing).Error
+	if err := tx.Save(billing).Error; err != nil {
+		return err
+	}
+	SetTrafficBillingConfig(billing.ServerID, billing.Extra.TrafficReset, billing.Extra.TrafficVol, billing.Extra.TrafficType)
+	return nil
 }
 
 // DeleteServerBillingWith 删除一台服务器的订阅信息，保留付费流水（那是历史记录）。
@@ -74,6 +78,7 @@ func DeleteServerBillingWith(tx *gorm.DB, serverID uint64) error {
 	if serverID == 0 {
 		return nil
 	}
+	RemoveTrafficBillingConfig(serverID)
 	return tx.Delete(&model.ServerBilling{}, "server_id = ?", serverID).Error
 }
 

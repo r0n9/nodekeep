@@ -124,7 +124,7 @@ func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.ServerMetric{}); err != nil {
+	if err := db.AutoMigrate(&model.ServerMetric{}, &model.ServerTraffic{}, &model.ServerTrafficDaily{}); err != nil {
 		t.Fatalf("auto migrate server metric: %v", err)
 	}
 	DB = db

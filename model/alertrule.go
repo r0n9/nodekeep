@@ -66,6 +66,18 @@ func (u *Rule) Snapshot(server *ServerRuntime) interface{} {
 		src = state.NetOutTransfer
 	case "transfer_all":
 		src = state.NetOutTransfer + state.NetInTransfer
+	case "transfer_today", "traffic_today":
+		if server.Traffic != nil {
+			src = server.Traffic.TodayNetIn + server.Traffic.TodayNetOut
+		}
+	case "transfer_cycle", "traffic_cycle":
+		if server.Traffic != nil {
+			src = server.Traffic.CycleUsed
+		}
+	case "transfer_cycle_percent", "traffic_cycle_percent":
+		if server.Traffic != nil {
+			src = uint64(server.Traffic.CyclePercent)
+		}
 	case "offline":
 		if server.LastActive.IsZero() {
 			src = 0

@@ -1509,6 +1509,15 @@ html[data-theme="dark"] .nk-view-switch button.active {
   font-variant-numeric: tabular-nums;
 }
 
+.nk-traffic-quota-text {
+  font-size: 0.72rem;
+  color: var(--nk-muted);
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .nk-list-network > span,
 .nk-list-traffic > span {
   display: inline-flex;
@@ -5043,6 +5052,97 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   }
 }
 
+.nk-traffic-card {
+  padding: 1.1rem;
+}
+
+.nk-traffic-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem 2rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--nk-border);
+}
+
+.nk-traffic-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nk-traffic-summary-item span {
+  font-size: 0.76rem;
+  color: var(--nk-muted);
+  font-weight: 600;
+}
+
+.nk-traffic-summary-item strong {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.nk-traffic-summary-item.inbound strong {
+  color: var(--nk-net-in);
+}
+
+.nk-traffic-summary-item.outbound strong {
+  color: var(--nk-net-out);
+}
+
+.nk-traffic-summary-item.total strong {
+  color: var(--nk-text);
+}
+
+.nk-traffic-filter {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nk-traffic-filter-label {
+  font-size: 0.8rem;
+  color: var(--nk-muted);
+}
+
+.nk-badge-today {
+  display: inline-block;
+  padding: 0.12rem 0.42rem;
+  margin-left: 0.45rem;
+  border-radius: 999px;
+  background: var(--nk-primary);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.1;
+  vertical-align: middle;
+}
+
+.nk-traffic-table-wrap {
+  border: 1px solid var(--nk-border);
+  border-radius: var(--nk-radius-sm);
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.nk-traffic-table th,
+.nk-traffic-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.nk-traffic-table .inbound {
+  color: var(--nk-net-in);
+  font-weight: 600;
+}
+
+.nk-traffic-table .outbound {
+  color: var(--nk-net-out);
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nk-network-chart .nk-network-tooltip,
   .nk-meter-track i,
@@ -5051,3 +5151,4 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
     transition: none;
   }
 }
+

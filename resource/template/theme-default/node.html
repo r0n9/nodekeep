@@ -108,9 +108,17 @@
                                 </div>
                             </div>
                             <network-chart :history="networkHistory" :now="networkNow" :theme="networkTheme"></network-chart>
-                            <div class="nk-network-transfers">
-                                <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
-                                <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
+                            <div class="nk-network-transfers" :title="trafficTooltip">
+                                <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
+                                    <span>本期已用 <strong>@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@ (@#server.Traffic.CyclePercent.toFixed(1)#@%)</strong></span>
+                                </template>
+                                <template v-else-if="server.Traffic">
+                                    <span>本期 <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ ↑@#formatByteSize(server.Traffic.CycleNetOut)#@</strong></span>
+                                </template>
+                                <template v-else>
+                                    <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
+                                    <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
+                                </template>
                             </div>
                         </div>
                     </template>
@@ -159,6 +167,18 @@
                         <p>
                             <span>硬盘</span>
                             <strong>@#resourceUsage('Disk')#@</strong>
+                        </p>
+                        <p v-if="server.Traffic">
+                            <span>今日流量</span>
+                            <strong>↓@#formatByteSize(server.Traffic.TodayNetIn)#@ / ↑@#formatByteSize(server.Traffic.TodayNetOut)#@</strong>
+                        </p>
+                        <p v-if="server.Traffic">
+                            <span>本期流量</span>
+                            <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ / ↑@#formatByteSize(server.Traffic.CycleNetOut)#@ <small>(@#server.Traffic.CycleResetDay || 1#@日重置)</small></strong>
+                        </p>
+                        <p>
+                            <span>累计流量</span>
+                            <strong>↓@#formatByteSize(server.Traffic ? server.Traffic.TotalNetIn : (server.State ? server.State.NetInTransfer : 0))#@ / ↑@#formatByteSize(server.Traffic ? server.Traffic.TotalNetOut : (server.State ? server.State.NetOutTransfer : 0))#@</strong>
                         </p>
                     </div>
                 </article>
@@ -237,6 +257,127 @@
                     </article>
                 </div>
                 <div v-else-if="!metricError" class="nk-empty-node nk-history-empty" role="status">@#metricLoading ? '正在加载历史指标…' : '所选时间范围内暂无历史指标。'#@</div>
+            </section>
+
+            <section class="nk-history-section nk-traffic-history-section" aria-labelledby="nk-traffic-heading">
+                <div class="nk-section-title nk-history-toolbar">
+                    <div class="nk-history-title">
+                        <h2 id="nk-traffic-heading"><i class="exchange alternate icon" aria-hidden="true"></i>流量统计明细</h2>
+                        <span>每日与历史周期网络流量数据</span>
+                    </div>
+                    <div class="nk-range-switch" role="group" aria-label="流量统计类型">
+                        <button type="button" :class="{ active: trafficViewMode === 'daily' }" @click="setTrafficViewMode('daily')">按日明细</button>
+                        <button type="button" :class="{ active: trafficViewMode === 'cycle' }" @click="setTrafficViewMode('cycle')">账单周期</button>
+                        <button type="button" :class="{ active: trafficViewMode === 'monthly' }" @click="setTrafficViewMode('monthly')">按月汇总</button>
+                    </div>
+                </div>
+
+                <div class="nk-node-card nk-traffic-card">
+                    <div class="nk-traffic-summary-grid">
+                        <div class="nk-traffic-summary-item inbound">
+                            <span>区间入站</span>
+                            <strong>↓ @#formatByteSize(trafficSummary.in)#@</strong>
+                        </div>
+                        <div class="nk-traffic-summary-item outbound">
+                            <span>区间出站</span>
+                            <strong>↑ @#formatByteSize(trafficSummary.out)#@</strong>
+                        </div>
+                        <div class="nk-traffic-summary-item total">
+                            <span>区间合计</span>
+                            <strong>@#formatByteSize(trafficSummary.total)#@</strong>
+                        </div>
+                        <div v-if="trafficViewMode === 'daily'" class="nk-traffic-filter">
+                            <span class="nk-traffic-filter-label">范围：</span>
+                            <div class="ui mini buttons">
+                                <button type="button" class="ui button" :class="{ active: trafficRangeDays === 7 }" @click="setTrafficRange(7)">7天</button>
+                                <button type="button" class="ui button" :class="{ active: trafficRangeDays === 30 }" @click="setTrafficRange(30)">30天</button>
+                                <button type="button" class="ui button" :class="{ active: trafficRangeDays === 90 }" @click="setTrafficRange(90)">90天</button>
+                                <button type="button" class="ui button" :class="{ active: trafficRangeDays === 365 }" @click="setTrafficRange(365)">1年</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="trafficLoading && trafficDaily.length === 0" class="nk-empty-node" role="status">正在加载流量历史数据…</div>
+                    <div v-else-if="currentTrafficList.length === 0" class="nk-empty-node" role="status">暂无流量历史记录。</div>
+
+                    <div v-else class="nk-table-wrap nk-traffic-table-wrap">
+                        <table v-if="trafficViewMode === 'daily'" class="ui very basic table nk-table nk-traffic-table">
+                            <thead>
+                                <tr>
+                                    <th>日期</th>
+                                    <th>入站流量</th>
+                                    <th>出站流量</th>
+                                    <th>当日合计</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in currentTrafficList" :key="item.Date">
+                                    <td>
+                                        <strong>@#item.Date#@</strong>
+                                        <span v-if="item.Date === todayDate" class="nk-badge-today">今日</span>
+                                    </td>
+                                    <td class="inbound"><i class="arrow down icon" aria-hidden="true"></i>@#formatByteSize(item.NetInBytes)#@</td>
+                                    <td class="outbound"><i class="arrow up icon" aria-hidden="true"></i>@#formatByteSize(item.NetOutBytes)#@</td>
+                                    <td><strong>@#formatByteSize(item.NetInBytes + item.NetOutBytes)#@</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table v-else-if="trafficViewMode === 'cycle'" class="ui very basic table nk-table nk-traffic-table">
+                            <thead>
+                                <tr>
+                                    <th>账单周期</th>
+                                    <th>入站流量</th>
+                                    <th>出站流量</th>
+                                    <th>计费已用</th>
+                                    <th>配额使用率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in currentTrafficList" :key="item.Label">
+                                    <td>
+                                        <strong>@#item.Label#@</strong>
+                                        <span v-if="item.IsCurrent" class="nk-badge-today">本期</span>
+                                    </td>
+                                    <td class="inbound"><i class="arrow down icon" aria-hidden="true"></i>@#formatByteSize(item.NetInBytes)#@</td>
+                                    <td class="outbound"><i class="arrow up icon" aria-hidden="true"></i>@#formatByteSize(item.NetOutBytes)#@</td>
+                                    <td><strong>@#formatByteSize(item.CycleUsed)#@</strong></td>
+                                    <td>
+                                        <template v-if="item.CycleTrafficVol > 0">
+                                            <span>@#item.CyclePercent.toFixed(1)#@% (@#formatByteSize(item.CycleUsed)#@ / @#formatByteSize(item.CycleTrafficVol)#@)</span>
+                                            <div class="nk-meter-track" style="width: 80px; height: 6px; margin-top: 4px;">
+                                                <i :style="cycleMeterStyle(item.CyclePercent)"></i>
+                                            </div>
+                                        </template>
+                                        <span v-else class="nk-muted">—</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table v-else-if="trafficViewMode === 'monthly'" class="ui very basic table nk-table nk-traffic-table">
+                            <thead>
+                                <tr>
+                                    <th>月份</th>
+                                    <th>入站流量</th>
+                                    <th>出站流量</th>
+                                    <th>月度合计</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in currentTrafficList" :key="item.Month">
+                                    <td>
+                                        <strong>@#item.Month#@</strong>
+                                        <span v-if="item.Month === currentMonth" class="nk-badge-today">本月</span>
+                                    </td>
+                                    <td class="inbound"><i class="arrow down icon" aria-hidden="true"></i>@#formatByteSize(item.NetInBytes)#@</td>
+                                    <td class="outbound"><i class="arrow up icon" aria-hidden="true"></i>@#formatByteSize(item.NetOutBytes)#@</td>
+                                    <td><strong>@#formatByteSize(item.Total)#@</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
 
             <article v-if="hasBilling" class="nk-node-card nk-node-billing-panel">
@@ -349,6 +490,10 @@
                 { value: '3d', label: '近 3 天' },
                 { value: '7d', label: '近 7 天' },
             ],
+            trafficDaily: [],
+            trafficLoading: false,
+            trafficViewMode: 'daily',
+            trafficRangeDays: 30,
         },
         computed: {
             hasReport() {
@@ -482,9 +627,142 @@
                 const stepLabel = stepSec >= 60 ? (stepSec / 60) + ' 分钟' : stepSec + ' 秒'
                 return this.currentRangeLabel + ' · ' + stepLabel + '采样 · 截至 ' + this.formatShortDate(this.latestMetric.t * 1000)
             },
+            trafficTooltip() {
+                if (!this.server || !this.hasReport) return ''
+                const t = this.server.Traffic
+                if (!t) {
+                    return '累计入站: ' + this.formatByteSize(this.server.State ? this.server.State.NetInTransfer : 0) +
+                           '\n累计出站: ' + this.formatByteSize(this.server.State ? this.server.State.NetOutTransfer : 0)
+                }
+                const resetDay = t.CycleResetDay || 1
+                const quota = t.CycleTrafficVol > 0 ? '\n本期配额: ' + this.formatByteSize(t.CycleTrafficVol) + ' (已用 ' + t.CyclePercent.toFixed(1) + '%)' : ''
+                return '今日流量: ↓ ' + this.formatByteSize(t.TodayNetIn) + ' / ↑ ' + this.formatByteSize(t.TodayNetOut) +
+                       '\n本期流量: ↓ ' + this.formatByteSize(t.CycleNetIn) + ' / ↑ ' + this.formatByteSize(t.CycleNetOut) + ' (每月 ' + resetDay + ' 日重置)' + quota +
+                       '\n历史累计: ↓ ' + this.formatByteSize(t.TotalNetIn) + ' / ↑ ' + this.formatByteSize(t.TotalNetOut)
+            },
+            todayDate() {
+                const now = new Date()
+                const y = now.getFullYear()
+                const m = String(now.getMonth() + 1).padStart(2, '0')
+                const d = String(now.getDate()).padStart(2, '0')
+                return `${y}-${m}-${d}`
+            },
+            currentMonth() {
+                const now = new Date()
+                const y = now.getFullYear()
+                const m = String(now.getMonth() + 1).padStart(2, '0')
+                return `${y}-${m}`
+            },
+            trafficDailyList() {
+                const days = this.trafficRangeDays || 30
+                const cutoff = new Date()
+                cutoff.setDate(cutoff.getDate() - (days - 1))
+                const cy = cutoff.getFullYear()
+                const cm = String(cutoff.getMonth() + 1).padStart(2, '0')
+                const cd = String(cutoff.getDate()).padStart(2, '0')
+                const cutoffStr = `${cy}-${cm}-${cd}`
+                return this.trafficDaily
+                    .filter(item => item.Date >= cutoffStr)
+                    .slice()
+                    .sort((a, b) => (a.Date > b.Date ? -1 : 1))
+            },
+            trafficMonthlyList() {
+                const map = {}
+                this.trafficDaily.forEach(item => {
+                    const month = item.Date.slice(0, 7)
+                    if (!map[month]) {
+                        map[month] = { Month: month, NetInBytes: 0, NetOutBytes: 0, Total: 0 }
+                    }
+                    map[month].NetInBytes += item.NetInBytes
+                    map[month].NetOutBytes += item.NetOutBytes
+                    map[month].Total += (item.NetInBytes + item.NetOutBytes)
+                })
+                if (Object.keys(map).length === 0 && this.server && this.server.Traffic) {
+                    map[this.currentMonth] = {
+                        Month: this.currentMonth,
+                        NetInBytes: this.server.Traffic.TodayNetIn || 0,
+                        NetOutBytes: this.server.Traffic.TodayNetOut || 0,
+                        Total: (this.server.Traffic.TodayNetIn || 0) + (this.server.Traffic.TodayNetOut || 0),
+                    }
+                }
+                return Object.values(map).sort((a, b) => (a.Month > b.Month ? -1 : 1))
+            },
+            trafficCycleList() {
+                const resetDay = (this.server.Traffic && this.server.Traffic.CycleResetDay) || 1
+                const vol = (this.server.Traffic && this.server.Traffic.CycleTrafficVol) || 0
+                const tType = (this.server.Traffic && this.server.Traffic.CycleTrafficType) || 2
+                const currentCycleStr = this.getCycleForDate(this.todayDate, resetDay)
+
+                const map = {}
+                this.trafficDaily.forEach(item => {
+                    const cycle = this.getCycleForDate(item.Date, resetDay)
+                    if (!map[cycle]) {
+                        map[cycle] = {
+                            Label: cycle,
+                            IsCurrent: cycle === currentCycleStr,
+                            NetInBytes: 0,
+                            NetOutBytes: 0,
+                            CycleTrafficVol: vol,
+                            CycleTrafficType: tType,
+                            CycleUsed: 0,
+                            CyclePercent: 0,
+                        }
+                    }
+                    map[cycle].NetInBytes += item.NetInBytes
+                    map[cycle].NetOutBytes += item.NetOutBytes
+                })
+
+                if (!map[currentCycleStr] && this.server && this.server.Traffic) {
+                    map[currentCycleStr] = {
+                        Label: currentCycleStr,
+                        IsCurrent: true,
+                        NetInBytes: this.server.Traffic.CycleNetIn || 0,
+                        NetOutBytes: this.server.Traffic.CycleNetOut || 0,
+                        CycleTrafficVol: vol,
+                        CycleTrafficType: tType,
+                        CycleUsed: this.server.Traffic.CycleUsed || 0,
+                        CyclePercent: this.server.Traffic.CyclePercent || 0,
+                    }
+                }
+
+                return Object.values(map).map(item => {
+                    if (item.IsCurrent && this.server && this.server.Traffic && this.server.Traffic.CycleUsed > 0) {
+                        item.NetInBytes = Math.max(item.NetInBytes, this.server.Traffic.CycleNetIn || 0)
+                        item.NetOutBytes = Math.max(item.NetOutBytes, this.server.Traffic.CycleNetOut || 0)
+                        item.CycleUsed = this.server.Traffic.CycleUsed
+                        item.CyclePercent = this.server.Traffic.CyclePercent || 0
+                    } else {
+                        const used = item.CycleTrafficType === 1
+                            ? Math.max(item.NetInBytes, item.NetOutBytes)
+                            : (item.NetInBytes + item.NetOutBytes)
+                        item.CycleUsed = used
+                        if (item.CycleTrafficVol > 0) {
+                            item.CyclePercent = (used / item.CycleTrafficVol) * 100
+                        }
+                    }
+                    return item
+                }).sort((a, b) => (a.Label > b.Label ? -1 : 1))
+            },
+            currentTrafficList() {
+                if (this.trafficViewMode === 'cycle') return this.trafficCycleList
+                if (this.trafficViewMode === 'monthly') return this.trafficMonthlyList
+                return this.trafficDailyList
+            },
+            trafficSummary() {
+                let sumIn = 0, sumOut = 0
+                if (this.trafficViewMode === 'cycle') {
+                    this.trafficCycleList.forEach(i => { sumIn += i.NetInBytes; sumOut += i.NetOutBytes })
+                } else if (this.trafficViewMode === 'monthly') {
+                    this.trafficMonthlyList.forEach(i => { sumIn += i.NetInBytes; sumOut += i.NetOutBytes })
+                } else {
+                    this.trafficDailyList.forEach(i => { sumIn += i.NetInBytes; sumOut += i.NetOutBytes })
+                }
+                return { in: sumIn, out: sumOut, total: sumIn + sumOut }
+            },
         },
         created() {
             this.refreshServer(this.server)
+            this.fetchTrafficHistory()
         },
         mounted() {
             this.chartInstances = {}
@@ -574,6 +852,21 @@
                 this._networkLastMessage = this.networkNow
                 this.networkDisconnected = false
                 NodekeepNetwork.recordSample(this.networkHistory, server, this.networkNow)
+
+                if (server.Traffic && this.trafficDaily && this.trafficDaily.length > 0) {
+                    const today = this.todayDate
+                    const existing = this.trafficDaily.find(item => item.Date === today)
+                    if (existing) {
+                        existing.NetInBytes = server.Traffic.TodayNetIn
+                        existing.NetOutBytes = server.Traffic.TodayNetOut
+                    } else if (server.Traffic.TodayNetIn > 0 || server.Traffic.TodayNetOut > 0) {
+                        this.trafficDaily.push({
+                            Date: today,
+                            NetInBytes: server.Traffic.TodayNetIn,
+                            NetOutBytes: server.Traffic.TodayNetOut,
+                        })
+                    }
+                }
             },
             connectNetwork() {
                 if (this._networkDestroyed || this._networkSocket || this.isDormant || this.isPageHidden) {
@@ -1517,6 +1810,107 @@
                     .filter(Boolean)
                     .map(item => item.replace(/^\[\s*"?|"?\s*\]$/g, '').trim())
                 return formatted.length ? formatted.join(' / ') : '-'
+            },
+            fetchTrafficHistory(days) {
+                const queryDays = days || (this.trafficViewMode === 'daily' ? this.trafficRangeDays : 365) || 30
+                this.trafficLoading = true
+                fetch('/node/' + encodeURIComponent(nodeID) + '/traffic?days=' + queryDays)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('网络请求失败')
+                        }
+                        return response.json()
+                    })
+                    .then(data => {
+                        let list = []
+                        if (data && Array.isArray(data.Daily)) {
+                            list = data.Daily
+                        } else if (Array.isArray(data)) {
+                            list = data
+                        }
+                        // 如果暂无历史落库数据，但已有今日实时数据，补充今日行避免显示空状态
+                        if (list.length === 0 && this.server && this.server.Traffic) {
+                            const today = this.todayDate
+                            list = [{
+                                Date: today,
+                                NetInBytes: this.server.Traffic.TodayNetIn || 0,
+                                NetOutBytes: this.server.Traffic.TodayNetOut || 0,
+                            }]
+                        }
+                        this.trafficDaily = list
+                        if (data && data.Traffic && this.server) {
+                            this.$set(this.server, 'Traffic', data.Traffic)
+                        }
+                        this.trafficLoading = false
+                    })
+                    .catch(err => {
+                        console.warn('获取流量历史失败', err)
+                        this.trafficLoading = false
+                    })
+            },
+            setTrafficRange(days) {
+                this.trafficRangeDays = days
+                this.fetchTrafficHistory(days)
+            },
+            setTrafficViewMode(mode) {
+                this.trafficViewMode = mode
+                if (mode === 'cycle' || mode === 'monthly') {
+                    if (this.trafficDaily.length <= 30) {
+                        this.fetchTrafficHistory(365)
+                    }
+                }
+            },
+            getCycleForDate(dateStr, resetDay) {
+                if (!dateStr) return ''
+                let r = Number(resetDay) || 1
+                if (r <= 0 || r > 31) r = 1
+                const parts = dateStr.split('-').map(Number)
+                const y = parts[0], m = parts[1], d = parts[2]
+                const daysInM = (year, month) => new Date(year, month, 0).getDate()
+
+                const clampedDay = Math.min(r, daysInM(y, m))
+                let startY, startM, startD
+                let endY, endM, endD
+
+                if (d < clampedDay) {
+                    endY = y
+                    endM = m
+                    endD = clampedDay
+                    if (m === 1) {
+                        startY = y - 1
+                        startM = 12
+                    } else {
+                        startY = y
+                        startM = m - 1
+                    }
+                    startD = Math.min(r, daysInM(startY, startM))
+                } else {
+                    startY = y
+                    startM = m
+                    startD = clampedDay
+                    if (m === 12) {
+                        endY = y + 1
+                        endM = 1
+                    } else {
+                        endY = y
+                        endM = m + 1
+                    }
+                    endD = Math.min(r, daysInM(endY, endM))
+                }
+
+                const endDateObj = new Date(endY, endM - 1, endD)
+                endDateObj.setDate(endDateObj.getDate() - 1)
+                const pad = n => String(n).padStart(2, '0')
+                const startStr = `${startY}-${pad(startM)}-${pad(startD)}`
+                const endStr = `${endDateObj.getFullYear()}-${pad(endDateObj.getMonth() + 1)}-${pad(endDateObj.getDate())}`
+                return `${startStr} ~ ${endStr}`
+            },
+            cycleMeterStyle(percent) {
+                const p = Math.min(Math.max(percent || 0, 0), 100)
+                let color = 'var(--nk-primary)'
+                if (p >= 90) color = 'var(--nk-danger, #e05252)'
+                else if (p >= 75) color = 'var(--nk-warning, #e09b52)'
+                return { width: p + '%', background: color }
             },
             formatByteSize(bs) {
                 const x = readableBytes(bs)

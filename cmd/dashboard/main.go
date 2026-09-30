@@ -52,10 +52,12 @@ func initSystem() {
 	dao.DB.AutoMigrate(model.Server{}, model.User{},
 		model.Notification{}, model.AlertRule{}, model.Monitor{},
 		model.MonitorHistory{}, model.Cron{}, model.ServerMetric{},
-		model.ServerBilling{}, model.ServerPayment{})
+		model.ServerBilling{}, model.ServerPayment{},
+		model.ServerTraffic{}, model.ServerTrafficDaily{})
 
-	loadServers() //加载服务器列表
-	loadCrons()   //加载计划任务
+	loadServers()                      //加载服务器列表
+	loadCrons()                        //加载计划任务
+	dao.LoadAllTrafficBillingConfigs() // 加载流量周期与额度配置
 
 	// 清理旧数据
 	dao.Cron.AddFunc("0 3 * * *", cleanMonitorHistory)
@@ -66,6 +68,7 @@ func initSystem() {
 func cleanMonitorHistory() {
 	dao.DB.Delete(&model.MonitorHistory{}, "created_at < ?", time.Now().AddDate(0, 0, -30))
 	dao.DB.Delete(&model.ServerMetric{}, "bucket_at < ?", time.Now().AddDate(0, 0, -7))
+	dao.DB.Delete(&model.ServerTrafficDaily{}, "date < ?", time.Now().AddDate(-1, 0, 0).Format("2006-01-02"))
 }
 
 func loadServers() {

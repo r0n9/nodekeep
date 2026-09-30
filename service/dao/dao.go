@@ -87,6 +87,7 @@ func InitServerRuntimeState() {
 	serverMetricLock.Lock()
 	serverMetricBuckets = make(map[uint64]*serverMetricBucket)
 	serverMetricLock.Unlock()
+	InitTrafficState()
 }
 
 func cloneHost(h *model.Host) *model.Host {
@@ -108,6 +109,14 @@ func cloneState(s *model.HostState) *model.HostState {
 	return &clone
 }
 
+func cloneTrafficSnapshot(t *model.ServerTrafficSnapshot) *model.ServerTrafficSnapshot {
+	if t == nil {
+		return nil
+	}
+	clone := *t
+	return &clone
+}
+
 func cloneServerRuntime(s *model.ServerRuntime) *model.ServerRuntime {
 	if s == nil {
 		return nil
@@ -115,6 +124,7 @@ func cloneServerRuntime(s *model.ServerRuntime) *model.ServerRuntime {
 	clone := *s
 	clone.Host = cloneHost(s.Host)
 	clone.State = cloneState(s.State)
+	clone.Traffic = cloneTrafficSnapshot(s.Traffic)
 	return &clone
 }
 
@@ -150,6 +160,7 @@ func publicServerRuntimeSnapshot(s *model.ServerRuntime) *model.PublicServerRunt
 		Host:       publicHostSnapshot(s.Host),
 		State:      cloneState(s.State),
 		LastActive: s.LastActive,
+		Traffic:    cloneTrafficSnapshot(s.Traffic),
 	}
 }
 
@@ -363,6 +374,7 @@ func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Hos
 	}
 	if !bucket.metric.BucketAt.Equal(bucketAt) {
 		flushServerMetricLocked(bucket.metric)
+		FlushServerTraffic(serverID, now)
 		next := newServerMetricBucket(serverID, bucketAt)
 		next.lastInTransfer = bucket.lastInTransfer
 		next.lastOutTransfer = bucket.lastOutTransfer
@@ -380,6 +392,17 @@ func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Hos
 	bucket.lastInTransfer = state.NetInTransfer
 	bucket.lastOutTransfer = state.NetOutTransfer
 	bucket.hasLastTransfer = true
+
+	totalIn, totalOut, trafficSnapshot := ProcessServerTraffic(serverID, state.NetInTransfer, state.NetOutTransfer, now)
+	serverLock.Lock()
+	if s := serverList[serverID]; s != nil {
+		if s.runtime.State != nil {
+			s.runtime.State.NetInTransfer = totalIn
+			s.runtime.State.NetOutTransfer = totalOut
+		}
+		s.runtime.Traffic = trafficSnapshot
+	}
+	serverLock.Unlock()
 }
 
 func ServerMetricSnapshot(serverID uint64, since time.Time) []model.ServerMetric {
@@ -712,8 +735,8 @@ func flushServerMetricLocked(metric model.ServerMetric) {
 }
 
 func positiveCounterDelta(current, previous uint64) uint64 {
-	if current <= previous {
-		return 0
+	if current < previous {
+		return current
 	}
 	return current - previous
 }

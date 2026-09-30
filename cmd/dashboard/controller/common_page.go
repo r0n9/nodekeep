@@ -31,6 +31,7 @@ func (cp *commonPage) serve() {
 	cr.GET("/service", cp.service)
 	cr.GET("/node/:id", cp.node)
 	cr.GET("/node/:id/metrics", cp.nodeMetrics)
+	cr.GET("/node/:id/traffic", cp.nodeTraffic)
 	cr.GET("/ws", cp.ws)
 }
 
@@ -239,6 +240,37 @@ func (cp *commonPage) nodeMetrics(c *gin.Context) {
 	afterUnix, _ := strconv.ParseInt(strings.TrimSpace(c.Query("after")), 10, 64)
 	maxPoints, _ := strconv.Atoi(strings.TrimSpace(c.Query("max")))
 	c.JSON(http.StatusOK, dao.ServerMetricSeriesSnapshot(id, metricRange, since, afterUnix, maxPoints))
+}
+
+func (cp *commonPage) nodeTraffic(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "无效的节点 ID",
+		})
+		return
+	}
+	server, ok := dao.PublicServerSnapshot(id)
+	if !ok {
+		c.JSON(http.StatusNotFound, model.Response{
+			Code:    http.StatusNotFound,
+			Message: "节点不存在",
+		})
+		return
+	}
+	days, _ := strconv.Atoi(strings.TrimSpace(c.Query("days")))
+	if days <= 0 {
+		days = 30
+	}
+	if days > 365 {
+		days = 365
+	}
+	daily := dao.GetServerTrafficHistory(id, days)
+	c.JSON(http.StatusOK, gin.H{
+		"Traffic": server.Traffic,
+		"Daily":   daily,
+	})
 }
 
 func nodeMetricRange(rangeKey string, now time.Time) (string, time.Time) {
