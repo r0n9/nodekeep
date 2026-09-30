@@ -184,17 +184,19 @@
                                     </div>
                                 </div>
                                 <network-chart :history="networkHistory[server.ID]" :now="networkNow" :theme="networkTheme"></network-chart>
-                                <div class="nk-network-transfers" :title="trafficTooltip(server)">
-                                    <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
-                                        <span>本期已用 <strong>@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@ (@#server.Traffic.CyclePercent.toFixed(1)#@%)</strong></span>
-                                    </template>
-                                    <template v-else-if="server.Traffic">
-                                        <span>本期 <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ ↑@#formatByteSize(server.Traffic.CycleNetOut)#@</strong></span>
-                                    </template>
-                                    <template v-else>
-                                        <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
-                                        <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
-                                    </template>
+                                <div class="nk-card-traffic" :title="trafficTooltip(server)">
+                                    <div class="nk-card-traffic-head">
+                                        <span class="nk-card-traffic-title">
+                                            <i class="exchange alternate icon" aria-hidden="true"></i>周期流量
+                                        </span>
+                                        <span class="nk-card-traffic-sub">
+                                            @#trafficHPSubtext(server)#@
+                                        </span>
+                                    </div>
+                                    <div class="nk-traffic-hp-bar nk-traffic-hp-bar-card" :class="trafficHPClass(server)">
+                                        <div class="nk-traffic-hp-fill" :style="trafficHPStyle(server)"></div>
+                                        <span class="nk-traffic-hp-text">@#trafficHPPercent(server)#@</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -322,21 +324,13 @@
                                     </td>
                                     <td>
                                         <div class="nk-list-traffic" v-if="server.reported" :title="trafficTooltip(server)">
-                                            <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
-                                                <div class="nk-list-meter">
-                                                    <strong>@#server.Traffic.CyclePercent.toFixed(0)#@%</strong>
-                                                    <div class="nk-meter-track"><i :style="trafficMeterStyle(server)"></i></div>
-                                                </div>
-                                                <div class="nk-traffic-quota-text">@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@</div>
-                                            </template>
-                                            <template v-else-if="server.Traffic">
-                                                <span><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">本期入站</span>@#formatByteSize(server.Traffic.CycleNetIn)#@</span>
-                                                <span><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">本期出站</span>@#formatByteSize(server.Traffic.CycleNetOut)#@</span>
-                                            </template>
-                                            <template v-else>
-                                                <span><i class="arrow down icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计入站</span>@#formatByteSize(server.State.NetInTransfer)#@</span>
-                                                <span><i class="arrow up icon" aria-hidden="true"></i><span class="nk-visually-hidden">累计出站</span>@#formatByteSize(server.State.NetOutTransfer)#@</span>
-                                            </template>
+                                            <div class="nk-traffic-hp-bar" :class="trafficHPClass(server)">
+                                                <div class="nk-traffic-hp-fill" :style="trafficHPStyle(server)"></div>
+                                                <span class="nk-traffic-hp-text">@#trafficHPPercent(server)#@</span>
+                                            </div>
+                                            <div class="nk-traffic-hp-sub">
+                                                @#trafficHPSubtext(server)#@
+                                            </div>
                                         </div>
                                         <span v-else class="nk-list-node-meta">—</span>
                                     </td>
@@ -358,11 +352,26 @@
                             </p>
                             <p v-else-if="!server.reported" class="nk-data-note">等待 Agent 上报</p>
                             <dl class="nk-compact-metrics">
-                                <div><dt><i class="microchip icon" aria-hidden="true"></i>CPU</dt><dd>@#listPercent(server, 'cpu')#@</dd></div>
-                                <div><dt><i class="database icon" aria-hidden="true"></i>内存</dt><dd>@#listPercent(server, 'mem')#@</dd></div>
-                                <div class="inbound"><dt><i class="arrow down icon" aria-hidden="true"></i>入站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')">@#networkRate(server, 'NetInSpeed')#@</dd></div>
-                                <div class="outbound"><dt><i class="arrow up icon" aria-hidden="true"></i>出站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')">@#networkRate(server, 'NetOutSpeed')#@</dd></div>
+                                <div class="nk-compact-third"><dt><i class="microchip icon" aria-hidden="true"></i>CPU</dt><dd>@#listPercent(server, 'cpu')#@</dd></div>
+                                <div class="nk-compact-third"><dt><i class="database icon" aria-hidden="true"></i>内存</dt><dd>@#listPercent(server, 'mem')#@</dd></div>
+                                <div class="nk-compact-third"><dt><i class="hdd outline icon" aria-hidden="true"></i>硬盘</dt><dd>@#listPercent(server, 'disk')#@</dd></div>
+                                <div class="nk-compact-half inbound"><dt><i class="arrow down icon" aria-hidden="true"></i>入站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetInSpeed')">@#networkRate(server, 'NetInSpeed')#@</dd></div>
+                                <div class="nk-compact-half outbound"><dt><i class="arrow up icon" aria-hidden="true"></i>出站</dt><dd class="nk-speed-value" :class="netSpeedClass(server, 'NetOutSpeed')">@#networkRate(server, 'NetOutSpeed')#@</dd></div>
                             </dl>
+                            <div class="nk-compact-traffic" v-if="server.reported" :title="trafficTooltip(server)">
+                                <div class="nk-compact-traffic-head">
+                                    <span class="nk-compact-traffic-title">
+                                        <i class="exchange alternate icon" aria-hidden="true"></i>周期流量
+                                    </span>
+                                    <span class="nk-compact-traffic-sub">
+                                        @#trafficHPSubtext(server)#@
+                                    </span>
+                                </div>
+                                <div class="nk-traffic-hp-bar nk-traffic-hp-bar-compact" :class="trafficHPClass(server)">
+                                    <div class="nk-traffic-hp-fill" :style="trafficHPStyle(server)"></div>
+                                    <span class="nk-traffic-hp-text">@#trafficHPPercent(server)#@</span>
+                                </div>
+                            </div>
                             <details class="nk-node-details nk-compact-details">
                                 <summary>
                                     <span>更多信息</span>
@@ -1052,13 +1061,59 @@
                        '\n本期流量: ↓ ' + this.formatByteSize(t.CycleNetIn) + ' / ↑ ' + this.formatByteSize(t.CycleNetOut) + ' (每月 ' + resetDay + ' 日重置)' + quota +
                        '\n历史累计: ↓ ' + this.formatByteSize(t.TotalNetIn) + ' / ↑ ' + this.formatByteSize(t.TotalNetOut)
             },
-            trafficMeterStyle(server) {
-                if (!server || !server.Traffic) return { width: '0%' }
-                const p = Math.min(Math.max(server.Traffic.CyclePercent || 0, 0), 100)
-                let color = 'var(--nk-primary)'
-                if (p >= 90) color = 'var(--nk-danger, #e05252)'
-                else if (p >= 75) color = 'var(--nk-warning, #e09b52)'
-                return { width: p + '%', background: color }
+            trafficHPPercent(server) {
+                if (!server || !server.reported) return '100%'
+                const t = server.Traffic
+                if (!t || !t.CycleTrafficVol || t.CycleTrafficVol <= 0) {
+                    return '100%'
+                }
+                const used = t.CyclePercent || 0
+                const hp = Math.max(0, 100 - used)
+                return hp.toFixed(0) + '%'
+            },
+            trafficHPStyle(server) {
+                if (!server || !server.reported) return { width: '100%', background: 'linear-gradient(90deg, #10b981, #059669)' }
+                const t = server.Traffic
+                if (!t || !t.CycleTrafficVol || t.CycleTrafficVol <= 0) {
+                    return { width: '100%', background: 'linear-gradient(90deg, #10b981, #059669)' }
+                }
+                const used = Math.min(Math.max(t.CyclePercent || 0, 0), 100)
+                const hp = 100 - used
+                let bg = 'linear-gradient(90deg, #10b981, #059669)'
+                if (hp <= 15) {
+                    bg = 'linear-gradient(90deg, #ef4444, #dc2626)'
+                } else if (hp <= 35) {
+                    bg = 'linear-gradient(90deg, #f59e0b, #d97706)'
+                }
+                return {
+                    width: hp + '%',
+                    background: bg,
+                }
+            },
+            trafficHPClass(server) {
+                if (!server || !server.reported || !server.Traffic) return ''
+                const t = server.Traffic
+                if (!t.CycleTrafficVol || t.CycleTrafficVol <= 0) return 'is-unlimited'
+                const used = t.CyclePercent || 0
+                const hp = 100 - used
+                if (hp <= 0) return 'is-depleted'
+                if (hp <= 15) return 'is-critical'
+                if (hp <= 35) return 'is-warning'
+                return 'is-healthy'
+            },
+            trafficHPSubtext(server) {
+                if (!server || !server.reported) return '—'
+                const t = server.Traffic
+                if (t && t.CycleTrafficVol > 0) {
+                    return this.formatByteSize(t.CycleUsed) + ' / ' + this.formatByteSize(t.CycleTrafficVol)
+                }
+                if (t) {
+                    return '↓' + this.formatByteSize(t.CycleNetIn) + ' / ↑' + this.formatByteSize(t.CycleNetOut)
+                }
+                if (server.State) {
+                    return '↓' + this.formatByteSize(server.State.NetInTransfer) + ' / ↑' + this.formatByteSize(server.State.NetOutTransfer)
+                }
+                return '0 KB'
             }
         }
     })

@@ -1336,6 +1336,7 @@ html[data-theme="dark"] .nk-view-switch button.active {
 .nk-node-list th:nth-child(6),
 .nk-node-list td:nth-child(6) {
   width: 150px;
+  text-align: center;
 }
 
 .nk-node-list th {
@@ -1498,8 +1499,7 @@ html[data-theme="dark"] .nk-view-switch button.active {
   height: 7px;
 }
 
-.nk-list-network,
-.nk-list-traffic {
+.nk-list-network {
   display: grid;
   gap: 0.16rem;
   color: var(--nk-text);
@@ -1509,17 +1509,96 @@ html[data-theme="dark"] .nk-view-switch button.active {
   font-variant-numeric: tabular-nums;
 }
 
-.nk-traffic-quota-text {
+.nk-list-traffic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  width: 100%;
+}
+
+.nk-traffic-hp-bar {
+  position: relative;
+  width: 104px;
+  height: 18px;
+  background: rgba(15, 27, 45, 0.45);
+  border: 1px solid rgba(15, 27, 45, 0.55);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+html[data-theme="dark"] .nk-traffic-hp-bar {
+  background: rgba(5, 12, 22, 0.7);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.nk-traffic-hp-bar.is-critical {
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 6px rgba(239, 68, 68, 0.25);
+}
+
+.nk-traffic-hp-bar.is-depleted {
+  border-color: var(--nk-danger, #ef4444);
+  background: var(--nk-danger-soft, #fee2e2);
+  box-shadow: inset 0 1px 3px rgba(239, 68, 68, 0.2);
+}
+
+html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted {
+  background: rgba(127, 29, 29, 0.4);
+}
+
+.nk-traffic-hp-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+}
+
+.nk-traffic-hp-text {
+  position: relative;
+  z-index: 2;
   font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 18px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  user-select: none;
+  pointer-events: none;
+}
+
+.nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
+  color: var(--nk-danger-text, #b91c1c);
+  text-shadow: none;
+}
+
+html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
+  color: #fca5a5;
+}
+
+.nk-traffic-hp-sub {
+  font-size: 0.7rem;
   color: var(--nk-muted);
   font-weight: 600;
   line-height: 1.2;
+  margin-top: 1px;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.nk-list-network > span,
-.nk-list-traffic > span {
+.nk-list-network > span {
   display: inline-flex;
   align-items: center;
   gap: 0.24rem;
@@ -1830,9 +1909,18 @@ html[data-theme="dark"] .nk-view-switch button.active {
 
 .nk-compact-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.4rem 0.5rem;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.4rem 0.45rem;
   margin: 0.65rem 0 0;
+}
+
+.nk-compact-metrics .nk-compact-third {
+  grid-column: span 2;
+  padding: 0.32rem 0.42rem;
+}
+
+.nk-compact-metrics .nk-compact-half {
+  grid-column: span 3;
 }
 
 .nk-compact-metrics > div {
@@ -1891,6 +1979,65 @@ html[data-theme="dark"] .nk-view-switch button.active {
   border-radius: 999px;
   font-size: 0.8rem;
   line-height: 1.3;
+}
+
+.nk-compact-traffic {
+  margin-top: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--nk-border);
+  border-radius: 6px;
+  background: var(--nk-surface-soft);
+}
+
+.nk-compact-node.offline .nk-compact-traffic {
+  background: var(--nk-surface);
+}
+
+.nk-compact-traffic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.28rem;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.nk-compact-traffic-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--nk-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nk-compact-traffic-title .icon {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--nk-accent);
+}
+
+.nk-compact-traffic-sub {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--nk-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nk-traffic-hp-bar-compact {
+  width: 100%;
+  max-width: 100%;
+  height: 16px;
+  margin: 0;
+  border-radius: 3px;
+}
+
+.nk-traffic-hp-bar-compact .nk-traffic-hp-text {
+  font-size: 0.68rem;
+  line-height: 16px;
 }
 
 .nk-compact-details summary > span:first-child {
@@ -2449,6 +2596,52 @@ html[data-theme="dark"] .nk-view-switch button.active {
 
 .nk-network-tooltip .outbound {
   background: var(--nk-net-out);
+}
+
+.nk-card-traffic {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--nk-border);
+}
+
+.nk-card-traffic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.nk-card-traffic-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--nk-text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.nk-card-traffic-title .icon {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--nk-accent);
+}
+
+.nk-card-traffic-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--nk-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nk-traffic-hp-bar-card {
+  width: 100%;
+  max-width: 100%;
+  height: 18px;
+  margin: 0;
 }
 
 .nk-network-transfers {
