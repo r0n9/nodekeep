@@ -2644,29 +2644,6 @@ html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
   margin: 0;
 }
 
-.nk-network-transfers {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.6rem;
-  margin-top: 0.4rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--nk-border);
-  color: var(--nk-muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.nk-network-transfers > span {
-  white-space: nowrap;
-}
-
-.nk-network-transfers strong {
-  margin-left: 0.15rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .nk-service-stats strong {
   margin-top: 0.25rem;
   overflow: hidden;
@@ -2960,6 +2937,19 @@ html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
   font-weight: 900;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+.nk-history-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  justify-self: start;
+}
+
+.nk-history-card-title i.icon {
+  width: 0.9rem;
+  margin: 0;
+  color: var(--nk-accent);
 }
 
 .nk-history-head small {

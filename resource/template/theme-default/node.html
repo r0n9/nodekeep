@@ -108,17 +108,17 @@
                                 </div>
                             </div>
                             <network-chart :history="networkHistory" :now="networkNow" :theme="networkTheme"></network-chart>
-                            <div class="nk-network-transfers" :title="trafficTooltip">
-                                <template v-if="server.Traffic && server.Traffic.CycleTrafficVol > 0">
-                                    <span>本期已用 <strong>@#formatByteSize(server.Traffic.CycleUsed)#@ / @#formatByteSize(server.Traffic.CycleTrafficVol)#@ (@#server.Traffic.CyclePercent.toFixed(1)#@%)</strong></span>
-                                </template>
-                                <template v-else-if="server.Traffic">
-                                    <span>本期 <strong>↓@#formatByteSize(server.Traffic.CycleNetIn)#@ ↑@#formatByteSize(server.Traffic.CycleNetOut)#@</strong></span>
-                                </template>
-                                <template v-else>
-                                    <span>累计入站 <strong>@#formatByteSize(server.State.NetInTransfer)#@</strong></span>
-                                    <span>累计出站 <strong>@#formatByteSize(server.State.NetOutTransfer)#@</strong></span>
-                                </template>
+                            <div class="nk-card-traffic" :title="trafficTooltip">
+                                <div class="nk-card-traffic-head">
+                                    <span class="nk-card-traffic-title">
+                                        <i class="exchange alternate icon" aria-hidden="true"></i>周期流量
+                                    </span>
+                                    <span class="nk-card-traffic-sub">@#trafficHPSubtext#@</span>
+                                </div>
+                                <div class="nk-traffic-hp-bar nk-traffic-hp-bar-card" :class="trafficHPClass">
+                                    <div class="nk-traffic-hp-fill" :style="trafficHPStyle"></div>
+                                    <span class="nk-traffic-hp-text">@#trafficHPPercent#@</span>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -209,7 +209,7 @@
                     <article class="nk-history-card">
                         <div class="nk-history-head">
                             <div>
-                                <span>CPU</span>
+                                <span class="nk-history-card-title"><i class="microchip icon" aria-hidden="true"></i>CPU</span>
                                 <strong>@#chartCurrent('cpu')#@%</strong>
                             </div>
                             <small>峰值 @#chartPeak('cpu')#@%</small>
@@ -220,7 +220,7 @@
                     <article class="nk-history-card">
                         <div class="nk-history-head">
                             <div>
-                                <span>内存</span>
+                                <span class="nk-history-card-title"><i class="database icon" aria-hidden="true"></i>内存</span>
                                 <strong>@#chartCurrent('mem')#@%</strong>
                             </div>
                             <small>@#formatByteSize(latestMetric.memUsed)#@</small>
@@ -231,7 +231,7 @@
                     <article class="nk-history-card">
                         <div class="nk-history-head">
                             <div>
-                                <span>硬盘</span>
+                                <span class="nk-history-card-title"><i class="hdd outline icon" aria-hidden="true"></i>硬盘</span>
                                 <strong>@#chartCurrent('disk')#@%</strong>
                             </div>
                             <small>@#formatByteSize(latestMetric.diskUsed)#@</small>
@@ -639,6 +639,61 @@
                 return '今日流量: ↓ ' + this.formatByteSize(t.TodayNetIn) + ' / ↑ ' + this.formatByteSize(t.TodayNetOut) +
                        '\n本期流量: ↓ ' + this.formatByteSize(t.CycleNetIn) + ' / ↑ ' + this.formatByteSize(t.CycleNetOut) + ' (每月 ' + resetDay + ' 日重置)' + quota +
                        '\n历史累计: ↓ ' + this.formatByteSize(t.TotalNetIn) + ' / ↑ ' + this.formatByteSize(t.TotalNetOut)
+            },
+            trafficHPPercent() {
+                if (!this.hasReport) return '100%'
+                const t = this.server.Traffic
+                if (!t || !t.CycleTrafficVol || t.CycleTrafficVol <= 0) {
+                    return '100%'
+                }
+                const used = t.CyclePercent || 0
+                const hp = Math.max(0, 100 - used)
+                return hp.toFixed(0) + '%'
+            },
+            trafficHPStyle() {
+                const unlimited = { width: '100%', background: 'linear-gradient(90deg, #10b981, #059669)' }
+                if (!this.hasReport) return unlimited
+                const t = this.server.Traffic
+                if (!t || !t.CycleTrafficVol || t.CycleTrafficVol <= 0) {
+                    return unlimited
+                }
+                const used = Math.min(Math.max(t.CyclePercent || 0, 0), 100)
+                const hp = 100 - used
+                let bg = 'linear-gradient(90deg, #10b981, #059669)'
+                if (hp <= 15) {
+                    bg = 'linear-gradient(90deg, #ef4444, #dc2626)'
+                } else if (hp <= 35) {
+                    bg = 'linear-gradient(90deg, #f59e0b, #d97706)'
+                }
+                return {
+                    width: hp + '%',
+                    background: bg,
+                }
+            },
+            trafficHPClass() {
+                if (!this.hasReport || !this.server.Traffic) return ''
+                const t = this.server.Traffic
+                if (!t.CycleTrafficVol || t.CycleTrafficVol <= 0) return 'is-unlimited'
+                const used = t.CyclePercent || 0
+                const hp = 100 - used
+                if (hp <= 0) return 'is-depleted'
+                if (hp <= 15) return 'is-critical'
+                if (hp <= 35) return 'is-warning'
+                return 'is-healthy'
+            },
+            trafficHPSubtext() {
+                if (!this.hasReport) return '—'
+                const t = this.server.Traffic
+                if (t && t.CycleTrafficVol > 0) {
+                    return this.formatByteSize(t.CycleUsed) + ' / ' + this.formatByteSize(t.CycleTrafficVol)
+                }
+                if (t) {
+                    return '↓' + this.formatByteSize(t.CycleNetIn) + ' / ↑' + this.formatByteSize(t.CycleNetOut)
+                }
+                if (this.server.State) {
+                    return '↓' + this.formatByteSize(this.server.State.NetInTransfer) + ' / ↑' + this.formatByteSize(this.server.State.NetOutTransfer)
+                }
+                return '0 KB'
             },
             todayDate() {
                 const now = new Date()
@@ -1490,6 +1545,7 @@
                     scales: {
                         x: {
                             time: true,
+                            range: (u, min, max) => this.chartTimeRange(),
                         },
                         y: {
                             range: (u, min, max) => {
@@ -1515,7 +1571,7 @@
                             grid: { stroke: grid, width: 1 },
                             ticks: { stroke: grid, width: 1 },
                             values: (u, values) => values.map(value => this.formatChartAxisValue(value, definition.percent)),
-                            size: definition.percent ? 42 : 62,
+                            size: (u, values) => this.chartAxisSize(values, definition.percent),
                         },
                     ],
                     series: [
@@ -1569,6 +1625,58 @@
             },
             chartAxisSpace() {
                 return this.metricRange === 'today' ? 58 : 92
+            },
+            chartTimeRange() {
+                // 时间轴严格按所选档位（今天 / 近 3 天 / 近 7 天）的起点对齐，
+                // 右端对齐到当前时间（按采样步长向上取整）。节点数据不足时左侧留空，
+                // 而不是把少量数据拉伸铺满整条时间轴。
+                const now = new Date()
+                const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+                const daysByRange = { today: 1, '3d': 3, '7d': 7 }
+                const days = daysByRange[this.metricRange] || 1
+                const startSec = Math.floor((dayStart.getTime() - (days - 1) * 86400000) / 1000)
+                const series = this.metricSeries
+                const stepSec = Math.max(60, Number(series && series.stepSec) || 60)
+                let endSec = Math.ceil(now.getTime() / 1000 / stepSec) * stepSec
+                if (series && series.t && series.t.length) {
+                    const last = Number(series.t[series.t.length - 1])
+                    if (Number.isFinite(last) && last > endSec) {
+                        endSec = last
+                    }
+                }
+                return [startSec, endSec]
+            },
+            chartAxisSize(values, percent) {
+                const fallback = percent ? 42 : 62
+                const context = this.chartMeasureContext()
+                if (!context || !values || !values.length) {
+                    return fallback
+                }
+                let width = 0
+                values.forEach(value => {
+                    const label = value == null ? '' : String(value)
+                    if (!label) {
+                        return
+                    }
+                    const measured = context.measureText(label).width
+                    if (measured > width) {
+                        width = measured
+                    }
+                })
+                if (!width) {
+                    return fallback
+                }
+                // 预留刻度线(10px)与标签间距(5px)，再补 2px 余量，避免较长的刻度值在左侧被裁剪
+                return Math.max(fallback, Math.ceil(width) + 17)
+            },
+            chartMeasureContext() {
+                if (!this._chartMeasureContext) {
+                    this._chartMeasureContext = document.createElement('canvas').getContext('2d')
+                }
+                if (this._chartMeasureContext) {
+                    this._chartMeasureContext.font = '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif'
+                }
+                return this._chartMeasureContext
             },
             chartAxisValues(values, width) {
                 const limit = this.chartAxisLabelLimit(width)
