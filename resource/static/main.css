@@ -2845,6 +2845,22 @@ html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
   white-space: nowrap;
 }
 
+.nk-chart-tooltip-gap {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  color: var(--nk-tooltip-text);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.nk-chart-tooltip-gap i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
 .nk-history-legend {
   display: flex;
   flex-wrap: wrap;

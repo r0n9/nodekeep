@@ -1587,6 +1587,11 @@
                         })),
                     ],
                     hooks: {
+                        // drawClear 在算完坐标轴范围、清屏之后立刻触发，此时画阴影带
+                        // 会压在网格与折线下面，不会盖住数据。
+                        drawClear: [
+                            u => this.drawMetricGaps(u),
+                        ],
                         ready: [
                             u => this.attachChartTooltip(definition, u),
                         ],
@@ -1595,6 +1600,146 @@
                         ],
                     },
                 }
+            },
+            // 采样缺失的时间段（节点离线、采集空档）在折线图里只会被一条直线跨过去，
+            // 看不出「这里没有数据」。这里给每段空洞铺一层浅色阴影带，鼠标移入时再提示「数据缺失」。
+            metricGapIntervals() {
+                if (!this.hasMetrics) {
+                    return []
+                }
+                const times = []
+                this.metricSeries.t.forEach(value => {
+                    const ts = Number(value)
+                    if (Number.isFinite(ts)) {
+                        times.push(ts)
+                    }
+                })
+                if (!times.length) {
+                    return []
+                }
+                // 桶按 stepSec 对齐，相邻采样间隔超过 1.5 个步长即视为缺了一段。
+                const stepSec = Math.max(60, Number(this.metricSeries.stepSec) || 60)
+                const threshold = stepSec * 1.5
+                const range = this.chartTimeRange()
+                const gaps = []
+                const addGap = (from, to) => {
+                    if (!Number.isFinite(from) || !Number.isFinite(to) || to - from <= threshold) {
+                        return
+                    }
+                    gaps.push([from, to])
+                }
+                addGap(range[0], times[0])
+                for (let i = 1; i < times.length; i++) {
+                    addGap(times[i - 1], times[i])
+                }
+                addGap(times[times.length - 1], range[1])
+                return gaps
+            },
+            metricGapAt(time) {
+                const value = Number(time)
+                if (!Number.isFinite(value)) {
+                    return null
+                }
+                return this.metricGapIntervals().find(gap => value >= gap[0] && value <= gap[1]) || null
+            },
+            metricGapGeometry(chart) {
+                if (!chart || !chart.scales) {
+                    return null
+                }
+                const xScale = chart.scales.x
+                const yScale = chart.scales.y
+                if (!xScale || !yScale) {
+                    return null
+                }
+                const xMin = Number(xScale.min)
+                const xMax = Number(xScale.max)
+                const yMin = Number(yScale.min)
+                const yMax = Number(yScale.max)
+                if (![xMin, xMax, yMin, yMax].every(Number.isFinite) || xMax <= xMin || yMax <= yMin) {
+                    return null
+                }
+                // valToPos(..., true) 返回画布设备像素坐标，bbox 也在同一坐标系里。
+                const xLeft = chart.valToPos(xMin, 'x', true)
+                const xRight = chart.valToPos(xMax, 'x', true)
+                const yTop = chart.valToPos(yMax, 'y', true)
+                const yBottom = chart.valToPos(yMin, 'y', true)
+                if (![xLeft, xRight, yTop, yBottom].every(Number.isFinite) || xRight <= xLeft || yBottom <= yTop) {
+                    return null
+                }
+                const bands = []
+                this.metricGapIntervals().forEach(gap => {
+                    let left = chart.valToPos(gap[0], 'x', true)
+                    let right = chart.valToPos(gap[1], 'x', true)
+                    if (!Number.isFinite(left) || !Number.isFinite(right)) {
+                        return
+                    }
+                    if (left > right) {
+                        const swap = left
+                        left = right
+                        right = swap
+                    }
+                    left = Math.max(left, xLeft)
+                    right = Math.min(right, xRight)
+                    if (right - left < 1) {
+                        return
+                    }
+                    bands.push({ left: left, right: right })
+                })
+                if (!bands.length) {
+                    return null
+                }
+                return {
+                    bands: bands,
+                    xLeft: xLeft,
+                    xRight: xRight,
+                    yTop: yTop,
+                    yBottom: yBottom,
+                    pxRatio: this.chartPixelRatio(chart),
+                }
+            },
+            chartPixelRatio(chart) {
+                const canvas = chart && chart.ctx && chart.ctx.canvas
+                if (canvas && canvas.clientWidth > 0) {
+                    const ratio = canvas.width / canvas.clientWidth
+                    if (Number.isFinite(ratio) && ratio > 0) {
+                        return ratio
+                    }
+                }
+                return window.devicePixelRatio || 1
+            },
+            drawMetricGaps(chart) {
+                const geometry = this.metricGapGeometry(chart)
+                if (!geometry) {
+                    return
+                }
+                const ctx = chart.ctx
+                const pxRatio = geometry.pxRatio
+                const height = geometry.yBottom - geometry.yTop
+                const muted = this.cssVar('--nk-muted')
+                ctx.save()
+                ctx.beginPath()
+                ctx.rect(geometry.xLeft, geometry.yTop, geometry.xRight - geometry.xLeft, height)
+                ctx.clip()
+                ctx.fillStyle = this.alphaColor(muted, 0.1)
+                geometry.bands.forEach(band => {
+                    ctx.fillRect(band.left, geometry.yTop, band.right - band.left, height)
+                })
+                // 空洞边界画一条淡线，避免阴影带与折线糊在一起。
+                ctx.strokeStyle = this.alphaColor(muted, 0.28)
+                ctx.lineWidth = Math.max(1, pxRatio)
+                geometry.bands.forEach(band => {
+                    const left = Math.round(band.left) + 0.5
+                    const right = Math.round(band.right) - 0.5
+                    ctx.beginPath()
+                    ctx.moveTo(left, geometry.yTop)
+                    ctx.lineTo(left, geometry.yBottom)
+                    if (right > left) {
+                        ctx.moveTo(right, geometry.yTop)
+                        ctx.lineTo(right, geometry.yBottom)
+                    }
+                    ctx.stroke()
+                })
+                ctx.restore()
             },
             resizeCharts() {
                 if (!this.chartInstances) {
@@ -1717,19 +1862,57 @@
                 return tooltip
             },
             updateChartTooltip(definition, chart) {
+                const tooltip = this.ensureChartTooltip(chart)
+                if (!tooltip) {
+                    return
+                }
+                // 光标落在空洞里时，最近采样点会误导成「这段时间有数据」，改为提示数据缺失。
+                const gap = this.cursorMetricGap(chart)
+                if (gap) {
+                    tooltip.innerHTML = this.chartGapTooltipHTML(gap)
+                    tooltip.classList.add('visible')
+                    this.positionChartTooltip(chart, tooltip)
+                    return
+                }
                 const index = chart && chart.cursor ? chart.cursor.idx : null
                 const point = Number.isInteger(index) ? this.metricPointAt(index) : null
                 if (!point) {
                     this.hideChartTooltip(chart)
                     return
                 }
-                const tooltip = this.ensureChartTooltip(chart)
-                if (!tooltip) {
-                    return
-                }
                 tooltip.innerHTML = this.chartTooltipHTML(definition, point)
                 tooltip.classList.add('visible')
                 this.positionChartTooltip(chart, tooltip)
+            },
+            cursorMetricGap(chart) {
+                if (!chart || !chart.cursor || !Number.isFinite(chart.cursor.left)) {
+                    return null
+                }
+                if (!chart.posToVal || !chart.scales || !chart.scales.x) {
+                    return null
+                }
+                return this.metricGapAt(chart.posToVal(chart.cursor.left, 'x'))
+            },
+            chartGapTooltipHTML(gap) {
+                return '<div class="nk-chart-tooltip-time">' + this.formatGapRange(gap) + '</div>' +
+                    '<div class="nk-chart-tooltip-gap"><i aria-hidden="true"></i><span>数据缺失</span></div>'
+            },
+            formatGapRange(gap) {
+                const from = new Date(gap[0] * 1000)
+                const to = new Date(gap[1] * 1000)
+                if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) {
+                    return '数据缺失'
+                }
+                const clock = date => ('0' + date.getHours()).slice(-2) + ':' + ('0' + date.getMinutes()).slice(-2)
+                const day = date => (date.getMonth() + 1) + '月' + date.getDate() + '日'
+                const sameDay = from.getFullYear() === to.getFullYear() &&
+                    from.getMonth() === to.getMonth() &&
+                    from.getDate() === to.getDate()
+                if (sameDay) {
+                    return day(from) + ' ' + clock(from) + ' – ' + clock(to)
+                }
+                const stamp = date => day(date) + ' ' + clock(date)
+                return stamp(from) + ' – ' + stamp(to)
             },
             hideChartTooltip(chart) {
                 const tooltip = chart && chart.over ? chart.over.querySelector('.nk-chart-tooltip') : null
