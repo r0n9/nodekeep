@@ -14,6 +14,7 @@
   --nk-danger: #dc2626;
   --nk-offline: #94a3b8;
   --nk-radius: 8px;
+  --nk-topbar-h: 55px;
   --nk-shadow: 0 14px 36px rgba(10, 31, 68, 0.08);
   --nk-body-gradient: linear-gradient(180deg, rgba(11, 132, 255, 0.12), rgba(243, 247, 251, 0) 280px);
   --nk-topbar-bg: rgba(248, 251, 255, 0.94);
@@ -185,6 +186,21 @@ code {
   font-weight: 800;
   white-space: nowrap;
   user-select: none;
+}
+
+.nk-brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.nk-topbar-status {
+  flex: 0 0 auto;
+}
+
+.nk-topbar-status[hidden] {
+  display: none;
 }
 
 .nk-brand img {
@@ -673,54 +689,19 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
    Home Monitor Hero Bar (Redesigned)
    ========================================================================== */
 
-.nk-monitor .nk-monitor-hero {
+.nk-view-dock {
+  position: sticky;
+  top: var(--nk-topbar-h, 55px);
+  z-index: 90;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  padding: 1.05rem 1.35rem;
-  margin-top: 0.45rem;
-  margin-bottom: 1.2rem;
-  border: 1px solid var(--nk-border);
-  border-radius: var(--nk-radius);
-  background: var(--nk-surface);
-  box-shadow: var(--nk-shadow);
-  position: relative;
+  justify-content: flex-end;
+  padding: 0.28rem 0;
+  margin-bottom: 0.05rem;
+  pointer-events: none;
 }
 
-.nk-monitor .nk-monitor-hero::before {
-  display: none !important;
-}
-
-.nk-hero-lead {
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-  min-width: 0;
-  padding-left: 0 !important;
-}
-
-.nk-hero-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.nk-monitor .nk-monitor-hero h1.nk-hero-title {
-  margin: 0;
-  color: var(--nk-text);
-  font-size: 1.35rem;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.nk-monitor .nk-monitor-hero .nk-hero-subtitle {
-  margin: 0;
-  color: var(--nk-muted);
-  font-size: 0.84rem;
-  line-height: 1.35;
+.nk-view-dock .nk-view-switch {
+  pointer-events: auto;
 }
 
 /* Live Status Beacon */
@@ -782,294 +763,6 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
   background: var(--nk-info-soft);
   color: var(--nk-info-text);
   border-color: rgba(7, 89, 133, 0.22);
-}
-
-/* Actions wrap: Stats + Switcher */
-.nk-hero-actions-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-/* Stat Telemetry Cards */
-.nk-hero-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.38rem;
-  flex-wrap: wrap;
-}
-
-.nk-stat-card,
-.nk-stat-chip {
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 0.45rem;
-  height: 36px;
-  box-sizing: border-box;
-  padding: 0 0.65rem 0 0.36rem;
-  min-width: 0;
-  border: 1px solid var(--nk-border);
-  border-radius: 8px;
-  background: var(--nk-control-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  line-height: 1;
-  user-select: none;
-  white-space: nowrap;
-  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 180ms ease,
-              box-shadow 180ms ease,
-              background-color 180ms ease;
-}
-
-.nk-stat-card:hover,
-.nk-stat-chip:hover {
-  transform: translateY(-1px);
-  border-color: var(--nk-border-strong);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
-}
-
-body.theme-dark .nk-stat-card:hover,
-body.theme-dark .nk-stat-chip:hover {
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.32);
-}
-
-/* Stat Icon Tile */
-.nk-stat-icon-wrap {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--nk-track, rgba(0, 0, 0, 0.04));
-  color: var(--nk-muted);
-  flex: 0 0 auto;
-  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
-}
-
-.nk-stat-svg {
-  width: 13px;
-  height: 13px;
-  display: block;
-}
-
-/* Specific state styling for icon wraps */
-.nk-stat-card.total .nk-stat-icon-wrap,
-.nk-stat-chip.total .nk-stat-icon-wrap {
-  background: var(--nk-accent-soft);
-  color: var(--nk-accent);
-}
-
-.nk-stat-card.online .nk-stat-icon-wrap,
-.nk-stat-chip.online .nk-stat-icon-wrap {
-  background: var(--nk-online-soft);
-  color: var(--nk-online);
-}
-
-.nk-stat-card.offline .nk-stat-icon-wrap,
-.nk-stat-chip.offline .nk-stat-icon-wrap {
-  background: var(--nk-track, rgba(0, 0, 0, 0.04));
-  color: var(--nk-offline);
-}
-
-.nk-stat-card.pending .nk-stat-icon-wrap,
-.nk-stat-chip.pending .nk-stat-icon-wrap {
-  background: var(--nk-track, rgba(0, 0, 0, 0.04));
-  color: var(--nk-offline);
-}
-
-/* Telemetry Beacon */
-.nk-stat-beacon {
-  position: relative;
-  width: 12px;
-  height: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nk-stat-beacon-core {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  position: relative;
-  z-index: 2;
-  transition: background-color 180ms ease, box-shadow 180ms ease;
-}
-
-.nk-stat-beacon-ring {
-  position: absolute;
-  inset: -1px;
-  border-radius: 50%;
-  border: 1.5px solid currentColor;
-  opacity: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-@keyframes nk-stat-beacon-pulse {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.75;
-  }
-  70% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-}
-
-.nk-stat-card.online .nk-stat-beacon-ring,
-.nk-stat-chip.online .nk-stat-beacon-ring {
-  animation: nk-stat-beacon-pulse 2.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-}
-
-/* Fallback/compatibility dot */
-.nk-stat-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--nk-muted);
-  flex: 0 0 auto;
-}
-.nk-stat-card.online .nk-stat-dot,
-.nk-stat-chip.online .nk-stat-dot {
-  background: var(--nk-online);
-  box-shadow: 0 0 0 2px var(--nk-online-soft);
-}
-.nk-stat-card.offline .nk-stat-dot,
-.nk-stat-chip.offline .nk-stat-dot {
-  background: var(--nk-offline);
-}
-.nk-stat-card.pending .nk-stat-dot,
-.nk-stat-chip.pending .nk-stat-dot {
-  background: var(--nk-offline);
-}
-
-/* Content typography */
-.nk-stat-content {
-  display: inline-flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 0.35rem;
-  min-width: 0;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.nk-stat-card .nk-stat-label,
-.nk-stat-chip .nk-stat-label {
-  color: var(--nk-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-  margin: 0 !important;
-  padding: 0 !important;
-  line-height: 1;
-}
-
-.nk-stat-card .nk-stat-num,
-.nk-stat-chip .nk-stat-num {
-  color: var(--nk-text);
-  font-size: 0.95rem;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.nk-stat-card.online .nk-stat-num,
-.nk-stat-chip.online .nk-stat-num {
-  color: var(--nk-online);
-}
-
-/* Alert styling for stats */
-.nk-stat-card.offline.has-alert,
-.nk-stat-chip.offline.has-alert {
-  background: var(--nk-danger-soft);
-  border-color: rgba(220, 38, 38, 0.32);
-}
-
-.nk-stat-card.offline.has-alert .nk-stat-icon-wrap,
-.nk-stat-chip.offline.has-alert .nk-stat-icon-wrap {
-  background: rgba(220, 38, 38, 0.16);
-  color: var(--nk-danger);
-}
-
-.nk-stat-card.offline.has-alert .nk-stat-beacon-core {
-  background: var(--nk-danger);
-  box-shadow: 0 0 6px var(--nk-danger);
-}
-
-.nk-stat-card.offline.has-alert .nk-stat-beacon-ring,
-.nk-stat-chip.offline.has-alert .nk-stat-beacon-ring {
-  border-color: var(--nk-danger);
-  animation: nk-stat-beacon-pulse 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-}
-
-.nk-stat-card.offline.has-alert .nk-stat-dot {
-  background: var(--nk-danger);
-}
-
-.nk-stat-card.offline.has-alert .nk-stat-label,
-.nk-stat-card.offline.has-alert .nk-stat-num,
-.nk-stat-chip.offline.has-alert .nk-stat-label,
-.nk-stat-chip.offline.has-alert .nk-stat-num {
-  color: var(--nk-danger);
-}
-
-.nk-stat-card.pending.has-alert,
-.nk-stat-chip.pending.has-alert {
-  background: var(--nk-warning-soft);
-  border-color: rgba(217, 119, 6, 0.32);
-}
-
-.nk-stat-card.pending.has-alert .nk-stat-icon-wrap,
-.nk-stat-chip.pending.has-alert .nk-stat-icon-wrap {
-  background: rgba(217, 119, 6, 0.16);
-  color: var(--nk-warning);
-}
-
-.nk-stat-card.pending.has-alert .nk-stat-beacon-core {
-  background: var(--nk-warning);
-}
-
-.nk-stat-card.pending.has-alert .nk-stat-beacon-ring,
-.nk-stat-chip.pending.has-alert .nk-stat-beacon-ring {
-  border-color: var(--nk-warning);
-  animation: nk-stat-beacon-pulse 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-}
-
-.nk-stat-card.pending.has-alert .nk-stat-dot {
-  background: var(--nk-warning);
-}
-
-.nk-stat-card.pending.has-alert .nk-stat-label,
-.nk-stat-card.pending.has-alert .nk-stat-num,
-.nk-stat-chip.pending.has-alert .nk-stat-label,
-.nk-stat-chip.pending.has-alert .nk-stat-num {
-  color: var(--nk-warning-text);
-}
-
-/* Vertical divider */
-.nk-hero-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--nk-border);
-  flex: 0 0 auto;
-  align-self: center;
 }
 
 /* Segmented View Switcher */
@@ -1265,6 +958,80 @@ html[data-theme="dark"] .nk-view-switch button.active {
   color: var(--nk-muted);
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+.nk-group-head {
+  flex-wrap: wrap;
+  row-gap: 0.3rem;
+}
+
+.nk-group-stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  flex: none;
+}
+
+.nk-group-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--nk-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nk-group-stat + .nk-group-stat::before {
+  content: "·";
+  margin-right: 0.28rem;
+  color: var(--nk-muted);
+  font-weight: 700;
+  opacity: 0.5;
+}
+
+.nk-group-stat strong {
+  color: var(--nk-text);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.nk-group-stat .nk-group-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--nk-offline);
+  flex: 0 0 auto;
+}
+
+.nk-group-stat.online .nk-group-dot {
+  background: var(--nk-online);
+  box-shadow: 0 0 0 2px var(--nk-online-soft);
+}
+
+.nk-group-stat.online strong {
+  color: var(--nk-online);
+}
+
+.nk-group-stat.offline.has-alert,
+.nk-group-stat.offline.has-alert strong {
+  color: var(--nk-danger);
+}
+
+.nk-group-stat.offline.has-alert .nk-group-dot {
+  background: var(--nk-danger);
+}
+
+.nk-group-stat.pending.has-alert,
+.nk-group-stat.pending.has-alert strong {
+  color: var(--nk-warning-text);
+}
+
+.nk-group-stat.pending.has-alert .nk-group-dot {
+  background: var(--nk-warning);
 }
 
 .nk-node-grid {
@@ -4635,6 +4402,10 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 @media (max-width: 900px) {
+  :root {
+    --nk-topbar-h: 57px;
+  }
+
   .nk-topbar {
     padding: 0.3rem 0;
   }
@@ -4674,18 +4445,6 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-public-page .nk-hero {
     align-items: stretch;
     gap: 0.4rem;
-  }
-
-  .nk-monitor .nk-monitor-hero {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.85rem;
-    padding: 0.95rem 1.15rem;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-hero-actions-wrap {
-    justify-content: space-between;
-    width: 100%;
   }
 
   .nk-hero-actions {
@@ -4728,6 +4487,10 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 }
 
 @media (max-width: 640px) {
+  :root {
+    --nk-topbar-h: 49px;
+  }
+
   .ui.container {
     width: min(100vw - 24px, 1180px) !important;
   }
@@ -4887,66 +4650,17 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .nk-monitor .nk-monitor-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-    padding: 0.82rem 0.92rem;
+  .nk-group-stats {
+    gap: 0.24rem;
   }
 
-  .nk-monitor .nk-monitor-hero .nk-hero-title-wrap {
-    justify-content: space-between;
+  .nk-group-stat + .nk-group-stat::before {
+    margin-right: 0.24rem;
   }
 
-  .nk-monitor .nk-monitor-hero .nk-hero-actions-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.65rem;
-    width: 100%;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-hero-stats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.38rem;
-    width: 100%;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-stat-card,
-  .nk-monitor .nk-monitor-hero .nk-stat-chip {
-    height: 36px;
-    padding: 0 0.62rem 0 0.36rem;
-    display: flex;
-    align-items: center;
-    min-width: 0;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-stat-card .nk-stat-content,
-  .nk-monitor .nk-monitor-hero .nk-stat-chip .nk-stat-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-hero-divider {
-    display: none;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-view-switch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
-    height: 36px;
-    padding: 2px;
-  }
-
-  .nk-monitor .nk-monitor-hero .nk-view-switch button {
-    width: 100%;
-    height: 100%;
+  .nk-topbar-status {
+    padding: 0.14rem 0.46rem;
+    font-size: 0.68rem;
   }
 
   .nk-public-page .nk-summary-item {
