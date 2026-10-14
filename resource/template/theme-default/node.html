@@ -7,45 +7,7 @@
 <main class="nk-page nk-public-page">
     <div class="ui container">
         <section id="node-detail-app" class="nk-node-detail-page">
-            <header class="nk-hero nk-node-hero">
-                <div>
-                    <p class="nk-eyebrow">Node Detail</p>
-                    <h1>
-                        <span class="nk-status-dot nk-status-dot-lg" :class="statusState" role="img"
-                            :title="statusText" :aria-label="statusText"></span>
-                        <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
-                        <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
-                        <span class="nk-node-hero-title">@#server.Name#@</span>
-                    </h1>
-                    <p class="nk-hero-subtitle nk-node-hero-meta">
-                        <span>@#server.Tag || '默认分组'#@</span>
-                        <span aria-hidden="true">·</span>
-                        <span v-if="hasReport" class="nk-platform-value">
-                            <i :class="platformIcon(server.Host.Platform, server.Host.PlatformVersion)" aria-hidden="true"></i>
-                            <span>@#server.Host.Platform || 'unknown'#@</span>
-                        </span>
-                        <span v-if="hasReport">@#server.Host.Arch || '-'#@</span>
-                        <span v-else>等待 Agent 上报</span>
-                    </p>
-                </div>
-                <div class="nk-hero-actions">
-                    <div class="nk-summary-grid">
-                        <div class="nk-summary-item">
-                            <span>状态</span>
-                            <strong>@#statusText#@</strong>
-                        </div>
-                        <div class="nk-summary-item">
-                            <span>运行</span>
-                            <strong>@#hasLiveData ? secondToDate(server.State.Uptime) : '—'#@</strong>
-                        </div>
-                        <div class="nk-summary-item">
-                            <span>最近上报</span>
-                            <strong :title="formatDate(server.LastActive)">@#formatShortDate(server.LastActive)#@</strong>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
+            <h1 class="nk-visually-hidden">@#server.Name#@</h1>
             <div v-if="isDormant" class="nk-connection-notice nk-dormant-notice" role="status">
                 <div class="nk-dormant-content">
                     <div class="nk-dormant-message">
@@ -67,7 +29,9 @@
                             <div class="nk-node-name">
                                 <span class="nk-status-dot" :class="statusState" role="img"
                                     :title="statusText" :aria-label="statusText"></span>
-                                <span>实时状态</span>
+                                <i v-if="hasReport && server.Host.CountryCode" :class="[server.Host.CountryCode, 'flag', 'nk-country-flag']" :title="server.Host.CountryCode.toUpperCase()"></i>
+                                <span v-else class="nk-country-flag nk-country-flag-default" role="img" title="未知地区" aria-label="未知地区"></span>
+                                <span>@#server.Name#@</span>
                             </div>
                             <div class="nk-node-meta">@#hasReport ? (hasLiveData && !networkDisconnected ? '最近上报 ' : statusText + ' · 最后上报 ') + formatDate(server.LastActive) : '暂无上报数据'#@</div>
                         </div>
@@ -151,6 +115,10 @@
                         <p>
                             <span>启动时间</span>
                             <strong>@#hasReport ? formatUnixDate(server.Host.BootTime) : '-'#@</strong>
+                        </p>
+                        <p>
+                            <span>运行时间</span>
+                            <strong>@#hasLiveData ? secondToDate(server.State.Uptime) : '—'#@</strong>
                         </p>
                         <p class="nk-node-detail-wide">
                             <span>处理器</span>

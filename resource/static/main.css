@@ -870,12 +870,6 @@ html[data-theme="dark"] .nk-view-switch button.active {
   color: currentColor !important;
 }
 
-.nk-hero-actions {
-  display: grid;
-  justify-items: end;
-  gap: 0.28rem;
-}
-
 .nk-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(96px, 1fr));
@@ -1173,29 +1167,10 @@ html[data-theme="dark"] .nk-view-switch button.active {
   box-shadow: 0 0 0 3px var(--nk-track);
 }
 
-.nk-status-dot-lg {
-  width: 0.85rem;
-  height: 0.85rem;
-  margin-right: 0.2rem;
-  box-shadow: 0 0 0 4px var(--nk-online-soft);
-}
-
-.nk-status-dot-lg.offline {
-  box-shadow: 0 0 0 4px var(--nk-danger-soft);
-}
-
-.nk-status-dot-lg.pending {
-  box-shadow: 0 0 0 4px var(--nk-track);
-}
-
 /* .nk-node-name span 带了 flex:1 1 auto，状态点和旗帜需要压回固定宽度 */
 .nk-node-name .nk-status-dot,
 .nk-list-node-name .nk-status-dot {
   flex: 0 0 0.7rem;
-}
-
-.nk-node-name .nk-status-dot-lg {
-  flex-basis: 0.85rem;
 }
 
 .nk-node-name .nk-country-flag,
@@ -2506,32 +2481,6 @@ html[data-theme="dark"] .nk-traffic-hp-bar.is-depleted .nk-traffic-hp-text {
   background: var(--nk-surface-soft);
 }
 
-.nk-node-hero h1 {
-  display: flex;
-  align-items: center;
-  gap: 0.42rem;
-  min-width: 0;
-}
-
-.nk-node-hero h1 .nk-node-hero-title {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.nk-node-hero .nk-node-hero-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.45rem;
-  line-height: 1.5;
-}
-
-.nk-node-hero-meta > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.nk-node-hero-meta .nk-platform-icon,
 .nk-node-header-system .nk-platform-icon {
   display: inline-flex;
   align-items: center;
@@ -4461,11 +4410,6 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-public-page .nk-hero {
     align-items: stretch;
     gap: 0.4rem;
-  }
-
-  .nk-hero-actions {
-    justify-items: start;
-    width: 100%;
   }
 
   .nk-public-page .nk-summary-grid {
