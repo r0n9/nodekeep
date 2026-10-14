@@ -689,21 +689,6 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
    Home Monitor Hero Bar (Redesigned)
    ========================================================================== */
 
-.nk-view-dock {
-  position: sticky;
-  top: var(--nk-topbar-h, 55px);
-  z-index: 90;
-  display: flex;
-  justify-content: flex-end;
-  padding: 0.28rem 0;
-  margin-bottom: 0.05rem;
-  pointer-events: none;
-}
-
-.nk-view-dock .nk-view-switch {
-  pointer-events: auto;
-}
-
 /* Live Status Beacon */
 .nk-hero-status-badge {
   display: inline-flex;
@@ -771,7 +756,7 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
   align-items: center;
   gap: 2px;
   padding: 2px;
-  height: 36px;
+  height: 30px;
   box-sizing: border-box;
   border: 1px solid var(--nk-border);
   border-radius: 8px;
@@ -786,20 +771,16 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.36rem;
-  height: 30px;
-  width: auto !important;
-  min-width: 62px;
-  padding: 0 0.68rem !important;
+  height: 24px;
+  width: 30px !important;
+  min-width: 30px;
+  padding: 0 !important;
   border: 0;
   border-radius: 6px;
   color: var(--nk-muted);
   background: transparent;
   cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.01em;
   user-select: none;
   transition:
     color 160ms ease,
@@ -860,14 +841,30 @@ html[data-theme="dark"] .nk-view-switch button.active {
   transform: scale(1.05);
 }
 
-.nk-view-switch .nk-view-label {
-  font-size: 0.8rem;
-  line-height: 1;
-}
-
 .nk-view-switch i.icon {
   margin: 0;
   color: currentColor !important;
+}
+
+@media (pointer: coarse) {
+  .nk-view-switch {
+    height: auto;
+    padding: 3px;
+    border-radius: 10px;
+  }
+
+  .nk-view-switch .nk-view-btn,
+  .nk-view-switch button {
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+
+  .nk-view-switch .nk-switch-svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 .nk-summary-grid {
@@ -930,6 +927,10 @@ html[data-theme="dark"] .nk-view-switch button.active {
   margin-top: 1.05rem;
 }
 
+.nk-monitor > .nk-group:first-of-type {
+  margin-top: 0.55rem;
+}
+
 .nk-section-title {
   display: flex;
   align-items: center;
@@ -957,6 +958,39 @@ html[data-theme="dark"] .nk-view-switch button.active {
 .nk-group-head {
   flex-wrap: wrap;
   row-gap: 0.3rem;
+}
+
+.nk-group-head-sticky {
+  position: sticky;
+  top: var(--nk-topbar-h, 55px);
+  z-index: 90;
+  margin-bottom: 0;
+  padding: 0.5rem 0 0.55rem;
+  background: var(--nk-bg);
+  transition: box-shadow 160ms ease, padding 160ms ease;
+}
+
+.nk-group-head-sticky.is-stuck {
+  padding-top: 0.34rem;
+  padding-bottom: 0.44rem;
+  box-shadow:
+    0 1px 0 var(--nk-border),
+    0 10px 18px -14px rgba(10, 31, 68, 0.45);
+}
+
+html[data-theme="dark"] .nk-group-head-sticky.is-stuck {
+  box-shadow:
+    0 1px 0 var(--nk-border-strong),
+    0 12px 20px -14px rgba(0, 0, 0, 0.7);
+}
+
+.nk-group-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: none;
 }
 
 .nk-group-stats {
@@ -4618,6 +4652,22 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
     margin-right: 0.24rem;
   }
 
+  /* 窄屏下收紧分组头工具区间距，并压低吸顶头内边距，
+     让首个分组头（吸顶）在移动端更紧凑。 */
+  .nk-group-tools {
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .nk-group-head-sticky {
+    padding: 0.4rem 0 0.46rem;
+  }
+
+  .nk-group-head-sticky.is-stuck {
+    padding-top: 0.28rem;
+    padding-bottom: 0.34rem;
+  }
+
   .nk-topbar-status {
     padding: 0.14rem 0.46rem;
     font-size: 0.68rem;
@@ -5004,7 +5054,8 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-network-chart .nk-network-tooltip,
   .nk-meter-track i,
   .nk-node-details-toggle,
-  .nk-history-grid.is-loading {
+  .nk-history-grid.is-loading,
+  .nk-group-head-sticky {
     transition: none;
   }
 }
