@@ -1,8 +1,76 @@
 package main
 
 import (
+	"errors"
 	"testing"
 )
+
+func TestHTTPTaskOutcome(t *testing.T) {
+	reqErr := errors.New("dial tcp: connection refused")
+	statusErr := errors.New("\n应用错误：500 Internal Server Error")
+
+	tests := []struct {
+		name           string
+		reqErr         error
+		statusErr      error
+		certData       string
+		wantData       string
+		wantSuccessful bool
+	}{
+		{
+			name:           "传输层失败时不查证书，上报错误",
+			reqErr:         reqErr,
+			certData:       "",
+			wantData:       reqErr.Error(),
+			wantSuccessful: false,
+		},
+		{
+			name:           "站点5xx但证书正常：仍上报证书并标记不可用",
+			statusErr:      statusErr,
+			certData:       "Let's Encrypt|2026-11-01 12:00:00 +0000 UTC",
+			wantData:       "Let's Encrypt|2026-11-01 12:00:00 +0000 UTC",
+			wantSuccessful: false,
+		},
+		{
+			name:           "站点5xx且证书取失败：上报证书错误",
+			statusErr:      statusErr,
+			certData:       "SSL证书错误：timeout",
+			wantData:       "SSL证书错误：timeout",
+			wantSuccessful: false,
+		},
+		{
+			name:           "站点正常且有证书",
+			certData:       "Let's Encrypt|2026-11-01 12:00:00 +0000 UTC",
+			wantData:       "Let's Encrypt|2026-11-01 12:00:00 +0000 UTC",
+			wantSuccessful: true,
+		},
+		{
+			name:           "非HTTPS且站点5xx：回落到HTTP错误",
+			statusErr:      statusErr,
+			certData:       "",
+			wantData:       statusErr.Error(),
+			wantSuccessful: false,
+		},
+		{
+			name:           "非HTTPS且站点正常",
+			certData:       "",
+			wantData:       "",
+			wantSuccessful: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, successful := httpTaskOutcome(tt.reqErr, tt.statusErr, tt.certData)
+			if data != tt.wantData {
+				t.Errorf("data = %q, want %q", data, tt.wantData)
+			}
+			if successful != tt.wantSuccessful {
+				t.Errorf("successful = %v, want %v", successful, tt.wantSuccessful)
+			}
+		})
+	}
+}
 
 func TestAgentDefaultVersion(t *testing.T) {
 	if version != "develop" {

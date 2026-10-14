@@ -222,32 +222,24 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 	switch task.GetType() {
 	case model.TaskTypeHTTPGET:
 		start := time.Now()
-		resp, err := httpClient.Get(taskData)
-		if err == nil {
+		resp, reqErr := httpClient.Get(taskData)
+		var statusErr error
+		if reqErr == nil {
 			defer resp.Body.Close()
 			result.Delay = float32(time.Now().Sub(start).Microseconds()) / 1000.0
 			if resp.StatusCode > 399 || resp.StatusCode < 200 {
-				err = errors.New("\n应用错误：" + resp.Status)
+				statusErr = errors.New("\n应用错误：" + resp.Status)
 			}
 		}
-		if err == nil {
-			hostport, isHTTPS, certErr := parseCertTarget(taskData)
-			if certErr != nil {
-				result.Data = "SSL证书错误：" + certErr.Error()
-			} else if isHTTPS {
-				c := cert.NewCert(hostport)
-				if c.Error != "" {
-					result.Data = "SSL证书错误：" + c.Error
-				} else {
-					result.Data = c.Issuer + "|" + c.NotAfter
-					result.Successful = true
-				}
-			} else {
-				result.Successful = true
-			}
-		} else {
-			result.Data = err.Error()
+		// 证书检查与 HTTP 状态解耦：站点返回 4xx/5xx 时请求本身是成功的，
+		// 证书仍要照常检查，否则站点异常会掩盖证书到期。
+		// 传输层失败（连不上、超时）时不查证书：那种情况证书同样取不到，
+		// 报「SSL证书错误」只会制造噪音。
+		var certData string
+		if reqErr == nil {
+			certData = fetchCertData(taskData)
 		}
+		result.Data, result.Successful = httpTaskOutcome(reqErr, statusErr, certData)
 	case model.TaskTypeICMPPing:
 		pinger, err := ping.NewPinger(taskData)
 		if err == nil {
@@ -319,6 +311,43 @@ func doTask(client pb.ProbeServiceClient, task *pb.Task) {
 		log.Printf("Unknown action: %v", task)
 	}
 	reportTaskResult(client, &result)
+}
+
+// httpTaskOutcome 组装 HTTP 监控任务的上报结果：Data 与是否成功。
+//
+// 证书数据（"Issuer|NotAfter" 或 "SSL证书错误：..."）优先作为 Data，
+// 服务端据此判断证书到期与变更；传输层失败时退回错误信息，此时不查证书。
+// Successful 只由 HTTP 状态决定，证书检查结果不改变它——站点返回 4xx/5xx
+// 仍算不可用，但证书到期与否是另一回事，两者互不掩盖。
+func httpTaskOutcome(reqErr, statusErr error, certData string) (string, bool) {
+	if reqErr != nil {
+		return reqErr.Error(), false
+	}
+	if certData != "" {
+		return certData, statusErr == nil
+	}
+	if statusErr != nil {
+		return statusErr.Error(), false
+	}
+	return "", true
+}
+
+// fetchCertData 检查 HTTPS 目标的证书，返回上报用的 Data 字段。
+// 非 HTTPS 目标返回空串，由调用方回落到 HTTP 错误信息；
+// 取证书失败返回「SSL证书错误：...」，成功返回 "Issuer|NotAfter"。
+func fetchCertData(taskData string) string {
+	hostport, isHTTPS, err := parseCertTarget(taskData)
+	if err != nil {
+		return "SSL证书错误：" + err.Error()
+	}
+	if !isHTTPS {
+		return ""
+	}
+	c := cert.NewCert(hostport)
+	if c.Error != "" {
+		return "SSL证书错误：" + c.Error
+	}
+	return c.Issuer + "|" + c.NotAfter
 }
 
 func parseCertTarget(rawURL string) (hostport string, isHTTPS bool, err error) {

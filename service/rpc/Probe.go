@@ -19,6 +19,23 @@ type ProbeHandler struct {
 	Auth *AuthHandler
 }
 
+// certNotAfterLayout 与 agent 上报的 cert.NotAfter（time.Time.String()）格式一致。
+const certNotAfterLayout = "2006-01-02 15:04:05 -0700 MST"
+
+// parseCertNotAfter 从 "Issuer|NotAfter" 形式的证书字段里解析到期时间。
+// 字段缺失或时间格式不符时返回 false，调用方据此跳过判断，
+// 避免零值时间被误判成「已过期」而误报。
+func parseCertNotAfter(parts []string) (time.Time, bool) {
+	if len(parts) < 2 {
+		return time.Time{}, false
+	}
+	notAfter, err := time.Parse(certNotAfterLayout, parts[1])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return notAfter, true
+}
+
 func (s *ProbeHandler) ReportTask(c context.Context, r *pb.TaskResult) (*pb.Receipt, error) {
 	var err error
 	var clientID uint64
@@ -38,8 +55,9 @@ func (s *ProbeHandler) ReportTask(c context.Context, r *pb.TaskResult) (*pb.Rece
 		} else {
 			var last model.MonitorHistory
 			var newCert = strings.Split(r.GetData(), "|")
-			if len(newCert) > 1 {
-				expiresNew, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", newCert[1])
+			// 解析失败说明上报格式异常（旧版 agent、字段被截断等）。
+			// 此时放弃全部判断：零值时间会被当成「已过期」，宁可漏报也不要误报。
+			if expiresNew, ok := parseCertNotAfter(newCert); ok {
 				// 证书过期提醒
 				if expiresNew.Before(time.Now().AddDate(0, 0, 7)) {
 					errMsg = fmt.Sprintf(
@@ -49,11 +67,9 @@ func (s *ProbeHandler) ReportTask(c context.Context, r *pb.TaskResult) (*pb.Rece
 				// 证书变更提醒
 				if err := dao.DB.Where("monitor_id = ? AND data LIKE ?", r.GetId(), "%|%").Order("id DESC").First(&last).Error; err == nil {
 					var oldCert = strings.Split(last.Data, "|")
-					var expiresOld time.Time
-					if len(oldCert) > 1 {
-						expiresOld, _ = time.Parse("2006-01-02 15:04:05 -0700 MST", oldCert[1])
-					}
-					if last.Data != "" && oldCert[0] != newCert[0] && !expiresNew.Equal(expiresOld) {
+					// 旧记录解析不出来时不比变更，否则零值时间会让每次上报都触发变更提醒
+					expiresOld, oldOk := parseCertNotAfter(oldCert)
+					if last.Data != "" && oldOk && oldCert[0] != newCert[0] && !expiresNew.Equal(expiresOld) {
 						errMsg = fmt.Sprintf(
 							"SSL证书变更，旧：%s, %s 过期；新：%s, %s 过期。",
 							oldCert[0], expiresOld.Format("2006-01-02 15:04:05"), newCert[0], expiresNew.Format("2006-01-02 15:04:05"))
