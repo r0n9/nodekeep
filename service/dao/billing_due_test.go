@@ -222,3 +222,48 @@ func TestCheckBillingDueMarksReminded(t *testing.T) {
 		t.Error("同一天不应重复提醒")
 	}
 }
+
+// TestRefreshServerBillingRuntime 覆盖到期告警规则依赖的内存态同步：
+// 保存订阅后 runtime.Billing 要指向最新数据，删除后要清空，
+// 否则规则会读到旧到期日或把已删除的订阅当成仍要提醒。
+func TestRefreshServerBillingRuntime(t *testing.T) {
+	previousDB := DB
+	defer func() { DB = previousDB }()
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Server{}, &model.ServerBilling{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	DB = db
+	InitServerRuntimeState()
+	UpsertServerRuntime(model.Server{Common: model.Common{ID: 1}, Name: "node-a", Secret: "s1"}, false)
+
+	due := dueDate(2026, 3, 10)
+	if err := SaveServerBilling(&model.ServerBilling{
+		ServerID: 1, Status: model.BillingStatusActive, NextDueDate: due,
+	}); err != nil {
+		t.Fatalf("save billing: %v", err)
+	}
+
+	serverLock.RLock()
+	got := serverList[1].runtime.Billing
+	serverLock.RUnlock()
+	if got == nil || got.NextDueDate == nil || !got.NextDueDate.Equal(*due) {
+		t.Fatalf("保存后 runtime.Billing 未同步：%+v", got)
+	}
+
+	if err := DeleteServerBillingWith(DB, 1); err != nil {
+		t.Fatalf("delete billing: %v", err)
+	}
+	RefreshServerBillingRuntime(1)
+
+	serverLock.RLock()
+	got = serverList[1].runtime.Billing
+	serverLock.RUnlock()
+	if got != nil {
+		t.Fatalf("删除后 runtime.Billing 应清空，实际 %+v", got)
+	}
+}

@@ -22,6 +22,9 @@ type ServerRuntime struct {
 	State      *HostState             `gorm:"-"`
 	LastActive time.Time              `gorm:"-"`
 	Traffic    *ServerTrafficSnapshot `gorm:"-"`
+	// Billing 是订阅信息的只读快照，由 service/dao 在计费信息变更后刷新。
+	// 挂在内存态上是因为告警规则的 Snapshot 在 model 包内取值，不能反向依赖 dao 查库。
+	Billing *ServerBilling `gorm:"-"`
 }
 
 type PublicHost struct {

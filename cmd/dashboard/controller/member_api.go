@@ -324,6 +324,8 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 		return
 	}
 	dao.UpsertServerRuntime(s, isEdit)
+	// 计费信息可能刚被写入或清空，同步内存态供到期告警规则使用。
+	dao.RefreshServerBillingRuntime(s.ID)
 	c.JSON(http.StatusOK, model.Response{
 		Code: http.StatusOK,
 	})

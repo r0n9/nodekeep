@@ -16,7 +16,7 @@ const (
 
 type Rule struct {
 	// 指标类型，cpu、memory、swap、disk、net_in_speed、net_out_speed
-	// net_all_speed、transfer_in、transfer_out、transfer_all、offline
+	// net_all_speed、transfer_in、transfer_out、transfer_all、offline、expire_days
 	Type     string          `json:"type,omitempty"`
 	Min      uint64          `json:"min,omitempty"`      // 最小阈值 (百分比、字节 kb ÷ 1024)
 	Max      uint64          `json:"max,omitempty"`      // 最大阈值 (百分比、字节 kb ÷ 1024)
@@ -84,11 +84,39 @@ func (u *Rule) Snapshot(server *ServerRuntime) interface{} {
 		} else {
 			src = uint64(server.LastActive.Unix())
 		}
+	case "expire_days":
+		return u.snapshotExpireDays(server)
 	}
 
 	if u.Type == "offline" && uint64(time.Now().Unix())-src > 6 {
 		return struct{}{}
 	} else if (u.Max > 0 && src > u.Max) || (u.Min > 0 && src < u.Min) {
+		return struct{}{}
+	}
+	return nil
+}
+
+// snapshotExpireDays 判断订阅剩余天数是否命中阈值，用于「到期临近」告警。
+//
+// 与其它指标一致，min/max 都是严格比较：min=8 表示剩余不足 8 天（即 ≤7 天）时触发。
+// 剩余天数可以为负（已过期），所以不能像其它指标那样塞进 uint64 再比较。
+//
+// 未录入订阅、未填到期日、已退订、已到终止日或已静音的节点一律不参与告警，
+// 避免把「没有计费信息」误判成「即将到期」。这些过滤条件与每日到期提醒保持一致。
+func (u *Rule) snapshotExpireDays(server *ServerRuntime) interface{} {
+	billing := server.Billing
+	now := time.Now()
+	if billing == nil || !billing.Active() || billing.Muted || billing.Ended(now) {
+		return nil
+	}
+	days, ok := billing.DaysUntilDue(now)
+	if !ok {
+		return nil
+	}
+	if u.Max > 0 && days > int(u.Max) {
+		return struct{}{}
+	}
+	if u.Min > 0 && days < int(u.Min) {
 		return struct{}{}
 	}
 	return nil

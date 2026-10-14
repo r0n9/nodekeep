@@ -56,6 +56,7 @@ func initSystem() {
 		model.ServerTraffic{}, model.ServerTrafficDaily{})
 
 	loadServers()                      //加载服务器列表
+	dao.LoadServerBillingRuntime()     // 把订阅信息挂到内存态，供到期告警规则读取
 	loadCrons()                        //加载计划任务
 	dao.LoadAllTrafficBillingConfigs() // 加载流量周期与额度配置
 

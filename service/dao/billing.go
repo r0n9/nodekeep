@@ -41,7 +41,42 @@ func ServerBillingMap() map[uint64]*model.ServerBilling {
 
 // SaveServerBilling 按 ServerID 写入订阅信息，已存在则更新。
 func SaveServerBilling(billing *model.ServerBilling) error {
-	return SaveServerBillingWith(DB, billing)
+	if err := SaveServerBillingWith(DB, billing); err != nil {
+		return err
+	}
+	RefreshServerBillingRuntime(billing.ServerID)
+	return nil
+}
+
+// LoadServerBillingRuntime 把全部订阅信息挂到内存态服务器上，供到期告警规则读取。
+// 启动时调用一次；之后由 RefreshServerBillingRuntime 增量维护。
+func LoadServerBillingRuntime() {
+	billings := ServerBillingMap()
+	serverLock.Lock()
+	defer serverLock.Unlock()
+	for id, session := range serverList {
+		session.runtime.Billing = billings[id]
+	}
+}
+
+// RefreshServerBillingRuntime 同步单台服务器的订阅信息，订阅被删除时置空。
+// 内存态是到期告警规则的取值来源，计费信息变更后必须调用，否则规则会读到旧到期日。
+func RefreshServerBillingRuntime(serverID uint64) {
+	if serverID == 0 {
+		return
+	}
+	billing, ok := ServerBillingOf(serverID)
+	serverLock.Lock()
+	defer serverLock.Unlock()
+	session := serverList[serverID]
+	if session == nil {
+		return
+	}
+	if ok {
+		session.runtime.Billing = billing
+	} else {
+		session.runtime.Billing = nil
+	}
 }
 
 // SaveServerBillingWith 是 SaveServerBilling 的事务版本，供「保存服务器 + 保存计费」
@@ -117,7 +152,7 @@ func RenewServerBilling(payment *model.ServerPayment, nextDueDate time.Time) err
 	if payment == nil || payment.ServerID == 0 {
 		return errors.New("缺少服务器 ID")
 	}
-	return DB.Transaction(func(tx *gorm.DB) error {
+	if err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(payment).Error; err != nil {
 			return err
 		}
@@ -134,7 +169,12 @@ func RenewServerBilling(payment *model.ServerPayment, nextDueDate time.Time) err
 			return errors.New("该服务器还没有计费信息")
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	// 到期日变了，同步内存态，否则到期告警规则仍按旧日期判断。
+	RefreshServerBillingRuntime(payment.ServerID)
+	return nil
 }
 
 // DeleteServerPayment 删除一条付费流水，用于订正录错的记录。

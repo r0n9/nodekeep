@@ -173,6 +173,10 @@ func alertRecoveryMessage(alert *model.AlertRule, server *model.ServerRuntime) s
 			status = "已恢复上线"
 			break
 		}
+		if alert.Rules[i].Type == "expire_days" {
+			status = "到期日已更新"
+			break
+		}
 	}
 	return fmt.Sprintf("[告警恢复]\n规则：%s\n服务器：%s\n状态：%s", alert.Name, serverNotificationLabel(server), status)
 }
