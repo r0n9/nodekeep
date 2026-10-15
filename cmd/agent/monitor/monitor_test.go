@@ -7,6 +7,8 @@ import (
 
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/net"
+
+	"github.com/r0n9/nodekeep/model"
 )
 
 func TestDetectedPlatformPrefersDistribution(t *testing.T) {
@@ -46,21 +48,10 @@ func TestSumNetworkCountersFiltersVirtualInterfaces(t *testing.T) {
 		{Name: "docker0", BytesRecv: 2000, BytesSent: 2000},
 		{Name: "vethabc", BytesRecv: 3000, BytesSent: 3000},
 		{Name: "utun1", BytesRecv: 4000, BytesSent: 4000},
-	}, nil)
+	})
 
 	if in != 400 || out != 600 {
 		t.Fatalf("filtered counters = %d/%d, want 400/600", in, out)
-	}
-}
-
-func TestSumNetworkCountersUsesAllowlist(t *testing.T) {
-	in, out := sumNetworkCounters([]net.IOCountersStat{
-		{Name: "eth0", BytesRecv: 100, BytesSent: 200},
-		{Name: "docker0", BytesRecv: 2000, BytesSent: 3000},
-	}, map[string]struct{}{"docker0": {}})
-
-	if in != 2000 || out != 3000 {
-		t.Fatalf("allowlisted counters = %d/%d, want 2000/3000", in, out)
 	}
 }
 
@@ -70,12 +61,10 @@ func TestTrackNetworkSpeedUsesElapsedTimeAndHandlesRollback(t *testing.T) {
 	defer func() {
 		netIOCounters = originalCounters
 		nowFunc = originalNow
-		SetNICAllowlist("")
 		resetNetworkStats()
 	}()
 
 	resetNetworkStats()
-	SetNICAllowlist("")
 
 	samples := [][]net.IOCountersStat{
 		{{Name: "eth0", BytesRecv: 1000, BytesSent: 2000}},
@@ -117,6 +106,105 @@ func TestTrackNetworkSpeedUsesElapsedTimeAndHandlesRollback(t *testing.T) {
 	}
 	if got := atomic.LoadUint64(&netOutSpeed); got != 0 {
 		t.Fatalf("rollback net out speed = %d, want 0", got)
+	}
+}
+
+func TestCollectNICCountersReportsAllNICsWithVirtualFlag(t *testing.T) {
+	counters := []net.IOCountersStat{
+		{Name: "eth0", BytesRecv: 100, BytesSent: 200},
+		{Name: "lo", BytesRecv: 1000, BytesSent: 1000},
+		{Name: "docker0", BytesRecv: 2000, BytesSent: 3000},
+		{Name: "wlo1", BytesRecv: 300, BytesSent: 400},
+	}
+
+	got := collectNICCounters(counters)
+	if len(got) != len(counters) {
+		t.Fatalf("collectNICCounters returned %d entries, want %d", len(got), len(counters))
+	}
+
+	want := map[string]struct {
+		recv, sent uint64
+		virtual    bool
+	}{
+		"eth0":    {100, 200, false},
+		"lo":      {1000, 1000, true},
+		"docker0": {2000, 3000, true},
+		"wlo1":    {300, 400, false},
+	}
+	for _, nic := range got {
+		expected, ok := want[nic.Name]
+		if !ok {
+			t.Fatalf("unexpected NIC %q", nic.Name)
+		}
+		if nic.BytesRecv != expected.recv || nic.BytesSent != expected.sent {
+			t.Fatalf("NIC %q counters = %d/%d, want %d/%d", nic.Name, nic.BytesRecv, nic.BytesSent, expected.recv, expected.sent)
+		}
+		if nic.Virtual != expected.virtual {
+			t.Fatalf("NIC %q virtual = %v, want %v", nic.Name, nic.Virtual, expected.virtual)
+		}
+	}
+}
+
+// 默认口径下明细求和必须与聚合值一致，否则服务端按网卡求和会与老口径对不上。
+func TestCollectNICCountersSumMatchesAggregate(t *testing.T) {
+	counters := []net.IOCountersStat{
+		{Name: "eth0", BytesRecv: 100, BytesSent: 200},
+		{Name: "wlo1", BytesRecv: 300, BytesSent: 400},
+		{Name: "lo", BytesRecv: 1000, BytesSent: 1000},
+		{Name: "docker0", BytesRecv: 2000, BytesSent: 2000},
+	}
+
+	sumIn, sumOut := sumNetworkCounters(counters)
+	var nicIn, nicOut uint64
+	for _, nic := range collectNICCounters(counters) {
+		if nic.Virtual {
+			continue
+		}
+		nicIn += nic.BytesRecv
+		nicOut += nic.BytesSent
+	}
+	if nicIn != sumIn || nicOut != sumOut {
+		t.Fatalf("physical NIC sum = %d/%d, aggregate = %d/%d", nicIn, nicOut, sumIn, sumOut)
+	}
+}
+
+func TestTrackNetworkSpeedPublishesNICSnapshot(t *testing.T) {
+	originalCounters := netIOCounters
+	originalNow := nowFunc
+	defer func() {
+		netIOCounters = originalCounters
+		nowFunc = originalNow
+		resetNetworkStats()
+		nicSnapshot = atomic.Value{}
+	}()
+
+	resetNetworkStats()
+	nicSnapshot = atomic.Value{}
+
+	netIOCounters = func() ([]net.IOCountersStat, error) {
+		return []net.IOCountersStat{
+			{Name: "eth0", BytesRecv: 1000, BytesSent: 2000},
+			{Name: "lo", BytesRecv: 10, BytesSent: 20},
+		}, nil
+	}
+	nowFunc = func() time.Time { return time.Unix(10, 0) }
+
+	TrackNetworkSpeed()
+
+	// 直接读快照而不走 GetState：GetState 依赖 host.Info()，
+	// 在受限环境（无权限读取 boot time）下会返回 nil 而 panic。
+	nics, ok := nicSnapshot.Load().([]model.NICCounter)
+	if !ok {
+		t.Fatal("NIC snapshot was not published")
+	}
+	if len(nics) != 2 {
+		t.Fatalf("published NICs = %d, want 2", len(nics))
+	}
+	if nics[0].Name != "eth0" || nics[0].Virtual {
+		t.Fatalf("first NIC = %#v, want eth0 non-virtual", nics[0])
+	}
+	if nics[1].Name != "lo" || !nics[1].Virtual {
+		t.Fatalf("second NIC = %#v, want lo virtual", nics[1])
 	}
 }
 

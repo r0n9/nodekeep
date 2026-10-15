@@ -19,7 +19,7 @@ import (
 )
 
 var netInSpeed, netOutSpeed, netInTransfer, netOutTransfer, lastUpdateNano uint64
-var nicAllowlist atomic.Value
+var nicSnapshot atomic.Value
 
 var (
 	netIOCounters = func() ([]net.IOCountersStat, error) {
@@ -31,17 +31,6 @@ var (
 var excludedNICPrefixes = []string{
 	"lo", "tun", "utun", "tap", "docker", "veth", "br-", "bridge", "vmbr", "vnet",
 	"kube", "meta", "tailscale", "fw", "awdl", "llw", "anpi", "gif", "stf", "ipsec",
-}
-
-func SetNICAllowlist(value string) {
-	allowlist := make(map[string]struct{})
-	for _, item := range strings.Split(value, ",") {
-		name := strings.TrimSpace(item)
-		if name != "" {
-			allowlist[name] = struct{}{}
-		}
-	}
-	nicAllowlist.Store(allowlist)
 }
 
 func GetHost() *model.Host {
@@ -97,7 +86,7 @@ func GetState(delay int64) *model.HostState {
 	// Disk
 	u, _ := disk.Usage("/")
 
-	return &model.HostState{
+	state := &model.HostState{
 		CPU:            cpuPercent,
 		MemUsed:        mv.Used,
 		SwapUsed:       ms.Used,
@@ -108,6 +97,10 @@ func GetState(delay int64) *model.HostState {
 		NetOutSpeed:    atomic.LoadUint64(&netOutSpeed),
 		Uptime:         hi.Uptime,
 	}
+	if nics, ok := nicSnapshot.Load().([]model.NICCounter); ok {
+		state.NICs = nics
+	}
+	return state
 }
 
 func getCPUInfo(cpuType string) []string {
@@ -171,7 +164,8 @@ func TrackNetworkSpeed() {
 		return
 	}
 
-	innerNetInTransfer, innerNetOutTransfer := sumNetworkCounters(nc, currentNICAllowlist())
+	innerNetInTransfer, innerNetOutTransfer := sumNetworkCounters(nc)
+	nicSnapshot.Store(collectNICCounters(nc))
 	nowNano := uint64(nowFunc().UnixNano())
 	prevUpdateNano := atomic.LoadUint64(&lastUpdateNano)
 	prevIn := atomic.LoadUint64(&netInTransfer)
@@ -190,18 +184,12 @@ func TrackNetworkSpeed() {
 	atomic.StoreUint64(&lastUpdateNano, nowNano)
 }
 
-func currentNICAllowlist() map[string]struct{} {
-	value := nicAllowlist.Load()
-	if value == nil {
-		return nil
-	}
-	return value.(map[string]struct{})
-}
-
-func sumNetworkCounters(counters []net.IOCountersStat, allowlist map[string]struct{}) (uint64, uint64) {
+// sumNetworkCounters 汇总所有物理网卡的原始计数，用于兼容老面板的聚合字段。
+// 统计口径由服务端按管理员选中的网卡决定，Agent 不再做过滤。
+func sumNetworkCounters(counters []net.IOCountersStat) (uint64, uint64) {
 	var inTransfer, outTransfer uint64
 	for _, counter := range counters {
-		if !shouldIncludeNIC(counter.Name, allowlist) {
+		if isVirtualNIC(counter.Name) {
 			continue
 		}
 		inTransfer += counter.BytesRecv
@@ -210,19 +198,32 @@ func sumNetworkCounters(counters []net.IOCountersStat, allowlist map[string]stru
 	return inTransfer, outTransfer
 }
 
-func shouldIncludeNIC(name string, allowlist map[string]struct{}) bool {
-	if len(allowlist) > 0 {
-		_, ok := allowlist[name]
-		return ok
-	}
-
+// isVirtualNIC 按网卡名前缀判断是否为虚拟网卡。服务端据此实现
+// 「默认只统计物理网卡」，所以这个判定必须与聚合口径保持一致。
+func isVirtualNIC(name string) bool {
 	name = strings.ToLower(name)
 	for _, prefix := range excludedNICPrefixes {
 		if strings.HasPrefix(name, prefix) {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+// collectNICCounters 汇总每张网卡的原始计数，供服务端按选中集合求和。
+// 上报全部网卡（含虚拟网卡）并标注 virtual，由服务端决定统计口径——
+// 这样在后台切换网卡无需重新下发配置给 Agent。
+func collectNICCounters(counters []net.IOCountersStat) []model.NICCounter {
+	nics := make([]model.NICCounter, 0, len(counters))
+	for _, counter := range counters {
+		nics = append(nics, model.NICCounter{
+			Name:      counter.Name,
+			BytesRecv: counter.BytesRecv,
+			BytesSent: counter.BytesSent,
+			Virtual:   isVirtualNIC(counter.Name),
+		})
+	}
+	return nics
 }
 
 func bytesPerSecond(delta, elapsedNano uint64) uint64 {

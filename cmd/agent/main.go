@@ -34,7 +34,6 @@ import (
 var (
 	server       string
 	clientSecret string
-	nicAllowlist string
 	version      = "develop"
 )
 
@@ -99,9 +98,7 @@ func main() {
 	flag.BoolVar(&debug, "d", false, "允许不安全连接")
 	flag.StringVar(&server, "s", "localhost:8008", "管理面板地址")
 	flag.StringVar(&clientSecret, "p", "", "Agent连接Secret")
-	flag.StringVar(&nicAllowlist, "n", "", "网卡白名单，多个网卡用英文逗号分隔；为空时自动过滤虚拟网卡")
 	flag.Parse()
-	monitor.SetNICAllowlist(nicAllowlist)
 
 	dao.Conf = &model.Config{
 		Debug: debug,

@@ -161,12 +161,11 @@ func getLocalIPv6() string {
 	if err != nil {
 		return ""
 	}
-	allowlist := currentNICAllowlist()
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-		if !shouldIncludeNIC(iface.Name, allowlist) {
+		if isVirtualNIC(iface.Name) {
 			continue
 		}
 		addrs, err := iface.Addrs()

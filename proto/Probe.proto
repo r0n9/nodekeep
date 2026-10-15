@@ -25,6 +25,17 @@ message Host {
     string version = 12;
 }
 
+// NICCounter 是单张网卡自开机以来的原始累计计数。
+// Agent 上报全部网卡的原始值，由服务端按管理员选中的网卡集合求和，
+// 这样切换统计口径无需重新下发配置给 Agent。
+message NICCounter {
+    string name = 1;
+    uint64 bytes_recv = 2;
+    uint64 bytes_sent = 3;
+    // virtual 由 Agent 按网卡名前缀判定，服务端据此实现「默认只统计物理网卡」。
+    bool virtual = 4;
+}
+
 message State {
     double cpu = 1;
     uint64 mem_used = 3;
@@ -35,6 +46,8 @@ message State {
     uint64 net_in_speed = 8;
     uint64 net_out_speed = 9;
     uint64 uptime = 10;
+    // nic_counters 为每张网卡的原始计数明细，老 Agent 不填。
+    repeated NICCounter nic_counters = 11;
 }
 
 message Task {

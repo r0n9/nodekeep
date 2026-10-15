@@ -4,7 +4,6 @@ set -euo pipefail
 REPO="r0n9/nodekeep"
 DASHBOARD_SERVER=""
 CLIENT_SECRET=""
-NIC_ALLOWLIST=""
 INSECURE=false
 INIT=""
 backup_dir=""
@@ -13,12 +12,11 @@ service_file=""
 
 usage() {
     cat <<EOF
-Usage: install-agent.sh -s <dashboard-host:port> -p <agent-secret> [--insecure] [--nic eth0,en0]
+Usage: install-agent.sh -s <dashboard-host:port> -p <agent-secret> [--insecure]
 
 Options:
   -s, --server   Dashboard address, for example dashboard.example.com:8008
   -p, --secret   Agent secret generated in the dashboard server list
-  -n, --nic      Network interface allowlist, comma-separated, for example eth0,en0
   -d, --insecure Connect without TLS, for direct HTTP/h2c dashboard access
   -h, --help     Show this help
 EOF
@@ -117,10 +115,6 @@ while [[ $# -gt 0 ]]; do
         CLIENT_SECRET="${2:-}"
         shift 2
         ;;
-    -n|--nic)
-        NIC_ALLOWLIST="${2:-}"
-        shift 2
-        ;;
     -d|--insecure)
         INSECURE=true
         shift
@@ -208,11 +202,6 @@ echo "  Install directory: ${install_dir}"
 echo "  Binary path: ${bin_path}"
 echo "  Service file: ${service_file}"
 echo "  Dashboard server: ${DASHBOARD_SERVER}"
-if [[ -n "${NIC_ALLOWLIST}" ]]; then
-    echo "  NIC allowlist: ${NIC_ALLOWLIST}"
-else
-    echo "  NIC allowlist: auto"
-fi
 if [[ "${INSECURE}" == "true" ]]; then
     echo "  Connection: insecure h2c"
 else
@@ -235,10 +224,6 @@ agent_flags="-s ${DASHBOARD_SERVER} -p ${CLIENT_SECRET}"
 if [[ "${INSECURE}" == "true" ]]; then
     agent_flags="-d ${agent_flags}"
 fi
-if [[ -n "${NIC_ALLOWLIST}" ]]; then
-    agent_flags="${agent_flags} -n ${NIC_ALLOWLIST}"
-fi
-
 backup_dir="${install_dir}/backup"
 run_as_root mkdir -p "${backup_dir}"
 run_as_root rm -f "${backup_dir}/nodekeep-agent.bak" "${backup_dir}/service.bak"
@@ -446,12 +431,6 @@ install_macos_service_file() {
     escaped_install_dir="$(xml_escape "${install_dir}")"
     escaped_server="$(xml_escape "${DASHBOARD_SERVER}")"
     escaped_secret="$(xml_escape "${CLIENT_SECRET}")"
-    escaped_nic="$(xml_escape "${NIC_ALLOWLIST}")"
-    nic_args=""
-    if [[ -n "${NIC_ALLOWLIST}" ]]; then
-        nic_args="<string>-n</string>
-    <string>${escaped_nic}</string>"
-    fi
 
     service_tmp="${tmp_dir}/com.nodekeep.agent.plist"
     cat >"${service_tmp}" <<EOF
@@ -470,7 +449,6 @@ install_macos_service_file() {
     <string>${escaped_server}</string>
     <string>-p</string>
     <string>${escaped_secret}</string>
-    ${nic_args}
   </array>
   <key>WorkingDirectory</key>
   <string>${escaped_install_dir}</string>
