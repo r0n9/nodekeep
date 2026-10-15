@@ -846,6 +846,37 @@ html[data-theme="dark"] .nk-view-switch button.active {
   color: currentColor !important;
 }
 
+/* 首页浮动视图切换：固定在视口右下角，让卡片/列表切换在任意滚动位置都可达，
+   不再只挂在首个分组头上（原先滚过第一个分组就够不到了）。 */
+.nk-view-switch.nk-view-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  height: auto;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--nk-surface);
+  box-shadow:
+    0 12px 30px rgba(10, 31, 68, 0.18),
+    0 2px 6px rgba(10, 31, 68, 0.08);
+}
+
+.nk-view-switch.nk-view-fab .nk-view-btn,
+.nk-view-switch.nk-view-fab button {
+  height: 28px;
+  width: 34px !important;
+  min-width: 34px;
+  border-radius: 7px;
+}
+
+html[data-theme="dark"] .nk-view-switch.nk-view-fab {
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
 @media (pointer: coarse) {
   .nk-view-switch {
     height: auto;
@@ -864,6 +895,18 @@ html[data-theme="dark"] .nk-view-switch button.active {
   .nk-view-switch .nk-switch-svg {
     width: 18px;
     height: 18px;
+  }
+
+  .nk-view-switch.nk-view-fab {
+    padding: 4px;
+  }
+
+  .nk-view-switch.nk-view-fab .nk-view-btn,
+  .nk-view-switch.nk-view-fab button {
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+    border-radius: 8px;
   }
 }
 
@@ -925,6 +968,11 @@ html[data-theme="dark"] .nk-view-switch button.active {
 
 .nk-group {
   margin-top: 1.05rem;
+}
+
+/* 给浮动切换按钮留出空间，避免遮住最后一行卡片的右下角。 */
+.nk-monitor {
+  padding-bottom: 2.5rem;
 }
 
 .nk-monitor > .nk-group:first-of-type {
@@ -4496,6 +4544,17 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
 
   .nk-public-page {
     padding-top: 12px;
+  }
+
+  /* 窄屏下把浮动切换按钮贴近角落，并加大页面底部留白（触屏按钮更高）。 */
+  .nk-view-switch.nk-view-fab {
+    right: 14px;
+    bottom: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nk-monitor {
+    padding-bottom: 3.5rem;
   }
 
   .nk-topbar {
