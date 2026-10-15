@@ -1,14 +1,15 @@
 package monitor
 
 import (
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
-
-	"github.com/r0n9/nodekeep/model"
 )
 
 func TestDetectedPlatformPrefersDistribution(t *testing.T) {
@@ -37,6 +38,60 @@ func TestGetHostCPUIsNonNil(t *testing.T) {
 	host := GetHost()
 	if host.CPU == nil {
 		t.Fatal("expected CPU info slice to be non-nil")
+	}
+}
+
+// 采集函数返回 (nil, err) 时必须降级为零值而不是 panic，
+// 否则一次无权限读取（例如 boot time）就会打挂整个 Agent。
+func TestGetHostSurvivesCollectionFailure(t *testing.T) {
+	restore := failAllCollections()
+	defer restore()
+
+	got := GetHost()
+	if got == nil {
+		t.Fatal("GetHost() returned nil")
+	}
+	if got.Platform != "" || got.Arch != "" || got.BootTime != 0 {
+		t.Fatalf("expected zeroed host info, got %#v", got)
+	}
+	if got.MemTotal != 0 || got.SwapTotal != 0 || got.DiskTotal != 0 {
+		t.Fatalf("expected zeroed totals, got mem=%d swap=%d disk=%d", got.MemTotal, got.SwapTotal, got.DiskTotal)
+	}
+	if got.CPU == nil {
+		t.Fatal("expected CPU info slice to be non-nil")
+	}
+}
+
+func TestGetStateSurvivesCollectionFailure(t *testing.T) {
+	restore := failAllCollections()
+	defer restore()
+
+	got := GetState(0)
+	if got == nil {
+		t.Fatal("GetState() returned nil")
+	}
+	if got.Uptime != 0 || got.MemUsed != 0 || got.SwapUsed != 0 || got.DiskUsed != 0 {
+		t.Fatalf("expected zeroed state, got %#v", got)
+	}
+}
+
+func failAllCollections() func() {
+	originalHostInfo := hostInfoFunc
+	originalVirtualMemory := memVirtualMemory
+	originalSwapMemory := memSwapMemory
+	originalDiskUsage := diskUsageFunc
+
+	err := errors.New("operation not permitted")
+	hostInfoFunc = func() (*host.InfoStat, error) { return nil, err }
+	memVirtualMemory = func() (*mem.VirtualMemoryStat, error) { return nil, err }
+	memSwapMemory = func() (*mem.SwapMemoryStat, error) { return nil, err }
+	diskUsageFunc = func(string) (*disk.UsageStat, error) { return nil, err }
+
+	return func() {
+		hostInfoFunc = originalHostInfo
+		memVirtualMemory = originalVirtualMemory
+		memSwapMemory = originalSwapMemory
+		diskUsageFunc = originalDiskUsage
 	}
 }
 
@@ -191,12 +246,7 @@ func TestTrackNetworkSpeedPublishesNICSnapshot(t *testing.T) {
 
 	TrackNetworkSpeed()
 
-	// 直接读快照而不走 GetState：GetState 依赖 host.Info()，
-	// 在受限环境（无权限读取 boot time）下会返回 nil 而 panic。
-	nics, ok := nicSnapshot.Load().([]model.NICCounter)
-	if !ok {
-		t.Fatal("NIC snapshot was not published")
-	}
+	nics := GetState(0).NICs
 	if len(nics) != 2 {
 		t.Fatalf("published NICs = %d, want 2", len(nics))
 	}

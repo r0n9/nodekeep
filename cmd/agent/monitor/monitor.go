@@ -26,6 +26,11 @@ var (
 		return net.IOCounters(true)
 	}
 	nowFunc = time.Now
+
+	hostInfoFunc     = host.Info
+	memVirtualMemory = mem.VirtualMemory
+	memSwapMemory    = mem.SwapMemory
+	diskUsageFunc    = disk.Usage
 )
 
 var excludedNICPrefixes = []string{
@@ -34,20 +39,20 @@ var excludedNICPrefixes = []string{
 }
 
 func GetHost() *model.Host {
-	hi, _ := host.Info()
+	hi := hostInfo()
 	var cpuType string
 	if hi.VirtualizationSystem != "" {
 		cpuType = "Virtual"
 	} else {
 		cpuType = "Physical"
 	}
-	mv, _ := mem.VirtualMemory()
-	ms, _ := mem.SwapMemory()
-	u, _ := disk.Usage("/")
+	mv := virtualMemory()
+	ms := swapMemory()
+	u := diskUsage("/")
 	ip, country := CachedIP()
 
 	return &model.Host{
-		Platform:        detectedPlatform(hi),
+		Platform:        detectedPlatform(&hi),
 		PlatformVersion: hi.PlatformVersion,
 		CPU:             getCPUInfo(cpuType),
 		MemTotal:        mv.Total,
@@ -62,6 +67,40 @@ func GetHost() *model.Host {
 	}
 }
 
+// 采集函数在受限环境下会返回 (nil, err)，例如无权限读取 boot time 时
+// host.Info() 就是如此。解引用 nil 会让整个采集进程 panic，所以统一降级为零值。
+func hostInfo() host.InfoStat {
+	hi, err := hostInfoFunc()
+	if err != nil || hi == nil {
+		return host.InfoStat{}
+	}
+	return *hi
+}
+
+func virtualMemory() mem.VirtualMemoryStat {
+	mv, err := memVirtualMemory()
+	if err != nil || mv == nil {
+		return mem.VirtualMemoryStat{}
+	}
+	return *mv
+}
+
+func swapMemory() mem.SwapMemoryStat {
+	ms, err := memSwapMemory()
+	if err != nil || ms == nil {
+		return mem.SwapMemoryStat{}
+	}
+	return *ms
+}
+
+func diskUsage(path string) disk.UsageStat {
+	u, err := diskUsageFunc(path)
+	if err != nil || u == nil {
+		return disk.UsageStat{}
+	}
+	return *u
+}
+
 func detectedPlatform(info *host.InfoStat) string {
 	if info == nil {
 		return ""
@@ -73,10 +112,10 @@ func detectedPlatform(info *host.InfoStat) string {
 }
 
 func GetState(delay int64) *model.HostState {
-	hi, _ := host.Info()
+	hi := hostInfo()
 	// Memory
-	mv, _ := mem.VirtualMemory()
-	ms, _ := mem.SwapMemory()
+	mv := virtualMemory()
+	ms := swapMemory()
 	// CPU
 	var cpuPercent float64
 	cp, err := cpu.Percent(time.Second*time.Duration(delay), false)
@@ -84,7 +123,7 @@ func GetState(delay int64) *model.HostState {
 		cpuPercent = cp[0]
 	}
 	// Disk
-	u, _ := disk.Usage("/")
+	u := diskUsage("/")
 
 	state := &model.HostState{
 		CPU:            cpuPercent,
