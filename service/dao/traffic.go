@@ -32,8 +32,23 @@ type serverTrafficTracker struct {
 	pendingOut  uint64
 	lastRawIn   uint64
 	lastRawOut  uint64
+	lastRawAt   time.Time
+	// lastNICKey 是上一次参与求和的网卡名指纹。统计口径变化时原始计数会
+	// 阶跃，必须重设基线而不是把阶跃当成流量。
+	lastNICKey  string
 	hasLastRaw  bool
 	initialized bool
+}
+
+// trafficResult 是 ProcessServerTraffic 的处理结果。
+// 速率由服务端按选中集合重算：Agent 上报的速率是按它自己的口径算的，
+// 与管理员选中的网卡集合可能不一致，不能直接采信。
+type trafficResult struct {
+	TotalIn  uint64
+	TotalOut uint64
+	InSpeed  uint64
+	OutSpeed uint64
+	Snapshot *model.ServerTrafficSnapshot
 }
 
 var (
@@ -118,10 +133,16 @@ func recalcCycleTrafficLocked(tr *serverTrafficTracker) {
 	tr.cycleNetOut = result.SumOut + tr.pendingOut
 }
 
-// ProcessServerTraffic 处理 Agent 上报的网卡原始计数，返回跨重启持久累计值和实时流量快照。
-func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, now time.Time) (uint64, uint64, *model.ServerTrafficSnapshot) {
+// ProcessServerTraffic 处理 Agent 上报的网卡原始计数，返回跨重启持久累计值、
+// 重算后的实时速率和流量快照。
+//
+// nicKey 是本次参与求和的网卡名指纹（见 sumSelectedNICs）。它与上次不同时
+// 只把当前值当作新基线，不累加增量：求和口径一变，rawIn/rawOut 会阶跃，
+// 而 positiveCounterDelta 在 current < previous 时会把 current 整个当成增量，
+// 缩小白名单就会一次性灌入几十 GB 假流量。
+func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, nicKey string, now time.Time) trafficResult {
 	if serverID == 0 {
-		return rawIn, rawOut, nil
+		return trafficResult{TotalIn: rawIn, TotalOut: rawOut}
 	}
 
 	trafficLock.Lock()
@@ -143,6 +164,8 @@ func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, now time.Time) 
 
 	curDate := now.In(time.Local).Format("2006-01-02")
 	cycleStart, cycleEnd := model.BillingCycleRange(now, resetDay)
+
+	var inSpeed, outSpeed uint64
 
 	if !tracker.initialized {
 		tracker.todayDate = curDate
@@ -186,6 +209,8 @@ func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, now time.Time) 
 
 		tracker.lastRawIn = rawIn
 		tracker.lastRawOut = rawOut
+		tracker.lastRawAt = now
+		tracker.lastNICKey = nicKey
 		tracker.hasLastRaw = true
 		tracker.initialized = true
 	} else {
@@ -205,22 +230,32 @@ func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, now time.Time) 
 			}
 		}
 
-		// 计算增量 Delta（能自动处理节点重启重置）
-		deltaIn := positiveCounterDelta(rawIn, tracker.lastRawIn)
-		deltaOut := positiveCounterDelta(rawOut, tracker.lastRawOut)
+		// 统计口径变化时只重设基线、不累加增量：求和口径一变 rawIn/rawOut 会阶跃，
+		// 累加会把整个阶跃当成流量。
+		if tracker.lastNICKey == nicKey {
+			// 计算增量 Delta（能自动处理节点重启重置）
+			deltaIn := positiveCounterDelta(rawIn, tracker.lastRawIn)
+			deltaOut := positiveCounterDelta(rawOut, tracker.lastRawOut)
 
-		tracker.todayNetIn += deltaIn
-		tracker.todayNetOut += deltaOut
-		tracker.cycleNetIn += deltaIn
-		tracker.cycleNetOut += deltaOut
-		tracker.totalNetIn += deltaIn
-		tracker.totalNetOut += deltaOut
+			tracker.todayNetIn += deltaIn
+			tracker.todayNetOut += deltaOut
+			tracker.cycleNetIn += deltaIn
+			tracker.cycleNetOut += deltaOut
+			tracker.totalNetIn += deltaIn
+			tracker.totalNetOut += deltaOut
 
-		tracker.pendingIn += deltaIn
-		tracker.pendingOut += deltaOut
+			tracker.pendingIn += deltaIn
+			tracker.pendingOut += deltaOut
+
+			elapsed := now.Sub(tracker.lastRawAt)
+			inSpeed = ratePerSecond(counterDeltaForSpeed(rawIn, tracker.lastRawIn), elapsed)
+			outSpeed = ratePerSecond(counterDeltaForSpeed(rawOut, tracker.lastRawOut), elapsed)
+		}
 
 		tracker.lastRawIn = rawIn
 		tracker.lastRawOut = rawOut
+		tracker.lastRawAt = now
+		tracker.lastNICKey = nicKey
 	}
 
 	cycleUsed := model.CalculateCycleUsed(setting.TrafficType, tracker.cycleNetIn, tracker.cycleNetOut)
@@ -243,7 +278,31 @@ func ProcessServerTraffic(serverID uint64, rawIn, rawOut uint64, now time.Time) 
 		CycleResetDay:    resetDay,
 	}
 
-	return tracker.totalNetIn, tracker.totalNetOut, snapshot
+	return trafficResult{
+		TotalIn:  tracker.totalNetIn,
+		TotalOut: tracker.totalNetOut,
+		InSpeed:  inSpeed,
+		OutSpeed: outSpeed,
+		Snapshot: snapshot,
+	}
+}
+
+// counterDeltaForSpeed 计算速率用的增量。与累计口径不同，计数器回退
+// （节点重启）时返回 0：此时的瞬时速率无从得知，报 0 比报一个由
+// 「重启后累计值 ÷ 上报间隔」算出来的假峰值安全。
+func counterDeltaForSpeed(current, previous uint64) uint64 {
+	if current < previous {
+		return 0
+	}
+	return current - previous
+}
+
+// ratePerSecond 把增量换算成每秒字节数。
+func ratePerSecond(delta uint64, elapsed time.Duration) uint64 {
+	if delta == 0 || elapsed <= 0 {
+		return 0
+	}
+	return uint64(float64(delta) * float64(time.Second) / float64(elapsed))
 }
 
 // FlushServerTraffic 将指定服务器尚未落盘的流量增量持久化到 SQLite。

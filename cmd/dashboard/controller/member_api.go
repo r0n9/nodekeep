@@ -36,6 +36,7 @@ func (ma *memberAPI) serve() {
 
 	mr.GET("/search-server", ma.searchServer)
 	mr.GET("/server/:id/payments", ma.serverPayments)
+	mr.GET("/server/:id/nic", ma.serverNICs)
 	mr.POST("/server", ma.addOrEditServer)
 	mr.POST("/server/:id/renew", ma.renewServer)
 	mr.POST("/monitor", ma.addOrEditMonitor)
@@ -64,6 +65,9 @@ func (ma *memberAPI) delete(c *gin.Context) {
 		err = dao.DB.Delete(&model.Server{}, "id = ?", id).Error
 		if err == nil {
 			err = dao.DeleteServerBillingData(id)
+		}
+		if err == nil {
+			dao.DeleteServerNICs(id)
 		}
 		if err == nil {
 			dao.DeleteServerRuntime(id)
@@ -178,6 +182,10 @@ type serverForm struct {
 	CPUSpec      string
 	MemSpec      string
 	DiskSpec     string
+
+	// 流量统计网卡，多选；留空表示自动统计所有物理网卡。
+	// 属于监控配置而非计费信息，不参与 hasBillingData 判定。
+	TrafficNICs []string
 }
 
 // hasBillingData 判断计费表单是否被填写过。整体留空表示这台机器没有计费信息，
@@ -198,6 +206,31 @@ func (sf *serverForm) hasBillingData() bool {
 		return true
 	}
 	return sf.AutoRenew == "on" || sf.Muted == "on" || sf.HideBilling == "on"
+}
+
+// normalizeNICSelection 校验并规范化后台提交的流量统计网卡选择。
+// 网卡名来自 Agent 上报，属于不可信输入，因此限长限量后再落库。
+func normalizeNICSelection(names []string) (string, error) {
+	cleaned := make([]string, 0, len(names))
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if len(name) > model.MaxNICNameLength {
+			return "", fmt.Errorf("网卡名过长：%s", name)
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		cleaned = append(cleaned, name)
+	}
+	if len(cleaned) > model.MaxTrafficNICs {
+		return "", fmt.Errorf("最多只能选择 %d 个网卡", model.MaxTrafficNICs)
+	}
+	return model.FormatNICSelection(cleaned), nil
 }
 
 var validBillingCycles = map[string]bool{
@@ -282,6 +315,10 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 	var billing *model.ServerBilling
 	var isEdit bool
 	err := c.ShouldBindJSON(&sf)
+	var trafficNICs string
+	if err == nil {
+		trafficNICs, err = normalizeNICSelection(sf.TrafficNICs)
+	}
 	if err == nil && sf.hasBillingData() {
 		billing, err = sf.buildServerBilling()
 	}
@@ -292,6 +329,7 @@ func (ma *memberAPI) addOrEditServer(c *gin.Context) {
 		s.ID = sf.ID
 		s.Tag = sf.Tag
 		s.Note = sf.Note
+		s.TrafficNICs = trafficNICs
 		if sf.ID == 0 {
 			s.Secret = utils.MD5(fmt.Sprintf("%s%s%d", time.Now(), sf.Name, admin.ID))
 			s.Secret = s.Secret[:18]
@@ -348,6 +386,68 @@ func (ma *memberAPI) serverPayments(c *gin.Context) {
 		Result: gin.H{
 			"renew":    newRenewDefaults(billing, time.Now()),
 			"payments": newPaymentViews(dao.ServerPaymentsOf(id)),
+		},
+	})
+}
+
+// nicView 是后台网卡选择器的一个候选项。
+type nicView struct {
+	Name     string `json:"Name"`
+	Virtual  bool   `json:"Virtual"`
+	LastSeen string `json:"LastSeen"`
+	// Stale 表示该网卡已有一段时间没出现在上报里：可能已被删除，
+	// 也可能只是节点离线。前端据此置灰但保留选项，避免保存时静默丢配置。
+	Stale bool `json:"Stale"`
+}
+
+// nicStaleAfter 是判定网卡「已失联」的阈值。Agent 每 2 秒上报一次，
+// 超过这个时间仍未出现，基本可以认为网卡已不存在或节点离线。
+const nicStaleAfter = 10 * time.Minute
+
+// serverNICs 返回某台服务器可选的网卡清单，供编辑弹窗的网卡选择器使用。
+// Supported 为 false 表示该节点从未上报过网卡明细（Agent 版本过旧），
+// 前端据此禁用选择器，避免用户以为配置生效了。
+func (ma *memberAPI) serverNICs(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	if id < 1 {
+		c.JSON(http.StatusOK, model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "错误的 Server ID",
+		})
+		return
+	}
+
+	now := time.Now()
+	nics := dao.ServerNICList(id)
+	views := make([]nicView, 0, len(nics))
+	for _, nic := range nics {
+		lastSeen := ""
+		if !nic.LastSeen.IsZero() {
+			lastSeen = nic.LastSeen.In(time.Local).Format("2006-01-02 15:04:05")
+		}
+		views = append(views, nicView{
+			Name:     nic.Name,
+			Virtual:  nic.Virtual,
+			LastSeen: lastSeen,
+			Stale:    nic.LastSeen.IsZero() || now.Sub(nic.LastSeen) > nicStaleAfter,
+		})
+	}
+
+	// 已保存的选择要一并返回，否则节点离线时前端拿不到选项，
+	// 保存会把这台机器的网卡配置清空。
+	selected := []string{}
+	if runtime, ok := dao.ServerRuntimeOf(id); ok {
+		if names := model.ParseNICSelection(runtime.TrafficNICs); names != nil {
+			selected = names
+		}
+	}
+
+	c.JSON(http.StatusOK, model.Response{
+		Code: http.StatusOK,
+		Result: gin.H{
+			"List":      views,
+			"Selected":  selected,
+			"Supported": len(views) > 0,
 		},
 	})
 }

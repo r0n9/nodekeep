@@ -39,7 +39,8 @@ func TestProcessServerTrafficHandlesRebootAndMonotonicIncrease(t *testing.T) {
 	now := time.Date(2026, 9, 20, 10, 0, 0, 0, time.Local)
 
 	// 1. 首次接入：当前网卡值为 1000 入, 2000 出
-	totalIn, totalOut, snap := ProcessServerTraffic(serverID, 1000, 2000, now)
+	first := ProcessServerTraffic(serverID, 1000, 2000, legacyNICKey, now)
+	totalIn, totalOut, snap := first.TotalIn, first.TotalOut, first.Snapshot
 	if totalIn != 1000 || totalOut != 2000 {
 		t.Fatalf("first tick: totalIn=%d, totalOut=%d, want 1000, 2000", totalIn, totalOut)
 	}
@@ -48,7 +49,8 @@ func TestProcessServerTrafficHandlesRebootAndMonotonicIncrease(t *testing.T) {
 	}
 
 	// 2. 正常运行增加 500 入, 600 出
-	totalIn, totalOut, snap = ProcessServerTraffic(serverID, 1500, 2600, now.Add(time.Second*10))
+	second := ProcessServerTraffic(serverID, 1500, 2600, legacyNICKey, now.Add(time.Second*10))
+	totalIn, totalOut, snap = second.TotalIn, second.TotalOut, second.Snapshot
 	if totalIn != 1500 || totalOut != 2600 {
 		t.Fatalf("second tick: totalIn=%d, totalOut=%d, want 1500, 2600", totalIn, totalOut)
 	}
@@ -58,9 +60,14 @@ func TestProcessServerTrafficHandlesRebootAndMonotonicIncrease(t *testing.T) {
 	if snap.CycleUsed != 1100 {
 		t.Fatalf("second tick cycleUsed: %d, want 1100", snap.CycleUsed)
 	}
+	// 10 秒增加 500 入 600 出 => 50 B/s、60 B/s
+	if second.InSpeed != 50 || second.OutSpeed != 60 {
+		t.Fatalf("second tick speed: in=%d, out=%d, want 50, 60", second.InSpeed, second.OutSpeed)
+	}
 
 	// 3. 模拟节点重启：网卡计数重置为 50 入, 80 出（50 < 1500, 80 < 2600）
-	totalIn, totalOut, snap = ProcessServerTraffic(serverID, 50, 80, now.Add(time.Minute*2))
+	reboot := ProcessServerTraffic(serverID, 50, 80, legacyNICKey, now.Add(time.Minute*2))
+	totalIn, totalOut, snap = reboot.TotalIn, reboot.TotalOut, reboot.Snapshot
 	// 重启后增量应为 50, 80，累计总量应增长为 1500+50=1550, 2600+80=2680
 	if totalIn != 1550 || totalOut != 2680 {
 		t.Fatalf("reboot tick: totalIn=%d, totalOut=%d, want 1550, 2680", totalIn, totalOut)
@@ -71,9 +78,14 @@ func TestProcessServerTrafficHandlesRebootAndMonotonicIncrease(t *testing.T) {
 	if snap.CycleUsed != 1230 {
 		t.Fatalf("reboot tick cycleUsed: %d, want 1230", snap.CycleUsed)
 	}
+	// 计数器回退时速率报 0，而不是拿「重启后累计值 ÷ 间隔」算出的假峰值。
+	if reboot.InSpeed != 0 || reboot.OutSpeed != 0 {
+		t.Fatalf("reboot tick speed: in=%d, out=%d, want 0, 0", reboot.InSpeed, reboot.OutSpeed)
+	}
 
 	// 4. 重启后继续运行：增加 10 入, 20 出 (计数器变为 60, 100)
-	totalIn, totalOut, snap = ProcessServerTraffic(serverID, 60, 100, now.Add(time.Minute*3))
+	fourth := ProcessServerTraffic(serverID, 60, 100, legacyNICKey, now.Add(time.Minute*3))
+	totalIn, totalOut, snap = fourth.TotalIn, fourth.TotalOut, fourth.Snapshot
 	if totalIn != 1560 || totalOut != 2700 {
 		t.Fatalf("post-reboot tick: totalIn=%d, totalOut=%d, want 1560, 2700", totalIn, totalOut)
 	}
@@ -111,12 +123,12 @@ func TestProcessServerTrafficDayAndCycleRollover(t *testing.T) {
 
 	// 9月14日（本周期的最后一天）
 	day1 := time.Date(2026, 9, 14, 23, 50, 0, 0, time.Local)
-	ProcessServerTraffic(serverID, 1000, 1000, day1)
-	ProcessServerTraffic(serverID, 1200, 1300, day1.Add(time.Minute*5)) // +200, +300
+	ProcessServerTraffic(serverID, 1000, 1000, legacyNICKey, day1)
+	ProcessServerTraffic(serverID, 1200, 1300, legacyNICKey, day1.Add(time.Minute*5)) // +200, +300
 
 	// 跨天跨周期到 9月15日 00:05（进入新账单周期）
 	day2 := time.Date(2026, 9, 15, 0, 5, 0, 0, time.Local)
-	_, _, snap := ProcessServerTraffic(serverID, 1250, 1380, day2) // +50, +80
+	snap := ProcessServerTraffic(serverID, 1250, 1380, legacyNICKey, day2).Snapshot // +50, +80
 
 	// 新的一天，今日流量应为 50, 80
 	if snap.TodayNetIn != 50 || snap.TodayNetOut != 80 {

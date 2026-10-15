@@ -86,6 +86,15 @@ function showFormModal(modelSelector, formID, URL, getData) {
             form.children('.message').remove()
             btn.toggleClass('loading')
             const data = getData ? getData() : $(formID).serializeArray().reduce(function (obj, item) {
+                if (item.name === 'TrafficNICs') {
+                    // 由 Semantic UI 多选维护，直接读它的 API：
+                    // 隐藏 input 的序列化格式是库内部实现细节，不可依赖。
+                    // get values 在无选中时返回空串，其余情况返回数组。
+                    const picked = $(formID).find('.nk-server-nic-select').dropdown('get values')
+                    obj.TrafficNICs = Array.isArray(picked) ? picked : []
+                    return obj
+                }
+
                 // ID 类的数据
                 if (isNumericFormField(item.name)) {
                     obj[item.name] = parseInt(item.value);
@@ -182,7 +191,7 @@ function resetServerTabs(modal) {
 function fillServerBillingForm(modal, billing) {
     const data = billing || {}
     modal.find('[data-tab="server-billing"], [data-tab="server-plan"]')
-        .find('input, select, textarea').each(function () {
+        .find('input, select, textarea').not('.nk-server-nic-select, .nk-server-nic-select *').each(function () {
             const el = $(this)
             const name = el.attr('name')
             if (!name) {
@@ -217,9 +226,88 @@ function addOrEditServer(server, billing) {
         modal.find('input[name=secret]').val('')
     }
     fillServerBillingForm(modal, billing)
+    loadServerNICs(modal, server ? server.ID : 0, server ? server.TrafficNICs : '')
     bindServerTabs(modal)
     resetServerTabs(modal)
     showFormModal('.server.modal', '#serverForm', '/api/server')
+}
+
+const serverNICHintDefault = '留空 = 自动统计所有物理网卡（过滤 lo/docker/veth 等虚拟网卡）。仅影响之后的增量，历史数据不追溯。'
+
+// 流量统计网卡多选。选项来自 Agent 上报的网卡清单。
+//
+// 用 div + 隐藏 input 的结构（与计划任务的服务器选择器一致），而不是
+// <select multiple>：Semantic UI 初始化 select 时会把 class 搬到生成的 div 上、
+// 再把 select 移进该 div，之后 refresh 也不会重新读取 select 的 option，
+// 动态改选项会直接坏掉。
+//
+// 另一个坑：已保存但当前未上报的网卡（节点离线、网卡被删）必须保留在选项里，
+// 否则保存会把这台机器的配置静默清空。
+function loadServerNICs(modal, serverID, selected) {
+    const dropdown = modal.find('.nk-server-nic-select')
+    const menu = dropdown.children('.menu')
+    const hint = modal.find('.nk-server-nic-hint')
+    // 后端下发的是存储原样的逗号分隔字符串。
+    const chosen = (selected || '').split(',').map(function (name) {
+        return name.trim()
+    }).filter(function (name) {
+        return name !== ''
+    })
+
+    menu.empty()
+    dropdown.dropdown('refresh')
+    dropdown.dropdown('clear')
+    hint.text(serverNICHintDefault)
+
+    if (!serverID) {
+        hint.text('保存后由 Agent 上报网卡清单。' + serverNICHintDefault)
+        return
+    }
+
+    $.get('/api/server/' + serverID + '/nic').done(function (resp) {
+        if (resp.code !== 200) {
+            hint.text(resp.message || '读取网卡失败')
+            return
+        }
+        const list = (resp.result && resp.result.List) || []
+        const reported = []
+        list.forEach(function (nic) {
+            reported.push(nic.Name)
+            let label = nic.Name
+            if (nic.Virtual) {
+                label += '（虚拟）'
+            }
+            if (nic.Stale) {
+                label += '（已失联）'
+            }
+            menu.append(nicMenuItem(nic.Name, label))
+        })
+        chosen.forEach(function (name) {
+            if (reported.indexOf(name) !== -1) {
+                return
+            }
+            menu.append(nicMenuItem(name, name + '（未上报）'))
+        })
+        // refresh 会重新查询 .menu 下的 .item，所以动态加的项能被识别。
+        dropdown.dropdown('refresh')
+        if (chosen.length) {
+            dropdown.dropdown('set selected', chosen)
+        }
+        if (!list.length) {
+            hint.text('该节点尚未上报网卡清单，请确认 Agent 版本；当前显示的是已保存的配置。')
+        }
+    }).fail(function (err) {
+        hint.text('读取网卡失败：' + err.responseText)
+    })
+}
+
+// nicMenuItem 构造一个下拉项。网卡名来自 Agent，用 textContent 而不是拼 HTML。
+function nicMenuItem(value, label) {
+    const item = document.createElement('div')
+    item.className = 'item'
+    item.setAttribute('data-value', value)
+    item.textContent = label
+    return item
 }
 
 // 续费弹窗。默认值（含推进后的到期日）全部由服务端算好，
@@ -665,6 +753,11 @@ $(document).ready(() => {
                 cache: false,
             },
         })
+    } catch (error) {
+    }
+    try {
+        // 服务器编辑弹窗里的流量统计网卡多选。选项在弹窗打开时按需填充。
+        $('.nk-server-nic-select').dropdown()
     } catch (error) {
     }
 })

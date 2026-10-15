@@ -37,6 +37,11 @@ var (
 
 	serverMetricBuckets map[uint64]*serverMetricBucket
 	serverMetricLock    sync.Mutex
+
+	// serverNICSeen 缓存每台服务器最近一次上报的网卡名集合，
+	// 用于判断清单是否变化，避免每次上报都写库。
+	serverNICSeen     map[uint64]*serverNICSeenState
+	serverNICSeenLock sync.Mutex
 )
 
 var errTaskStreamReplaced = errors.New("task stream replaced")
@@ -60,6 +65,8 @@ type serverMetricBucket struct {
 	lastInTransfer  uint64
 	lastOutTransfer uint64
 	hasLastTransfer bool
+	// lastNICKey 记录本桶上次采样时的网卡统计口径，口径变化时丢弃增量基线。
+	lastNICKey string
 }
 
 func (t TaskTarget) Send(task *pb.Task) error {
@@ -87,6 +94,9 @@ func InitServerRuntimeState() {
 	serverMetricLock.Lock()
 	serverMetricBuckets = make(map[uint64]*serverMetricBucket)
 	serverMetricLock.Unlock()
+	serverNICSeenLock.Lock()
+	serverNICSeen = make(map[uint64]*serverNICSeenState)
+	serverNICSeenLock.Unlock()
 	InitTrafficState()
 }
 
@@ -106,6 +116,9 @@ func cloneState(s *model.HostState) *model.HostState {
 		return nil
 	}
 	clone := *s
+	if s.NICs != nil {
+		clone.NICs = append([]model.NICCounter(nil), s.NICs...)
+	}
 	return &clone
 }
 
@@ -217,6 +230,9 @@ func DeleteServerRuntime(id uint64) {
 	}
 	delete(serverList, id)
 	serverLock.Unlock()
+	serverNICSeenLock.Lock()
+	delete(serverNICSeen, id)
+	serverNICSeenLock.Unlock()
 	ReSortServer()
 }
 
@@ -259,18 +275,20 @@ func DetachTaskStream(clientID uint64, stream pb.ProbeService_RequestTaskServer)
 func UpdateServerState(clientID uint64, state model.HostState, now time.Time) {
 	serverLock.Lock()
 	var host *model.Host
+	var selectedNICs []string
 	var found bool
 	if s := serverList[clientID]; s != nil {
 		s.runtime.LastActive = now
 		s.runtime.State = &state
 		host = cloneHost(s.runtime.Host)
+		selectedNICs = model.ParseNICSelection(s.runtime.Server.TrafficNICs)
 		found = true
 	}
 	serverLock.Unlock()
 	if !found {
 		return
 	}
-	ObserveServerMetric(clientID, state, host, now)
+	ObserveServerMetric(clientID, state, host, selectedNICs, now)
 }
 
 func UpdateServerHost(clientID uint64, host model.Host, enableIPChangeNotification bool) (name, oldIP, newIP string, changed bool) {
@@ -356,10 +374,32 @@ func ServerSnapshot() []*model.ServerRuntime {
 	return servers
 }
 
-func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Host, now time.Time) {
+// ServerRuntimeOf 返回单台服务器的内存态快照。
+func ServerRuntimeOf(id uint64) (*model.ServerRuntime, bool) {
+	serverLock.RLock()
+	defer serverLock.RUnlock()
+	s := serverList[id]
+	if s == nil {
+		return nil, false
+	}
+	return cloneServerRuntime(&s.runtime), true
+}
+
+// ObserveServerMetric 记录一次节点状态采样。
+//
+// selectedNICs 是管理员为该节点选定的统计网卡，为空表示自动（所有物理网卡）。
+// 网卡明细缺失时（老 Agent）回落到 Agent 上报的聚合字段，行为与改造前一致。
+func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Host, selectedNICs []string, now time.Time) {
 	if serverID == 0 || now.IsZero() {
 		return
 	}
+	syncServerNICs(serverID, state.NICs, now)
+
+	selectedIn, selectedOut, nicKey, hasNICs := sumSelectedNICs(state.NICs, selectedNICs)
+	if !hasNICs {
+		selectedIn, selectedOut = state.NetInTransfer, state.NetOutTransfer
+	}
+
 	bucketAt := now.Truncate(time.Minute)
 	serverMetricLock.Lock()
 	defer serverMetricLock.Unlock()
@@ -379,28 +419,42 @@ func ObserveServerMetric(serverID uint64, state model.HostState, host *model.Hos
 		next.lastInTransfer = bucket.lastInTransfer
 		next.lastOutTransfer = bucket.lastOutTransfer
 		next.hasLastTransfer = bucket.hasLastTransfer
+		next.lastNICKey = bucket.lastNICKey
 		bucket = next
 		serverMetricBuckets[serverID] = bucket
 	}
 
+	if bucket.lastNICKey != nicKey {
+		// 统计口径变化会让计数阶跃，本桶的增量基线作废。
+		bucket.hasLastTransfer = false
+		bucket.lastNICKey = nicKey
+	}
+
 	netInBytes, netOutBytes := uint64(0), uint64(0)
 	if bucket.hasLastTransfer {
-		netInBytes = positiveCounterDelta(state.NetInTransfer, bucket.lastInTransfer)
-		netOutBytes = positiveCounterDelta(state.NetOutTransfer, bucket.lastOutTransfer)
+		netInBytes = positiveCounterDelta(selectedIn, bucket.lastInTransfer)
+		netOutBytes = positiveCounterDelta(selectedOut, bucket.lastOutTransfer)
 	}
+	result := ProcessServerTraffic(serverID, selectedIn, selectedOut, nicKey, now)
+
+	// 速率以服务端重算的为准，Agent 上报值只反映它自己的统计口径。
+	state.NetInSpeed = result.InSpeed
+	state.NetOutSpeed = result.OutSpeed
+
 	addServerMetricSample(&bucket.metric, state, host, netInBytes, netOutBytes)
-	bucket.lastInTransfer = state.NetInTransfer
-	bucket.lastOutTransfer = state.NetOutTransfer
+	bucket.lastInTransfer = selectedIn
+	bucket.lastOutTransfer = selectedOut
 	bucket.hasLastTransfer = true
 
-	totalIn, totalOut, trafficSnapshot := ProcessServerTraffic(serverID, state.NetInTransfer, state.NetOutTransfer, now)
 	serverLock.Lock()
 	if s := serverList[serverID]; s != nil {
 		if s.runtime.State != nil {
-			s.runtime.State.NetInTransfer = totalIn
-			s.runtime.State.NetOutTransfer = totalOut
+			s.runtime.State.NetInTransfer = result.TotalIn
+			s.runtime.State.NetOutTransfer = result.TotalOut
+			s.runtime.State.NetInSpeed = result.InSpeed
+			s.runtime.State.NetOutSpeed = result.OutSpeed
 		}
-		s.runtime.Traffic = trafficSnapshot
+		s.runtime.Traffic = result.Snapshot
 	}
 	serverLock.Unlock()
 }

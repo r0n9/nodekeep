@@ -200,6 +200,19 @@
                         <input type="text" name="Location" placeholder="洛杉矶 DC9">
                     </div>
                 </div>
+                <div class="field nk-server-nic-field">
+                    <label>流量统计网卡</label>
+                    <div class="ui fluid multiple search selection dropdown nk-server-nic-select">
+                        <input type="hidden" name="TrafficNICs">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">留空 = 自动统计所有物理网卡</div>
+                        <div class="menu"></div>
+                    </div>
+                    <p class="nk-form-hint nk-server-nic-hint">
+                        留空 = 自动统计所有物理网卡（过滤 lo/docker/veth 等虚拟网卡）。
+                        仅影响之后的增量，历史数据不追溯。
+                    </p>
+                </div>
             </div>
         </form>
     </div>

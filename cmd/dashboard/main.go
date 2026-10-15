@@ -53,7 +53,8 @@ func initSystem() {
 		model.Notification{}, model.AlertRule{}, model.Monitor{},
 		model.MonitorHistory{}, model.Cron{}, model.ServerMetric{},
 		model.ServerBilling{}, model.ServerPayment{},
-		model.ServerTraffic{}, model.ServerTrafficDaily{})
+		model.ServerTraffic{}, model.ServerTrafficDaily{},
+		model.ServerNIC{})
 
 	loadServers()                      //加载服务器列表
 	dao.LoadServerBillingRuntime()     // 把订阅信息挂到内存态，供到期告警规则读取

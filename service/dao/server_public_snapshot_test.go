@@ -37,6 +37,15 @@ func TestSortedPublicServerSnapshotRedactsSensitiveFields(t *testing.T) {
 	}, false)
 	UpdateServerState(1, model.HostState{CPU: 12.5, Uptime: 99}, time.Unix(100, 0))
 
+	// 网卡明细属于节点网络拓扑，不能随公开快照泄露给游客。
+	UpdateServerState(1, model.HostState{
+		CPU:    12.5,
+		Uptime: 99,
+		NICs: []model.NICCounter{
+			{Name: "secret-nic0", BytesRecv: 1, BytesSent: 2},
+		},
+	}, time.Unix(200, 0))
+
 	servers := SortedPublicServerSnapshot()
 	if len(servers) != 1 {
 		t.Fatalf("public snapshot length = %d, want 1", len(servers))
@@ -53,6 +62,11 @@ func TestSortedPublicServerSnapshotRedactsSensitiveFields(t *testing.T) {
 	for _, sensitive := range []string{"203.0.113.10", "secret-token", "private-note", "1.0.0", `"IP"`, `"Secret"`, `"Note"`, `"Version"`} {
 		if strings.Contains(payload, sensitive) {
 			t.Fatalf("public snapshot JSON leaked %q: %s", sensitive, payload)
+		}
+	}
+	for _, sensitive := range []string{"secret-nic0", "NICs", "nic_counters"} {
+		if strings.Contains(payload, sensitive) {
+			t.Fatalf("public snapshot JSON leaked NIC detail %q: %s", sensitive, payload)
 		}
 	}
 	for _, expected := range []string{"public-node", "edge", "linux", "amd64"} {
@@ -146,7 +160,7 @@ func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
 		NetInSpeed:     100,
 		NetOutSpeed:    200,
 		Uptime:         10,
-	}, host, start)
+	}, host, nil, start)
 	ObserveServerMetric(1, model.HostState{
 		CPU:            20,
 		MemUsed:        300,
@@ -157,7 +171,7 @@ func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
 		NetInSpeed:     300,
 		NetOutSpeed:    500,
 		Uptime:         38,
-	}, host, start.Add(28*time.Second))
+	}, host, nil, start.Add(28*time.Second))
 	ObserveServerMetric(1, model.HostState{
 		CPU:            40,
 		MemUsed:        700,
@@ -168,7 +182,7 @@ func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
 		NetInSpeed:     700,
 		NetOutSpeed:    900,
 		Uptime:         61,
-	}, host, start.Add(61*time.Second))
+	}, host, nil, start.Add(61*time.Second))
 
 	var stored model.ServerMetric
 	if err := db.First(&stored, "server_id = ? AND bucket_at = ?", 1, start.Truncate(time.Minute)).Error; err != nil {
@@ -186,9 +200,12 @@ func TestObserveServerMetricAggregatesMinuteBuckets(t *testing.T) {
 	if stored.MemTotal != 1000 || stored.SwapTotal != 2000 || stored.DiskTotal != 3000 {
 		t.Fatalf("totals = mem %d swap %d disk %d, want 1000/2000/3000", stored.MemTotal, stored.SwapTotal, stored.DiskTotal)
 	}
-	if stored.NetInSpeedAvg != 200 || stored.NetOutSpeedAvg != 350 ||
-		stored.NetInSpeedMax != 300 || stored.NetOutSpeedMax != 500 {
-		t.Fatalf("network speed = in avg/max %d/%d out avg/max %d/%d, want 200/300 350/500",
+	// 速率由服务端按原始计数重算，不再采信 Agent 上报的 NetInSpeed/NetOutSpeed。
+	// 本桶两个采样：首个采样无基线计 0；第二个采样 28 秒内 +500 入 +600 出，
+	// 即 17 B/s、21 B/s。avg = (0+17)/2 = 8、(0+21)/2 = 10，max = 17、21。
+	if stored.NetInSpeedAvg != 8 || stored.NetOutSpeedAvg != 10 ||
+		stored.NetInSpeedMax != 17 || stored.NetOutSpeedMax != 21 {
+		t.Fatalf("network speed = in avg/max %d/%d out avg/max %d/%d, want 8/17 10/21",
 			stored.NetInSpeedAvg, stored.NetInSpeedMax, stored.NetOutSpeedAvg, stored.NetOutSpeedMax)
 	}
 	if stored.NetInBytes != 500 || stored.NetOutBytes != 600 {
