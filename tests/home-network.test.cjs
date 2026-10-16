@@ -172,42 +172,6 @@ test('changing views preserves history and removing a node releases its history'
     assert.equal(Object.keys(app.networkHistory).length, 0)
 })
 
-test('sticky group head uses hysteresis so it does not flicker near the threshold', () => {
-    const { app } = createPage()
-    let top = 0
-    app.$el = {
-        querySelector: () => ({ getBoundingClientRect: () => ({ top }) }),
-    }
-
-    // No getComputedStyle in the harness, so the topbar height falls back to 55.
-    // Enter threshold is 55 + 1, release threshold is 55 + 8.
-    top = 60
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, false)
-
-    top = 56
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, true)
-
-    // Dead zone (57..63): stays stuck instead of flipping back on the tighter enter threshold.
-    top = 60
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, true)
-
-    top = 63
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, true)
-
-    top = 64
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, false)
-
-    // Once released, the same 60 is below the enter threshold again.
-    top = 60
-    app.updateStickyHead()
-    assert.equal(app.groupHeadStuck, false)
-})
-
 test('network speed tiers distinguish offline, low (<100KB), mid (>=100KB), and high (>=1MB)', () => {
     const { app } = createPage()
     const server = app.servers[0]

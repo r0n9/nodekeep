@@ -21,8 +21,8 @@
                 <span>实时连接中断，正在重连。暂时保留上次收到的节点数据。</span>
             </div>
 
-            <section v-for="(group, index) in groups" :key="group.Tag" class="nk-group">
-                <div class="nk-section-title nk-group-head" :class="{ 'nk-group-head-sticky': index === 0, 'is-stuck': index === 0 && groupHeadStuck }">
+            <section v-for="group in groups" :key="group.Tag" class="nk-group">
+                <div class="nk-section-title nk-group-head">
                     <h2>@#(group.Tag !== '' ? group.Tag : '默认分组')#@</h2>
                     <div class="nk-group-tools">
                         <div class="nk-group-stats" role="group" :aria-label="(group.Tag !== '' ? group.Tag : '默认分组') + ' 节点状态统计'">
@@ -348,10 +348,6 @@
     const billingData = {{.Billings}};
     const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
     const HIDDEN_TIMEOUT_MS = 10 * 1000;
-    // 吸顶判定的迟滞阈值（相对顶栏高度）：进入吸附用紧阈值，
-    // 退出要再多滚出 RELEASE 像素，两者之差即死区，避免临界抖动。
-    const STICKY_HEAD_ENTER_OFFSET = 1;
-    const STICKY_HEAD_RELEASE_OFFSET = 8;
 
     // 判断这台机器有没有真正上报过。
     //
@@ -382,7 +378,6 @@
             networkDisconnected: false,
             isDormant: false,
             isPageHidden: false,
-            groupHeadStuck: false,
         },
         computed: {
             onlineCount() {
@@ -452,13 +447,11 @@
                 })
             }
             this.initDormancy()
-            this.initStickyHead()
             this.syncTopbarStatus()
         },
         beforeDestroy() {
             this._networkDestroyed = true
             this.destroyDormancy()
-            this.destroyStickyHead()
             window.clearInterval(this._networkTimer)
             window.clearTimeout(this._networkReconnectTimer)
             if (this._networkThemeObserver) {
@@ -671,67 +664,6 @@
                 }
                 return server.live ? 'nk-status-dot' : 'nk-status-dot offline'
             },
-            initStickyHead() {
-                this._stickyHeadRaf = 0
-                // 滚动复用 initDormancy 注册的活动监听（onUserActivity），
-                // 这里只为窗口尺寸变化补一个监听：断点会改动 --nk-topbar-h。
-                if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-                    this._stickyHeadHandler = () => this.scheduleStickyHeadCheck()
-                    window.addEventListener('resize', this._stickyHeadHandler, { passive: true })
-                }
-                this.updateStickyHead()
-            },
-            scheduleStickyHeadCheck() {
-                if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-                    this.updateStickyHead()
-                    return
-                }
-                if (this._stickyHeadRaf) {
-                    return
-                }
-                this._stickyHeadRaf = window.requestAnimationFrame(() => {
-                    this._stickyHeadRaf = 0
-                    this.updateStickyHead()
-                })
-            },
-            topbarHeight() {
-                if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
-                    return 55
-                }
-                const value = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue('--nk-topbar-h'))
-                return Number.isFinite(value) && value > 0 ? value : 55
-            },
-            updateStickyHead() {
-                if (!this.$el || typeof this.$el.querySelector !== 'function') {
-                    return
-                }
-                const head = this.$el.querySelector('.nk-group-head-sticky')
-                if (!head) {
-                    if (this.groupHeadStuck) {
-                        this.groupHeadStuck = false
-                    }
-                    return
-                }
-                const top = head.getBoundingClientRect().top
-                const threshold = this.topbarHeight()
-                // 迟滞：未吸附时用紧阈值判定进入，已吸附时用更宽的阈值判定退出。
-                const stuck = this.groupHeadStuck
-                    ? top <= threshold + STICKY_HEAD_RELEASE_OFFSET
-                    : top <= threshold + STICKY_HEAD_ENTER_OFFSET
-                if (stuck !== this.groupHeadStuck) {
-                    this.groupHeadStuck = stuck
-                }
-            },
-            destroyStickyHead() {
-                if (this._stickyHeadHandler && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
-                    window.removeEventListener('resize', this._stickyHeadHandler)
-                }
-                if (this._stickyHeadRaf && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
-                    window.cancelAnimationFrame(this._stickyHeadRaf)
-                }
-                this._stickyHeadRaf = 0
-                this._stickyHeadHandler = null
-            },
             initDormancy() {
                 this._lastActivityTime = Date.now()
                 this._lastActivityRecorded = Date.now()
@@ -795,7 +727,6 @@
                 }, IDLE_TIMEOUT_MS)
             },
             onUserActivity() {
-                this.scheduleStickyHeadCheck()
                 if (this.isDormant) {
                     return
                 }

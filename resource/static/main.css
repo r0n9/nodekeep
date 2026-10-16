@@ -975,10 +975,6 @@ html[data-theme="dark"] .nk-view-switch.nk-view-fab {
   padding-bottom: 2.5rem;
 }
 
-.nk-monitor > .nk-group:first-of-type {
-  margin-top: 0.55rem;
-}
-
 .nk-section-title {
   display: flex;
   align-items: center;
@@ -1006,30 +1002,6 @@ html[data-theme="dark"] .nk-view-switch.nk-view-fab {
 .nk-group-head {
   flex-wrap: wrap;
   row-gap: 0.3rem;
-}
-
-.nk-group-head-sticky {
-  position: sticky;
-  top: var(--nk-topbar-h, 55px);
-  z-index: 90;
-  margin-bottom: 0;
-  padding: 0.5rem 0 0.55rem;
-  background: var(--nk-bg);
-  transition: box-shadow 160ms ease, padding 160ms ease;
-}
-
-.nk-group-head-sticky.is-stuck {
-  padding-top: 0.34rem;
-  padding-bottom: 0.44rem;
-  box-shadow:
-    0 1px 0 var(--nk-border),
-    0 10px 18px -14px rgba(10, 31, 68, 0.45);
-}
-
-html[data-theme="dark"] .nk-group-head-sticky.is-stuck {
-  box-shadow:
-    0 1px 0 var(--nk-border-strong),
-    0 12px 20px -14px rgba(0, 0, 0, 0.7);
 }
 
 .nk-group-tools {
@@ -4711,20 +4683,10 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
     margin-right: 0.24rem;
   }
 
-  /* 窄屏下收紧分组头工具区间距，并压低吸顶头内边距，
-     让首个分组头（吸顶）在移动端更紧凑。 */
+  /* 窄屏下收紧分组头工具区间距。 */
   .nk-group-tools {
     gap: 0.4rem;
     min-width: 0;
-  }
-
-  .nk-group-head-sticky {
-    padding: 0.4rem 0 0.46rem;
-  }
-
-  .nk-group-head-sticky.is-stuck {
-    padding-top: 0.28rem;
-    padding-bottom: 0.34rem;
   }
 
   .nk-topbar-status {
@@ -5113,8 +5075,7 @@ html[data-theme="dark"] .ui.table.nk-table .ui.mini.icon.buttons .nk-copy-agent-
   .nk-network-chart .nk-network-tooltip,
   .nk-meter-track i,
   .nk-node-details-toggle,
-  .nk-history-grid.is-loading,
-  .nk-group-head-sticky {
+  .nk-history-grid.is-loading {
     transition: none;
   }
 }
