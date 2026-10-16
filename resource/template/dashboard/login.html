@@ -4,7 +4,7 @@
     <section class="nk-auth-panel">
         <div class="nk-auth-panel-top">
             <a class="nk-auth-brand" href="/">
-                <img src="/static/logo.svg" alt="nodekeep">
+                <img src="/static/logo.svg" alt="NodeKeep">
                 <span>{{.Conf.Site.Brand}}</span>
             </a>
             <button class="nk-theme-toggle" type="button" onclick="if (window.toggleColorMode) window.toggleColorMode()"
@@ -26,7 +26,7 @@
             </button>
         </div>
         <h1>登录管理后台</h1>
-        <p>使用本地管理员账号或 OAuth2 账号进入 nodekeep。</p>
+        <p>使用本地管理员账号或 OAuth2 账号进入 NodeKeep。</p>
 
         {{if .Conf.Auth.Local.Enabled}}
         <form class="ui form nk-auth-form" action="/login" method="POST">
