@@ -584,8 +584,8 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
 }
 
 .nk-public-page {
-  padding-top: 18px;
-  padding-bottom: 34px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .nk-admin-page {
