@@ -1,7 +1,15 @@
 function readableBytes(bytes) {
-    var i = Math.floor(Math.log(bytes) / Math.log(1024)),
-        sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    return (bytes / Math.pow(1024, i)).toFixed(0) + ' ' + sizes[i];
+    var value = Number(bytes)
+    if (!isFinite(value) || value <= 0) {
+        return '0 B'
+    }
+    // 保留有效精度：大单位下整数取整会把 1.66TB 显示成 2TB，
+    // 导致用量与总量看起来一样（例如 2TB / 2TB）。
+    var sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+        i = Math.min(Math.floor(Math.log(value) / Math.log(1024)), sizes.length - 1),
+        scaled = value / Math.pow(1024, i),
+        digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+    return parseFloat(scaled.toFixed(digits)) + ' ' + sizes[i];
 }
 
 $.ajaxSetup({
