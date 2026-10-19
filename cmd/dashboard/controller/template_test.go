@@ -207,11 +207,15 @@ func TestHomeCardExportAssets(t *testing.T) {
 	}
 	body := w.Body.String()
 	for _, expected := range []string{
-		"nk-card-export",
+		"nk-card-tools",
+		"nk-card-tool",
 		`data-html2canvas-ignore="true"`,
 		"exportCard(server)",
+		"copyCard(server)",
+		"canCopyImage",
 		"/static/vendor/html2canvas/html2canvas.min.js",
 		"/static/card-export.js",
+		`const brandName = "nodekeep";`,
 	} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("home body missing %q", expected)
@@ -225,6 +229,11 @@ func TestHomeCardExportAssets(t *testing.T) {
 	}
 	if !strings.Contains(string(exporter), "NodeKeepCardExport") {
 		t.Fatal("card-export.js does not expose NodeKeepCardExport")
+	}
+	for _, expected := range []string{"render:", "copy:", "canCopy:", "watermarkStamp:"} {
+		if !strings.Contains(string(exporter), expected) {
+			t.Fatalf("card-export.js missing export %q", expected)
+		}
 	}
 	if _, err := os.Stat(filepath.Join("resource", "static", "vendor", "html2canvas", "html2canvas.min.js")); err != nil {
 		t.Fatalf("html2canvas vendor missing: %v", err)

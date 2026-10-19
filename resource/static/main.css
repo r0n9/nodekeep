@@ -1098,55 +1098,91 @@ html[data-theme="dark"] .nk-view-switch.nk-view-fab {
   box-shadow: var(--nk-panel-shadow);
 }
 
-/* 卡片导出按钮：桌面端悬停卡片时出现，触摸设备常显。 */
-.nk-card-export {
+/* 卡片工具条（导出 / 复制）：绝对定位悬浮在右上角，不占布局，
+   所以「运行时长」可以一直贴在右边缘。桌面端悬停卡片时浮出，触摸设备常显。 */
+.nk-card-tools {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.55rem;
+  right: 0.55rem;
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.15rem;
+  border: 1px solid var(--nk-border);
+  border-radius: 9px;
+  background: var(--nk-surface);
+  box-shadow: var(--nk-panel-shadow);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.94);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.nk-card-tool {
+  display: grid;
+  place-items: center;
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid var(--nk-border);
+  border: 0;
   border-radius: 6px;
-  background: var(--nk-surface);
+  background: transparent;
   color: var(--nk-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   line-height: 1;
   cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, transform 100ms ease;
+}
+
+.nk-node-card:hover .nk-card-tools,
+.nk-card-tools:focus-within {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* 工具条浮出的位置正是「运行时长」所在，悬停时让它淡出，避免两层文字叠在一起。 */
+.nk-node-card .nk-node-header-runtime {
+  transition: opacity 150ms ease;
+}
+
+.nk-node-card:hover .nk-node-header-runtime {
   opacity: 0;
-  transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
-.nk-node-card:hover .nk-card-export,
-.nk-card-export:focus-visible {
-  opacity: 1;
-}
-
-.nk-card-export:hover {
+.nk-card-tool:hover {
   color: var(--nk-accent);
-  border-color: var(--nk-accent);
+  background: var(--nk-accent-soft);
 }
 
-.nk-card-export:disabled {
+.nk-card-tool:active {
+  transform: scale(0.94);
+}
+
+.nk-card-tool:focus-visible {
+  outline: 2px solid var(--nk-accent);
+  outline-offset: 1px;
+}
+
+.nk-card-tool:disabled {
   cursor: default;
-  opacity: 1;
   color: var(--nk-subtle);
+  background: transparent;
 }
 
 @media (hover: none) {
-  .nk-card-export {
+  .nk-card-tools {
     opacity: 1;
+    transform: none;
+    pointer-events: auto;
   }
-}
 
-/* 为右上角的导出按钮预留位置，避免压住第一行的运行时长文本。
-   按钮用 opacity 显隐，始终占位，所以不会产生悬停抖动。 */
-.nk-node-card .nk-node-header-main {
-  padding-right: 1.5rem;
+  /* 触摸设备上工具条常显，同样把位置让给工具条。 */
+  .nk-node-card .nk-node-header-runtime {
+    opacity: 0;
+  }
 }
 
 .nk-node-card.offline {

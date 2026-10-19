@@ -36,11 +36,19 @@
 
                 <div v-if="viewMode === 'card'" class="nk-node-grid">
                     <article v-for="server in group.data" :key="server.ID" :id="server.ID" class="nk-node-card" :class="{ offline: server.reported && !server.live && !networkDisconnected }">
-                        <button type="button" class="nk-card-export" data-html2canvas-ignore="true"
-                            :disabled="!!exporting[server.ID]" @click.stop="exportCard(server)"
-                            :aria-label="'导出 ' + server.Name + ' 的卡片图片'" title="导出为图片">
-                            <i :class="exporting[server.ID] ? 'spinner loading icon' : 'download icon'" aria-hidden="true"></i>
-                        </button>
+                        <div class="nk-card-tools" data-html2canvas-ignore="true">
+                            <button type="button" class="nk-card-tool" :disabled="!!exporting[server.ID]"
+                                @click.stop="exportCard(server)"
+                                :aria-label="'导出 ' + server.Name + ' 的卡片图片'" title="导出为图片">
+                                <i :class="exporting[server.ID] ? 'spinner loading icon' : 'download icon'" aria-hidden="true"></i>
+                            </button>
+                            <button v-if="canCopyImage" type="button" class="nk-card-tool" :disabled="!!exporting[server.ID]"
+                                @click.stop="copyCard(server)"
+                                :aria-label="'复制 ' + server.Name + ' 的卡片图片'"
+                                :title="copied[server.ID] ? '已复制到剪贴板' : '复制到剪贴板'">
+                                <i :class="copied[server.ID] ? 'check icon' : 'copy icon'" aria-hidden="true"></i>
+                            </button>
+                        </div>
                         <div class="nk-node-header">
                             <div class="nk-node-header-main">
                                 <div class="nk-node-name">
@@ -347,12 +355,14 @@
 <script src="/static/vendor/uplot/uPlot.iife.min.js?v1.6.31"></script>
 <script src="/static/network-chart.js?v2026091001"></script>
 <script src="/static/vendor/html2canvas/html2canvas.min.js?v1.4.1"></script>
-<script src="/static/card-export.js?v2026101901"></script>
+<script src="/static/card-export.js?v2026101906"></script>
 <script>
     const initData = {{.Servers}};
     // 计费信息不随 /ws 推送：那条快照每 2 秒下发一次全量数据并整个替换 servers，
     // 一年不变的字段跟着走纯属浪费。首屏渲染一份，ws 回调里按 ID 合并回来。
     const billingData = {{.Billings}};
+    // 导出图片的水印用站点名称，跟顶栏/页脚展示的是同一个值。
+    const brandName = {{.Conf.Site.Brand}};
     const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
     const HIDDEN_TIMEOUT_MS = 10 * 1000;
 
@@ -388,6 +398,8 @@
             // 按节点 ID 记录导出中的状态，用于禁用按钮并显示 spinner。
             // 用 $set/$delete 维护，否则 Vue 2 侦测不到新增键。
             exporting: {},
+            // 复制成功后的短暂反馈（图标临时变成对勾）。
+            copied: {},
         },
         computed: {
             onlineCount() {
@@ -431,6 +443,11 @@
                     return 'status-pending'
                 }
                 return 'status-online'
+            },
+            // 复制图片要求安全上下文（HTTPS 或 localhost）与 ClipboardItem 支持，
+            // 不满足时直接隐藏按钮，避免点了才报错。
+            canCopyImage() {
+                return !!(window.NodeKeepCardExport && window.NodeKeepCardExport.canCopy())
             },
         },
         created() {
@@ -523,8 +540,33 @@
                     return
                 }
                 this.$set(this.exporting, server.ID, true)
-                exporter.capture(card, { name: server.Name }).catch(error => {
+                exporter.capture(card, { name: server.Name, brand: brandName }).catch(error => {
                     window.alert('导出图片失败：' + (error && error.message ? error.message : error))
+                }).then(() => {
+                    this.$delete(this.exporting, server.ID)
+                })
+            },
+            copyCard(server) {
+                if (!server || this.exporting[server.ID]) {
+                    return
+                }
+                const card = document.getElementById(String(server.ID))
+                if (!card) {
+                    return
+                }
+                const exporter = window.NodeKeepCardExport
+                if (!exporter || !exporter.canCopy()) {
+                    window.alert('当前环境不支持复制图片，请改用下载。')
+                    return
+                }
+                this.$set(this.exporting, server.ID, true)
+                exporter.copy(card, { name: server.Name, brand: brandName }).then(() => {
+                    this.$set(this.copied, server.ID, true)
+                    window.setTimeout(() => {
+                        this.$delete(this.copied, server.ID)
+                    }, 1800)
+                }).catch(error => {
+                    window.alert('复制图片失败：' + (error && error.message ? error.message : error))
                 }).then(() => {
                     this.$delete(this.exporting, server.ID)
                 })
