@@ -1089,12 +1089,64 @@ html[data-theme="dark"] .nk-view-switch.nk-view-fab {
 }
 
 .nk-node-card {
+  position: relative;
   min-width: 0;
   padding: 0.9rem;
   border: 1px solid var(--nk-border);
   border-radius: var(--nk-radius);
   background: var(--nk-surface);
   box-shadow: var(--nk-panel-shadow);
+}
+
+/* 卡片导出按钮：桌面端悬停卡片时出现，触摸设备常显。 */
+.nk-card-export {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--nk-border);
+  border-radius: 6px;
+  background: var(--nk-surface);
+  color: var(--nk-muted);
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.nk-node-card:hover .nk-card-export,
+.nk-card-export:focus-visible {
+  opacity: 1;
+}
+
+.nk-card-export:hover {
+  color: var(--nk-accent);
+  border-color: var(--nk-accent);
+}
+
+.nk-card-export:disabled {
+  cursor: default;
+  opacity: 1;
+  color: var(--nk-subtle);
+}
+
+@media (hover: none) {
+  .nk-card-export {
+    opacity: 1;
+  }
+}
+
+/* 为右上角的导出按钮预留位置，避免压住第一行的运行时长文本。
+   按钮用 opacity 显隐，始终占位，所以不会产生悬停抖动。 */
+.nk-node-card .nk-node-header-main {
+  padding-right: 1.5rem;
 }
 
 .nk-node-card.offline {

@@ -170,6 +170,67 @@ func TestNodeDetailPageAndMetricsEndpoint(t *testing.T) {
 	}
 }
 
+func TestHomeCardExportAssets(t *testing.T) {
+	restoreWorkingDir := chdirRepoRoot(t)
+	defer restoreWorkingDir()
+
+	previousConf := dao.Conf
+	previousDB := dao.DB
+	defer func() {
+		dao.Conf = previousConf
+		dao.DB = previousDB
+	}()
+	dao.Conf = &model.Config{}
+	dao.Conf.Site.Brand = "nodekeep"
+	dao.Conf.Site.CookieName = "nodekeep"
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	dao.DB = db
+	dao.InitServerRuntimeState()
+	dao.UpsertServerRuntime(model.Server{
+		Common:       model.Common{ID: 1},
+		Name:         "node-a",
+		Tag:          "edge",
+		DisplayIndex: 1,
+	}, false)
+
+	r := ServeWeb()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("home status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	for _, expected := range []string{
+		"nk-card-export",
+		`data-html2canvas-ignore="true"`,
+		"exportCard(server)",
+		"/static/vendor/html2canvas/html2canvas.min.js",
+		"/static/card-export.js",
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("home body missing %q", expected)
+		}
+	}
+
+	// 导出脚本与 vendor 库是静态资源，不在 HTML 里，直接校验文件存在且暴露了入口。
+	exporter, err := os.ReadFile(filepath.Join("resource", "static", "card-export.js"))
+	if err != nil {
+		t.Fatalf("read card-export.js: %v", err)
+	}
+	if !strings.Contains(string(exporter), "NodeKeepCardExport") {
+		t.Fatal("card-export.js does not expose NodeKeepCardExport")
+	}
+	if _, err := os.Stat(filepath.Join("resource", "static", "vendor", "html2canvas", "html2canvas.min.js")); err != nil {
+		t.Fatalf("html2canvas vendor missing: %v", err)
+	}
+}
+
 func chdirRepoRoot(t *testing.T) func() {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
