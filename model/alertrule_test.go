@@ -170,3 +170,63 @@ func TestAlertRuleExpireDays(t *testing.T) {
 		})
 	}
 }
+
+func TestRuleAllowedHour(t *testing.T) {
+	atHour := func(hour int) time.Time {
+		return time.Date(2026, 10, 26, hour, 30, 0, 0, time.Local)
+	}
+
+	intPtr := func(v int) *int {
+		return &v
+	}
+
+	// 1. 普通性能规则（如 cpu）全天允许
+	cpuRule := Rule{Type: "cpu", Max: 90}
+	if !cpuRule.AllowedHour(atHour(0)) || !cpuRule.AllowedHour(atHour(12)) || !cpuRule.AllowedHour(atHour(23)) {
+		t.Errorf("cpu 规则应全天允许发送提醒")
+	}
+
+	// 2. expire_days 默认只在 09:00 ~ 21:00 允许
+	expireRule := Rule{Type: "expire_days", Min: 8}
+	if expireRule.AllowedHour(atHour(0)) {
+		t.Errorf("expire_days 默认在 00:30 不应允许发送")
+	}
+	if expireRule.AllowedHour(atHour(8)) {
+		t.Errorf("expire_days 默认在 08:30 不应允许发送")
+	}
+	if !expireRule.AllowedHour(atHour(9)) {
+		t.Errorf("expire_days 默认在 09:30 应允许发送")
+	}
+	if !expireRule.AllowedHour(atHour(15)) {
+		t.Errorf("expire_days 默认在 15:30 应允许发送")
+	}
+	if !expireRule.AllowedHour(atHour(20)) {
+		t.Errorf("expire_days 默认在 20:30 应允许发送")
+	}
+	if expireRule.AllowedHour(atHour(21)) {
+		t.Errorf("expire_days 默认在 21:30 不应允许发送")
+	}
+
+	// 3. 自定义 start_hour 和 end_hour
+	customRule := Rule{Type: "expire_days", Min: 8, StartHour: intPtr(10), EndHour: intPtr(18)}
+	if customRule.AllowedHour(atHour(9)) {
+		t.Errorf("customRule 在 09:30 不应允许发送")
+	}
+	if !customRule.AllowedHour(atHour(10)) {
+		t.Errorf("customRule 在 10:30 应允许发送")
+	}
+	if customRule.AllowedHour(atHour(18)) {
+		t.Errorf("customRule 在 18:30 不应允许发送")
+	}
+
+	// 4. AlertRule 聚合检测
+	alert := AlertRule{
+		Rules: []Rule{expireRule},
+	}
+	if alert.AllowedNotificationTime(atHour(0)) {
+		t.Errorf("包含 expire_days 的 alert 在 00:30 不应允许发送")
+	}
+	if !alert.AllowedNotificationTime(atHour(10)) {
+		t.Errorf("包含 expire_days 的 alert 在 10:30 应允许发送")
+	}
+}

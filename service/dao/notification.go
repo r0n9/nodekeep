@@ -9,7 +9,10 @@ import (
 	"github.com/r0n9/nodekeep/model"
 )
 
-const firstNotificationDelay = time.Minute * 15
+const (
+	firstNotificationDelay = time.Minute * 15
+	notificationCacheTTL   = time.Hour * 48
+)
 
 // 通知方式
 var notifications []model.Notification
@@ -56,8 +59,8 @@ func SendNotification(desc string, muteable bool) {
 					nHistory.Duration = time.Hour * 24
 				}
 				nHistory.Until = time.Now().Add(nHistory.Duration)
-				// 缓存有效期加 10 分钟
-				Cache.Set(nID, nHistory, nHistory.Duration+time.Minute*10)
+				// 缓存保留足够长时间，避免夜间免打扰时段过后退避进度在次日被清空重置
+				Cache.Set(nID, nHistory, notificationCacheTTL)
 			}
 		} else {
 			// 新提醒直接通知
@@ -65,7 +68,7 @@ func SendNotification(desc string, muteable bool) {
 			Cache.Set(nID, NotificationHistory{
 				Duration: firstNotificationDelay,
 				Until:    time.Now().Add(firstNotificationDelay),
-			}, firstNotificationDelay+time.Minute*10)
+			}, notificationCacheTTL)
 		}
 
 		if !flag {

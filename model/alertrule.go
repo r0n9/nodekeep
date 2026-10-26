@@ -17,11 +17,38 @@ const (
 type Rule struct {
 	// 指标类型，cpu、memory、swap、disk、net_in_speed、net_out_speed
 	// net_all_speed、transfer_in、transfer_out、transfer_all、offline、expire_days
-	Type     string          `json:"type,omitempty"`
-	Min      uint64          `json:"min,omitempty"`      // 最小阈值 (百分比、字节 kb ÷ 1024)
-	Max      uint64          `json:"max,omitempty"`      // 最大阈值 (百分比、字节 kb ÷ 1024)
-	Duration uint64          `json:"duration,omitempty"` // 持续时间 (秒)
-	Ignore   map[uint64]bool `json:"ignore,omitempty"`   //忽略此规则的ID列表
+	Type      string          `json:"type,omitempty"`
+	Min       uint64          `json:"min,omitempty"`        // 最小阈值 (百分比、字节 kb ÷ 1024)
+	Max       uint64          `json:"max,omitempty"`        // 最大阈值 (百分比、字节 kb ÷ 1024)
+	Duration  uint64          `json:"duration,omitempty"`   // 持续时间 (秒)
+	Ignore    map[uint64]bool `json:"ignore,omitempty"`     // 忽略此规则的ID列表
+	StartHour *int            `json:"start_hour,omitempty"` // 提醒起始小时 (0-23，expire_days 默认 9)
+	EndHour   *int            `json:"end_hour,omitempty"`   // 提醒结束小时 (0-23，expire_days 默认 21)
+}
+
+// AllowedHour 判断当前时刻是否处于该规则允许发送提醒的小时时段内。
+// 针对 expire_days 规则，默认只在白天 09:00 ~ 21:00 提醒，避免夜间打扰。
+func (u *Rule) AllowedHour(now time.Time) bool {
+	hour := now.Hour()
+	start := 0
+	end := 24
+	if u.Type == "expire_days" {
+		start = 9
+		end = 21
+	}
+	if u.StartHour != nil {
+		start = *u.StartHour
+	}
+	if u.EndHour != nil {
+		end = *u.EndHour
+	}
+	if (start == 0 && end == 24) || start == end {
+		return true
+	}
+	if start < end {
+		return hour >= start && hour < end
+	}
+	return hour >= start || hour < end
 }
 
 func percentage(used, total uint64) uint64 {
@@ -180,4 +207,15 @@ func (r *AlertRule) Check(points [][]interface{}) (int, string) {
 		return max, dist.String()
 	}
 	return max, ""
+}
+
+// AllowedNotificationTime 检查告警规则内是否所有子规则都允许在此刻发送通知。
+// 如果包含 expire_days，默认仅在白天 09:00 ~ 21:00 发送。
+func (r *AlertRule) AllowedNotificationTime(now time.Time) bool {
+	for i := range r.Rules {
+		if !r.Rules[i].AllowedHour(now) {
+			return false
+		}
+	}
+	return true
 }

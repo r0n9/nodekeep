@@ -112,9 +112,11 @@ func checkStatus() {
 			// 发送通知
 			max, desc := alert.Check(alertsStore[alert.ID][server.ID])
 			if desc != "" {
-				message := alertTriggerMessage(&alert, server, desc)
-				go SendNotification(message, true)
-				updateAlertCheckStateLocked(alert.ID, server.ID, true)
+				if alert.AllowedNotificationTime(time.Now()) {
+					message := alertTriggerMessage(&alert, server, desc)
+					go SendNotification(message, true)
+					updateAlertCheckStateLocked(alert.ID, server.ID, true)
+				}
 			} else if updateAlertCheckStateLocked(alert.ID, server.ID, false) {
 				message := alertRecoveryMessage(&alert, server)
 				go SendNotification(message, false)

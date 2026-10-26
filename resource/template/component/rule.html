@@ -71,7 +71,7 @@
 ]</code></pre>
         </section>
         <p class="nk-rule-help-note">同一告警规则内的子规则全部持续异常时才会触发；当前不支持按服务器分组指定规则。<br>
-            <code>expire_days</code> 取订阅剩余天数（已过期为负），<code>min</code> 为严格小于：<code>min:8</code> 表示剩余不足 8 天（即 ≤7 天）时告警。未录入订阅、未填到期日、已退订或已静音的节点不参与该规则。</p>
+            <code>expire_days</code> 取订阅剩余天数（已过期为负），<code>min</code> 为严格小于：<code>min:8</code> 表示剩余不足 8 天（即 ≤7 天）时告警。未录入订阅、未填到期日、已退订或已静音的节点不参与该规则。默认仅在白天 09:00 ~ 21:00 发送提醒，支持通过 <code>start_hour</code>、<code>end_hour</code> 自定义提醒时段。</p>
     </div>
     <div class="actions">
         <button class="ui primary approve button">知道了</button>
