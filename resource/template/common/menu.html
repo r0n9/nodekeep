@@ -6,7 +6,7 @@
                 <img src="/static/logo.svg" alt="NodeKeep">
                 <span class="nk-brand-name">{{.Conf.Site.Brand}}</span>
             </a>
-            {{if eq .MatchedPath "/"}}
+            {{if or (eq .MatchedPath "/") (eq .MatchedPath "/node/:id")}}
             <span id="nk-topbar-status" class="nk-hero-status-badge nk-topbar-status" hidden>
                 <span class="nk-live-dot" aria-hidden="true"></span>
                 <span class="nk-topbar-status-text">运行正常</span>

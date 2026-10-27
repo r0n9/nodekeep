@@ -750,6 +750,18 @@ html[data-theme="dark"] .nk-theme-toggle[data-tooltip]:before {
   border-color: rgba(7, 89, 133, 0.22);
 }
 
+.nk-hero-status-badge.status-dormant {
+  background: var(--nk-muted-soft, rgba(100, 116, 139, 0.08));
+  color: var(--nk-muted);
+  border-color: rgba(100, 116, 139, 0.22);
+}
+
+.nk-hero-status-badge.status-dormant .nk-live-dot::after,
+.nk-hero-status-badge.status-warning .nk-live-dot::after {
+  animation: none;
+  opacity: 0;
+}
+
 /* Segmented View Switcher */
 .nk-view-switch {
   display: inline-flex;
